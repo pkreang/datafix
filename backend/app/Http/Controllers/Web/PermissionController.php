@@ -3,23 +3,28 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $token = session('api_token');
-        $apiReq = Request::create('/api/v1/permissions', 'GET');
-        $apiReq->headers->set('Authorization', 'Bearer ' . $token);
-        $apiReq->headers->set('Accept', 'application/json');
-        $apiReq->cookies->replace($request->cookies->all());
+        $permissions = Permission::orderBy('name')->get();
 
-        $response = app()->handle($apiReq);
-        $data = json_decode($response->getContent(), true);
-        $grouped = $data['grouped'] ?? [];
-        $total = $data['total'] ?? 0;
+        $grouped = [];
+        foreach ($permissions as $perm) {
+            $parts = explode('.', $perm->name);
+            $module = $parts[0] ?? 'other';
+            $action = $parts[1] ?? $perm->name;
+            $grouped[$module][] = [
+                'id'     => $perm->id,
+                'name'   => $perm->name,
+                'action' => $action,
+            ];
+        }
+
+        $total = $permissions->count();
 
         return view('permissions.index', compact('grouped', 'total'));
     }

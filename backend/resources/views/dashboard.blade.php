@@ -50,7 +50,7 @@
 
     {{-- Welcome --}}
     <div class="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Welcome back, {{ session('user.name', 'User') }}!</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Welcome back, {{ trim(session('user.first_name', '') . ' ' . session('user.last_name', '')) ?: session('user.name', 'User') }}!</h3>
         <p class="text-gray-500">Use the sidebar to manage users, roles, and permissions.</p>
     </div>
 @endsection

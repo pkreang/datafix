@@ -5,103 +5,110 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $response = $this->apiRequest($request, 'GET', '/roles');
-        $data = $this->apiJson($response);
-        $roles = $data['data'] ?? [];
+        $roles = Role::withCount('permissions')->get()->map(function ($role) {
+            $role->users_count = $role->users()->count();
+            return $role;
+        })->toArray();
 
         return view('roles.index', compact('roles'));
     }
 
-    public function show(Request $request, int $id): View
+    public function show(int $id): View
     {
-        $response = $this->apiRequest($request, 'GET', '/roles/' . $id);
-        $data = $this->apiJson($response);
-        $role = $data['data'] ?? [];
+        $role = Role::with('permissions')->findOrFail($id);
+        $role->users_count = $role->users()->count();
+
+        $permissionsByModule = [];
+        foreach ($role->permissions as $perm) {
+            $parts = explode('.', $perm->name);
+            $module = $parts[0] ?? 'other';
+            $action = $parts[1] ?? $perm->name;
+            $permissionsByModule[$module][] = [
+                'id'     => $perm->id,
+                'name'   => $perm->name,
+                'action' => $action,
+            ];
+        }
+
+        $role = $role->toArray();
+        $role['permissions_by_module'] = $permissionsByModule;
 
         return view('roles.show', compact('role'));
     }
 
-    public function create(Request $request): View
+    public function create(): View
     {
-        $permRes = $this->apiRequest($request, 'GET', '/permissions');
-        $permData = $this->apiJson($permRes);
-        $grouped = $permData['grouped'] ?? [];
+        $grouped = $this->groupedPermissions();
 
         return view('roles.create', compact('grouped'));
     }
 
     public function store(Request $request)
     {
-        $response = $this->apiRequest($request, 'POST', '/roles', [], [
-            'name'        => $request->name,
-            'permissions' => $request->permissions ?? [],
-        ]);
+        $request->validate(['name' => 'required|string|unique:roles,name']);
 
-        $data = $this->apiJson($response);
+        $role = Role::create(['name' => $request->name, 'guard_name' => 'web']);
 
-        if ($response->getStatusCode() >= 400) {
-            return back()->withInput()->withErrors(['name' => $data['message'] ?? 'Error creating role.']);
+        if ($request->has('permissions')) {
+            $permissions = Permission::whereIn('id', $request->permissions)->get();
+            $role->syncPermissions($permissions);
         }
 
         return redirect()->route('roles.index')->with('success', 'Role created.');
     }
 
-    public function edit(Request $request, int $id): View
+    public function edit(int $id): View
     {
-        $roleRes = $this->apiRequest($request, 'GET', '/roles/' . $id);
-        $roleData = $this->apiJson($roleRes);
-        $role = $roleData['data'] ?? [];
-
-        $permRes = $this->apiRequest($request, 'GET', '/permissions');
-        $permData = $this->apiJson($permRes);
-        $grouped = $permData['grouped'] ?? [];
+        $role = Role::with('permissions')->findOrFail($id)->toArray();
+        $grouped = $this->groupedPermissions();
 
         return view('roles.edit', compact('role', 'grouped'));
     }
 
     public function update(Request $request, int $id)
     {
-        $response = $this->apiRequest($request, 'PUT', '/roles/' . $id, [], [
-            'name'        => $request->name,
-            'permissions' => $request->permissions ?? [],
-        ]);
+        $role = Role::findOrFail($id);
+        $request->validate(['name' => 'sometimes|string|unique:roles,name,' . $id]);
 
-        $data = $this->apiJson($response);
+        if ($request->has('name')) {
+            $role->update(['name' => $request->name]);
+        }
 
-        if ($response->getStatusCode() >= 400) {
-            return back()->withInput()->withErrors(['name' => $data['message'] ?? 'Error updating role.']);
+        if ($request->has('permissions')) {
+            $permissions = Permission::whereIn('id', $request->permissions)->get();
+            $role->syncPermissions($permissions);
         }
 
         return redirect()->route('roles.index')->with('success', 'Role updated.');
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(int $id)
     {
-        $this->apiRequest($request, 'DELETE', '/roles/' . $id);
+        Role::findOrFail($id)->delete();
 
         return redirect()->route('roles.index')->with('success', 'Role deleted.');
     }
 
-    protected function apiRequest(Request $request, string $method, string $path, array $params = [], array $body = []): SymfonyResponse
+    private function groupedPermissions(): array
     {
-        $token = session('api_token');
-        $query = $params ? '?' . http_build_query($params) : '';
-        $apiReq = Request::create('/api/v1' . $path . $query, $method, $body);
-        $apiReq->headers->set('Authorization', 'Bearer ' . $token);
-        $apiReq->headers->set('Accept', 'application/json');
-        $apiReq->cookies->replace($request->cookies->all());
-
-        return app()->handle($apiReq);
-    }
-
-    protected function apiJson(SymfonyResponse $response): array
-    {
-        return json_decode($response->getContent(), true) ?? [];
+        $grouped = [];
+        foreach (Permission::orderBy('name')->get() as $perm) {
+            $parts = explode('.', $perm->name);
+            $module = $parts[0] ?? 'other';
+            $action = $parts[1] ?? $perm->name;
+            $grouped[$module][] = [
+                'id'     => $perm->id,
+                'name'   => $perm->name,
+                'action' => $action,
+            ];
+        }
+        return $grouped;
     }
 }

@@ -53,7 +53,8 @@ class RolePermissionSeeder extends Seeder
         $user = User::firstOrCreate(
             ['email' => 'admin@example.com'],
             [
-                'name'           => 'Super Admin',
+                'first_name'     => 'Super',
+                'last_name'      => 'Admin',
                 'password'       => 'password',
                 'is_active'      => true,
                 'is_super_admin' => true,

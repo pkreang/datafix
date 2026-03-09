@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -44,16 +43,7 @@ class AuthController extends Controller
                 'token'      => $token,
                 'token_type' => 'Bearer',
                 'expires_at' => null,
-                'user'       => [
-                    'id'             => $user->id,
-                    'name'           => $user->name,
-                    'email'          => $user->email,
-                    'avatar'         => $user->avatar,
-                    'is_active'      => $user->is_active,
-                    'last_active_at' => $user->last_active_at?->toIso8601String(),
-                    'roles'          => $user->getRoleNames()->toArray(),
-                    'permissions'    => $user->getAllPermissions()->pluck('name')->toArray(),
-                ],
+                'user'       => $this->formatUser($user),
             ],
         ]);
     }
@@ -70,20 +60,27 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
-
         return response()->json([
             'success' => true,
-            'data'    => [
-                'id'             => $user->id,
-                'name'           => $user->name,
-                'email'          => $user->email,
-                'avatar'         => $user->avatar,
-                'is_active'      => $user->is_active,
-                'last_active_at' => $user->last_active_at?->toIso8601String(),
-                'roles'          => $user->getRoleNames()->toArray(),
-                'permissions'    => $user->getAllPermissions()->pluck('name')->toArray(),
-            ],
+            'data'    => $this->formatUser($request->user()),
         ]);
+    }
+
+    private function formatUser(User $user): array
+    {
+        return [
+            'id'             => $user->id,
+            'first_name'     => $user->first_name,
+            'last_name'      => $user->last_name,
+            'full_name'      => $user->full_name,
+            'email'          => $user->email,
+            'avatar'         => $user->avatar,
+            'department'     => $user->department,
+            'position'       => $user->position,
+            'is_active'      => $user->is_active,
+            'last_active_at' => $user->last_active_at?->toIso8601String(),
+            'roles'          => $user->getRoleNames()->toArray(),
+            'permissions'    => $user->getAllPermissions()->pluck('name')->toArray(),
+        ];
     }
 }

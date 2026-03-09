@@ -58,7 +58,9 @@ class AuthController extends Controller
             'api_token'        => $data['data']['token'] ?? null,
             'user'             => [
                 'id'             => $userData['id'] ?? null,
-                'name'           => $userData['name'] ?? '',
+                'first_name'     => $userData['first_name'] ?? '',
+                'last_name'      => $userData['last_name'] ?? '',
+                'name'           => trim(($userData['first_name'] ?? '') . ' ' . ($userData['last_name'] ?? '')) ?: ($userData['name'] ?? ''),
                 'email'          => $userData['email'] ?? '',
                 'avatar'         => $userData['avatar'] ?? null,
                 'roles'          => $roles,

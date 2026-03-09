@@ -14,9 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(prepend: [\App\Http\Middleware\ForceRequestUrl::class]);
         $middleware->alias([
-            'auth.web'   => \App\Http\Middleware\AuthenticateWeb::class,
-            'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'auth.web'    => \App\Http\Middleware\AuthenticateWeb::class,
+            'super-admin' => \App\Http\Middleware\SuperAdminOnly::class,
+            'role'        => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission'  => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
