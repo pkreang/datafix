@@ -1,17 +1,17 @@
 @extends('layouts.app')
 
-@section('title', $menu->exists ? 'Edit Menu Item' : 'Add Menu Item')
+@section('title', $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item'))
 
 @section('content')
 <div class="max-w-2xl" x-data="navMenuForm()">
     <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">{{ $menu->exists ? 'Edit Menu Item' : 'Add Menu Item' }}</h2>
-        <p class="text-sm text-gray-500 mt-1">{{ $menu->exists ? 'Update sidebar navigation item' : 'Create a new sidebar navigation item' }}</p>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $menu->exists ? __('common.update_menu_item_desc') : __('common.create_menu_item_desc') }}</p>
     </div>
 
     @if ($errors->any())
-        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <ul class="text-sm text-red-700 space-y-1">
+        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <ul class="text-sm text-red-700 dark:text-red-400 space-y-1">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -24,56 +24,56 @@
         @csrf
         @if ($menu->exists) @method('PUT') @endif
 
-        <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
             {{-- Label --}}
             <div>
-                <label for="label" class="block text-sm font-medium text-gray-700 mb-1">Label <span class="text-red-500">*</span></label>
+                <label for="label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_label') }} <span class="text-red-500">*</span></label>
                 <input type="text" name="label" id="label"
                        value="{{ old('label', $menu->label) }}"
                        required placeholder="e.g. Dashboard"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             </div>
 
             {{-- Icon --}}
             <div>
-                <label for="icon" class="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                <label for="icon" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_icon') }}</label>
                 <div class="flex items-center gap-3">
                     <input type="text" name="icon" id="icon"
                            x-model="icon"
                            value="{{ old('icon', $menu->icon) }}"
                            placeholder="e.g. home, users, key"
-                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
-                    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg min-w-[100px]">
-                        <span class="text-xs text-gray-500">Preview:</span>
+                           class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg min-w-[100px]">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Preview:</span>
                         <span x-show="icon && icons[icon]"
                               x-html="icons[icon] || ''"
                               class="w-5 h-5 text-blue-600"></span>
-                        <span x-show="!icon || !icons[icon]" class="text-xs text-gray-400">—</span>
+                        <span x-show="!icon || !icons[icon]" class="text-xs text-gray-400 dark:text-gray-400">—</span>
                     </div>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Available: home, settings, users, shield, key, lock-closed, bars-3, chart-bar, document, currency, cube</p>
+                <p class="text-xs text-gray-400 dark:text-gray-400 mt-1">Available: home, settings, users, shield, key, lock-closed, bars-3, chart-bar, document, currency, cube</p>
             </div>
 
             {{-- Route --}}
             <div>
-                <label for="route" class="block text-sm font-medium text-gray-700 mb-1">Route</label>
+                <label for="route" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_route') }}</label>
                 <input type="text" name="route" id="route"
                        value="{{ old('route', $menu->route) }}"
                        placeholder="/dashboard (leave empty for group/parent)"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
-                <p class="text-xs text-gray-400 mt-1">Leave empty if this is a parent/group menu (e.g. Settings)</p>
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <p class="text-xs text-gray-400 dark:text-gray-400 mt-1">Leave empty if this is a parent/group menu (e.g. Settings)</p>
             </div>
 
             {{-- Parent Menu --}}
             <div>
-                <label for="parent_id" class="block text-sm font-medium text-gray-700 mb-1">Parent Menu</label>
+                <label for="parent_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.parent_menu') }}</label>
                 <select name="parent_id" id="parent_id"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white">
-                    <option value="">None (root menu)</option>
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">{{ __('common.none_root_menu') }}</option>
                     @foreach ($parentMenus as $parent)
                         <option value="{{ $parent->id }}"
                                 {{ old('parent_id', $menu->parent_id) == $parent->id ? 'selected' : '' }}>
-                            {{ $parent->label }}
+                            {{ $parent->translated_label }}
                         </option>
                     @endforeach
                 </select>
@@ -81,10 +81,10 @@
 
             {{-- Permission --}}
             <div>
-                <label for="permission" class="block text-sm font-medium text-gray-700 mb-1">Required Permission</label>
+                <label for="permission" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_permission') }}</label>
                 <select name="permission" id="permission"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white">
-                    <option value="">None (visible to everyone)</option>
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">{{ __('common.none_visible_all') }}</option>
                     @foreach ($permissions as $perm)
                         <option value="{{ $perm }}"
                                 {{ old('permission', $menu->permission) === $perm ? 'selected' : '' }}>
@@ -96,28 +96,28 @@
 
             {{-- Sort Order --}}
             <div>
-                <label for="sort_order" class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                <label for="sort_order" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_order') }}</label>
                 <input type="number" name="sort_order" id="sort_order"
                        value="{{ old('sort_order', $menu->sort_order ?? 0) }}"
                        min="0" max="999"
-                       class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+                       class="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             </div>
 
             {{-- Status --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ __('common.status') }}</label>
                 <div class="flex items-center gap-6">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="is_active" value="1"
                                {{ old('is_active', $menu->exists ? $menu->is_active : true) ? 'checked' : '' }}
                                class="text-blue-600 focus:ring-blue-500">
-                        <span class="text-sm text-gray-700">Active</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ __('common.active') }}</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="is_active" value="0"
                                {{ old('is_active', $menu->exists ? $menu->is_active : true) ? '' : 'checked' }}
                                class="text-blue-600 focus:ring-blue-500">
-                        <span class="text-sm text-gray-700">Inactive</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ __('common.inactive') }}</span>
                     </label>
                 </div>
             </div>
@@ -126,12 +126,12 @@
         {{-- Footer --}}
         <div class="flex items-center justify-end gap-3 mt-6">
             <a href="{{ route('settings.navigation.index') }}"
-               class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                Cancel
+               class="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                {{ __('common.cancel') }}
             </a>
             <button type="submit"
-                    class="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition">
-                {{ $menu->exists ? 'Update' : 'Save' }}
+                    class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+                {{ $menu->exists ? __('common.update') : __('common.save') }}
             </button>
         </div>
     </form>

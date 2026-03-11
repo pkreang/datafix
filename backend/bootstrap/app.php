@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(prepend: [\App\Http\Middleware\ForceRequestUrl::class]);
+        $middleware->web(append: [\App\Http\Middleware\SetLocale::class]);
         $middleware->alias([
             'auth.web'    => \App\Http\Middleware\AuthenticateWeb::class,
             'super-admin' => \App\Http\Middleware\SuperAdminOnly::class,

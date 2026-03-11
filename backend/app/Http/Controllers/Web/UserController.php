@@ -46,6 +46,12 @@ class UserController extends Controller
             'department' => 'nullable|string|max:255',
             'position'   => 'nullable|string|max:255',
             'remark'     => 'nullable|string|max:1000',
+            'role_id'    => 'required_if:role_type,default',
+            'permissions'=> 'required_if:role_type,custom|array',
+            'permissions.*' => 'exists:permissions,id',
+        ], [
+            'role_id.required_if' => __('users.validation_role_required'),
+            'permissions.required_if' => __('users.validation_permissions_required'),
         ]);
 
         $user = User::create([
@@ -66,8 +72,11 @@ class UserController extends Controller
             if ($role) {
                 $user->assignRole($role);
             }
-        } elseif ($roleType === 'custom' && $request->has('permissions')) {
-            $permissions = Permission::whereIn('id', $request->permissions)->pluck('name');
+        } elseif ($roleType === 'custom') {
+            $permissionIds = (array) $request->input('permissions', []);
+            $permissions = !empty($permissionIds)
+                ? Permission::whereIn('id', $permissionIds)->pluck('name')
+                : collect();
             $user->syncPermissions($permissions);
         }
 
@@ -83,10 +92,11 @@ class UserController extends Controller
 
     public function edit(int $id): View
     {
-        $user = User::with('roles')->findOrFail($id);
+        $user = User::with('roles', 'permissions')->findOrFail($id);
         $roles = Role::orderBy('name')->get();
+        $permissionMatrix = $this->buildPermissionMatrix();
 
-        return view('users.edit', compact('user', 'roles'));
+        return view('users.edit', compact('user', 'roles', 'permissionMatrix'));
     }
 
     public function update(Request $request, int $id)
@@ -99,7 +109,43 @@ class UserController extends Controller
             return redirect()->route('users.index')->with('success', "User {$status} successfully");
         }
 
-        return redirect()->route('users.index');
+        $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'required|email|unique:users,email,' . $user->id,
+            'department' => 'nullable|string|max:255',
+            'position'   => 'nullable|string|max:255',
+            'remark'     => 'nullable|string|max:1000',
+        ]);
+
+        $user->update([
+            'first_name' => $request->first_name,
+            'last_name'  => $request->last_name,
+            'email'      => $request->email,
+            'department' => $request->department,
+            'position'   => $request->position,
+            'remark'     => $request->remark,
+            'is_active'  => $request->boolean('is_active', true),
+        ]);
+
+        $roleType = $request->input('role_type', 'default');
+        if ($roleType === 'default' && $request->filled('role_id')) {
+            $user->syncRoles([]);
+            $role = Role::find($request->role_id);
+            if ($role) {
+                $user->assignRole($role);
+            }
+            $user->syncPermissions([]);
+        } elseif ($roleType === 'custom') {
+            $user->syncRoles([]);
+            $permissionIds = (array) $request->input('permissions', []);
+            $permissions = !empty($permissionIds)
+                ? Permission::whereIn('id', $permissionIds)->pluck('name')
+                : collect();
+            $user->syncPermissions($permissions);
+        }
+
+        return redirect()->route('users.index')->with('success', __('common.updated'));
     }
 
     public function destroy(int $id)
@@ -126,18 +172,18 @@ class UserController extends Controller
         ];
 
         $moduleLabels = [
-            'dashboard'       => 'Dashboard',
-            'product'         => 'Product',
-            'sales'           => 'Sales',
-            'purchase'        => 'Purchase',
-            'expense'         => 'Expense',
-            'report'          => 'Report',
-            'loan'            => 'Loan',
-            'company_profile' => 'Company profile',
-            'user_access'     => 'User & access',
-            'integrations'    => 'Integrations',
-            'role_access'     => 'Role & permission',
-            'permission_access' => 'Permission',
+            'dashboard'       => __('users.module_dashboard'),
+            'product'         => __('users.module_product'),
+            'sales'           => __('users.module_sales'),
+            'purchase'        => __('users.module_purchase'),
+            'expense'         => __('users.module_expense'),
+            'report'          => __('users.module_report'),
+            'loan'            => __('users.module_loan'),
+            'company_profile' => __('users.module_company_profile'),
+            'user_access'     => __('users.module_user_access'),
+            'integrations'    => __('users.module_integrations'),
+            'role_access'     => __('users.module_role_access'),
+            'permission_access' => __('users.module_permission_access'),
         ];
 
         $grouped = [];

@@ -15,6 +15,24 @@ class NavigationMenu extends Model
         'permission', 'sort_order', 'is_active',
     ];
 
+    /** Map standard labels to common.* translation keys */
+    protected static array $labelKeyMap = [
+        'Dashboard'       => 'dashboard',
+        'Settings'        => 'settings',
+        'Users'           => 'users',
+        'Roles'           => 'roles',
+        'Permissions'     => 'permissions',
+        'Password Policy' => 'password_policy',
+        'Menu Manager'    => 'menu_manager',
+    ];
+
+    public function getTranslatedLabelAttribute(): string
+    {
+        $key = self::$labelKeyMap[$this->label] ?? null;
+
+        return $key ? __('common.' . $key) : $this->label;
+    }
+
     protected $casts = [
         'is_active'  => 'boolean',
         'sort_order' => 'integer',
