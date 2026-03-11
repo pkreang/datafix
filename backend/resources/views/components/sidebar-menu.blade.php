@@ -15,7 +15,7 @@
                     class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-500/50 transition-colors">
                 <span class="flex items-center gap-3">
                     <x-nav-icon :name="$menu->icon" class="w-5 h-5 text-blue-200" />
-                    <span class="text-sm">{{ $menu->label }}</span>
+                    <span class="text-sm font-medium">{{ $menu->translated_label }}</span>
                 </span>
                 <svg :class="open && 'rotate-180'"
                      class="w-4 h-4 text-blue-300 transition-transform duration-200"
@@ -36,9 +36,9 @@
 
                 @foreach($menu->children as $child)
                     <a href="{{ $child->route }}" @click="sidebarOpen = false"
-                       class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors {{ $child->isActive() ? 'bg-blue-500/50 text-white font-medium' : 'text-blue-200 hover:bg-blue-500/30 hover:text-blue-100' }}">
+                       class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ $child->isActive() ? 'bg-blue-500/50 text-white font-semibold' : 'text-blue-200 hover:bg-blue-500/30 hover:text-blue-100' }}">
                         <x-nav-icon :name="$child->icon" class="w-4 h-4" />
-                        {{ $child->label }}
+                        {{ $child->translated_label }}
                     </a>
                 @endforeach
             </div>
@@ -47,9 +47,9 @@
     @else
         {{-- Single menu item --}}
         <a href="{{ $menu->route }}" @click="sidebarOpen = false"
-           class="flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-500/50 {{ $menu->isActive() ? 'bg-blue-500/50 text-white font-medium' : '' }}">
+           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-blue-100 hover:bg-blue-500/50 {{ $menu->isActive() ? 'bg-blue-500/50 text-white font-semibold' : '' }}">
             <x-nav-icon :name="$menu->icon" class="w-5 h-5 text-blue-200" />
-            {{ $menu->label }}
+            {{ $menu->translated_label }}
         </a>
     @endif
 @endforeach

@@ -7,18 +7,17 @@
 
     <title>Login - DATA FIX</title>
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen flex relative">
+<body class="min-h-screen flex relative text-sm text-gray-800 dark:text-gray-200">
     {{-- Version badge --}}
-    <div class="fixed bottom-4 right-4 z-50 text-sm text-gray-500 font-medium">v0.1</div>
+    <div class="fixed bottom-4 right-4 z-50 text-xs text-gray-500 dark:text-gray-400 font-medium">v{{ config('app.version') }}</div>
 
     {{-- Left: Illustration --}}
     <div class="hidden lg:flex flex-1 flex-col bg-blue-600 items-center justify-center p-12 relative overflow-hidden">
-        <h1 class="relative z-10 text-[5rem] lg:text-[6.5rem] font-bold tracking-[0.15em] text-white mb-10 drop-shadow-lg">DATA FIX</h1>
+        <h1 class="relative z-10 font-bold tracking-[0.15em] text-white mb-10 drop-shadow-lg login-datafix-title">DATA FIX</h1>
         <div class="relative z-10 max-w-md">
             <svg class="w-full h-auto" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -45,14 +44,14 @@
     </div>
 
     {{-- Right: Form --}}
-    <div class="flex-1 flex items-center justify-center bg-white p-8 sm:p-12 relative">
+    <div class="flex-1 flex items-center justify-center bg-white dark:bg-gray-900 p-8 sm:p-12 relative">
         <div class="w-full max-w-md" x-data="{ showPassword: false }">
-            <h1 class="lg:hidden text-5xl font-bold tracking-widest text-blue-600 mb-2">DATA FIX</h1>
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-10">Login</h2>
+            <h1 class="lg:hidden font-bold tracking-widest text-blue-600 mb-2 login-datafix-mobile">DATA FIX</h1>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-10">{{ __('common.login') }}</h2>
 
             @if ($errors->any())
-                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <p class="text-base text-red-700">{{ $errors->first() }}</p>
+                <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+                    <p class="text-sm text-red-700 dark:text-red-400">{{ $errors->first() }}</p>
                 </div>
             @endif
 
@@ -63,10 +62,10 @@
                     <label for="email" class="sr-only">Email</label>
                     <div class="relative">
                         <input type="email" name="email" id="email" value="{{ old('email') }}"
-                               placeholder="email address" required autofocus
-                               class="w-full pl-5 pr-14 py-4 text-base bg-gray-100 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                               placeholder="{{ __('auth.placeholder_email') }}" required autofocus
+                               class="w-full pl-5 pr-14 py-3 text-sm bg-white dark:bg-gray-700 border-0 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-700 transition">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
-                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 text-gray-400 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
                         </div>
@@ -77,10 +76,10 @@
                     <label for="password" class="sr-only">Password</label>
                     <div class="relative">
                         <input :type="showPassword ? 'text' : 'password'" name="password" id="password" required
-                               placeholder="password"
-                               class="w-full pl-5 pr-14 py-4 text-base bg-gray-100 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:bg-white transition">
+                               placeholder="{{ __('auth.placeholder_password') }}"
+                               class="w-full pl-5 pr-14 py-3 text-sm bg-white dark:bg-gray-700 border-0 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-700 transition">
                         <button type="button" @click="showPassword = !showPassword"
-                                class="absolute inset-y-0 right-0 flex items-center pr-5 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                class="absolute inset-y-0 right-0 flex items-center pr-5 text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none">
                             <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -93,17 +92,23 @@
                 </div>
 
                 <button type="submit"
-                        class="w-full py-4 px-6 text-base sm:text-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                    Login
+                        class="w-full py-3 px-6 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    {{ __('common.login') }}
                 </button>
 
                 <div class="text-right">
-                    <a href="#" class="text-sm sm:text-base text-blue-600 hover:text-blue-500 underline">Forgot password?</a>
+                    <a href="#" class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline">{{ __('common.forgot_password') }}</a>
                 </div>
             </form>
         </div>
     </div>
 
-    <style>[x-cloak]{display:none!important}</style>
+    <style>
+    [x-cloak]{display:none!important}
+    .login-datafix-title { font-size: clamp(2.5rem, 4vw, 4rem); }
+    @media (min-width: 1024px) { .login-datafix-title { font-size: 4rem; } }
+    .login-datafix-mobile { font-size: 2rem; }
+    @media (min-width: 640px) { .login-datafix-mobile { font-size: 2.5rem; } }
+    </style>
 </body>
 </html>
