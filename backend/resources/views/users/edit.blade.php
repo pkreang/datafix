@@ -37,10 +37,10 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('users.update', $user) }}" id="user-edit-form">
+    <form method="POST" action="{{ route('users.update', $user) }}" id="user-edit-form" x-data="{ roleType: '{{ $roleType }}' }">
         @csrf
         @method('PUT')
-        <input type="hidden" name="role_type" id="role_type_input" value="{{ $roleType }}">
+        <input type="hidden" name="role_type" :value="roleType">
 
         {{-- Section 1: General Info --}}
         <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
@@ -71,14 +71,11 @@
 
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {{ __('common.email') }} <span class="text-red-500">*</span>
+                        {{ __('common.email') }}
                     </label>
-                    <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required
-                           placeholder="{{ __('users.placeholder_email') }}"
-                           class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 @error('email') border-red-400 @enderror">
-                    @error('email')
-                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
+                    <input type="email" id="email" value="{{ $user->email }}" readonly
+                           class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 cursor-not-allowed">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('users.email_readonly_hint') }}</p>
                 </div>
                 <div>
                     <label for="department" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.department') }}</label>
@@ -91,11 +88,25 @@
                 </div>
 
                 <div>
-                    <label for="position" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.position') }}</label>
-                    <input type="text" name="position" id="position" value="{{ old('position', $user->position) }}" maxlength="255"
-                           placeholder="{{ __('users.placeholder_position') }}"
-                           class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 @error('position') border-red-400 @enderror">
-                    @error('position')
+                    <label for="position_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.position') }}</label>
+                    <select name="position_id" id="position_id"
+                            class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 @error('position_id') border-red-400 @enderror">
+                        <option value="">{{ __('common.choose_position') }}</option>
+                        @foreach ($positions as $pos)
+                            <option value="{{ $pos->id }}" @selected(old('position_id', $user->position_id) == $pos->id)>{{ $pos->name }} ({{ $pos->code }})</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('users.position_from_master_hint') }}</p>
+                    @error('position_id')
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('users.phone') }}</label>
+                    <input type="tel" name="phone" id="phone" value="{{ old('phone', $user->phone) }}" maxlength="50"
+                           placeholder="{{ __('users.placeholder_phone') }}"
+                           class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 @error('phone') border-red-400 @enderror">
+                    @error('phone')
                         <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                 </div>
@@ -129,20 +140,26 @@
             <h3 class="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">{{ __('common.role_and_access') }}</h3>
 
             <div class="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 mb-6">
-                <button type="button" id="role-tab-default"
-                        class="role-tab px-4 py-2 text-sm font-medium rounded-l-lg transition {{ $roleType === 'default' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                <button type="button" @click="roleType = 'default'"
+                        :class="roleType === 'default' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
+                        class="px-4 py-2 text-sm font-medium rounded-l-lg transition border-gray-300 dark:border-gray-600">
                     {{ __('common.default_role') }}
                 </button>
-                <button type="button" id="role-tab-custom"
-                        class="role-tab px-4 py-2 text-sm font-medium rounded-r-lg border-l border-gray-300 dark:border-gray-600 transition {{ $roleType === 'custom' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
+                <button type="button" @click="roleType = 'custom'"
+                        :class="roleType === 'custom' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
+                        class="px-4 py-2 text-sm font-medium rounded-r-lg border-l border-gray-300 dark:border-gray-600 transition">
                     {{ __('common.custom_role') }}
                 </button>
             </div>
 
-            <div id="role-panel-default" class="role-panel" style="display: {{ $roleType === 'default' ? 'block' : 'none' }};">
+            <div x-show="roleType === 'default'" x-cloak
+                 class="role-panel"
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100">
                 <label for="role_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.select_role') }}</label>
-                <select name="role_id" id="role_id"
-                        class="w-full max-w-md px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <select name="role_id" id="role_id" :disabled="roleType !== 'default'"
+                        class="w-full max-w-md px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option value="">{{ __('common.choose_role') }}</option>
                     @foreach ($roles as $role)
                         <option value="{{ $role->id }}" {{ $oldRoleId == $role->id ? 'selected' : '' }}>
@@ -152,7 +169,11 @@
                 </select>
             </div>
 
-            <div id="role-panel-custom" class="role-panel" style="display: {{ $roleType === 'custom' ? 'block' : 'none' }};">
+            <div x-show="roleType === 'custom'" x-cloak
+                 class="role-panel"
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100">
                 @if(empty($permissionMatrix))
                     <p class="text-sm text-amber-600 dark:text-amber-400 py-4">{{ __('users.no_permissions_configured') }}</p>
                 @else
@@ -180,7 +201,8 @@
                                             <td class="px-6 py-3 text-center">
                                                 @if(!empty($row['actions'][$action]))
                                                     <input type="checkbox" name="permissions[]" value="{{ $row['actions'][$action] }}"
-                                                           class="permission-cb rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                                                           :disabled="roleType !== 'custom'"
+                                                           class="permission-cb rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                                            {{ in_array($row['actions'][$action], $oldPermissions) ? 'checked' : '' }}>
                                                 @else
                                                     <span class="text-gray-300 dark:text-gray-500">&mdash;</span>
@@ -214,45 +236,4 @@
         </div>
     </form>
 </div>
-
-<script>
-(function() {
-    var roleTypeInput = document.getElementById('role_type_input');
-    var roleIdSelect = document.getElementById('role_id');
-    var tabDefault = document.getElementById('role-tab-default');
-    var tabCustom = document.getElementById('role-tab-custom');
-    var panelDefault = document.getElementById('role-panel-default');
-    var panelCustom = document.getElementById('role-panel-custom');
-    var permissionCbs = document.querySelectorAll('.permission-cb');
-
-    function setRoleType(type) {
-        roleTypeInput.value = type;
-        if (type === 'default') {
-            panelDefault.style.display = 'block';
-            panelCustom.style.display = 'none';
-            if (roleIdSelect) roleIdSelect.disabled = false;
-            permissionCbs.forEach(function(cb) { cb.disabled = true; });
-            tabDefault.className = 'role-tab px-4 py-2 text-sm font-medium rounded-l-lg transition bg-blue-600 text-white';
-            tabCustom.className = 'role-tab px-4 py-2 text-sm font-medium rounded-r-lg border-l border-gray-300 dark:border-gray-600 transition bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700';
-        } else {
-            panelDefault.style.display = 'none';
-            panelCustom.style.display = 'block';
-            if (roleIdSelect) roleIdSelect.disabled = true;
-            permissionCbs.forEach(function(cb) { cb.disabled = false; });
-            tabDefault.className = 'role-tab px-4 py-2 text-sm font-medium rounded-l-lg transition bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700';
-            tabCustom.className = 'role-tab px-4 py-2 text-sm font-medium rounded-r-lg border-l border-gray-300 dark:border-gray-600 transition bg-blue-600 text-white';
-        }
-    }
-
-    if (tabDefault) tabDefault.addEventListener('click', function() { setRoleType('default'); });
-    if (tabCustom) tabCustom.addEventListener('click', function() { setRoleType('custom'); });
-
-    if (roleTypeInput && roleTypeInput.value === 'custom') {
-        if (roleIdSelect) roleIdSelect.disabled = true;
-        permissionCbs.forEach(function(cb) { cb.disabled = false; });
-    } else {
-        permissionCbs.forEach(function(cb) { cb.disabled = true; });
-    }
-})();
-</script>
 @endsection

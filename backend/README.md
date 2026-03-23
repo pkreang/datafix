@@ -54,6 +54,60 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+## Foundation data (master / พื้นฐาน)
+
+`php artisan db:seed` loads:
+
+| Seeder | Contents |
+|--------|----------|
+| `CompanySeeder` | บริษัทตัวอย่าง `DFIX` (idempotent) |
+| `BranchSeeder` | สาขา HQ + ผูก `company_id` / `branch_id` ให้ผู้ใช้ทุกคน (หลัง Company) |
+| `DepartmentSeeder` | แผนกตัวอย่าง 6 แผนก (MAINT, PROD, WH, FAC, IT, GA) สำหรับเลือกในแจ้งซ่อมและ routing |
+| `DocumentFormSeeder` | ฟอร์มแจ้งซ่อม default + ป้ายฟิลด์ภาษาไทย |
+| `RepairApprovalDemoSeeder` | workflow + policy + ผู้ใช้ demo |
+
+รันเฉพาะแผนก: `php artisan db:seed --class=DepartmentSeeder`
+
+## Demo users (repair / approval MVP)
+
+After `php artisan migrate --seed` (or `php artisan db:seed --class=RepairApprovalDemoSeeder`):
+
+| Email | Password | Role | Use |
+|-------|----------|------|-----|
+| `requester@example.com` | `password` | viewer | Submit repair requests; track **My submitted requests** |
+| `approver@example.com` | `password` | approver | **My Approvals** — approve/reject pending repair requests |
+| `admin@example.com` | `password` | super-admin | Full access including Settings |
+
+**ถ้า `admin@example.com` login ไม่ได้:** มักเกิดจากรหัสใน DB ไม่ตรง หรือแถว user ถูก JIT จาก Microsoft/LDAP แล้ว (`auth_provider` ไม่ว่าง)  
+- รันคำสั่ง: `php artisan user:reset-bootstrap-admin` (รีเซ็ตรหัสเป็น `password` และล้างฟิลด์ SSO/LDAP)  
+- หรือรัน seed ใหม่: `php artisan db:seed --class=RolePermissionSeeder` (ตอนนี้ใช้ `updateOrCreate` สำหรับ admin แล้ว)
+
+- **My Approvals** lives under **Repair Request** in the sidebar (not under Reports).
+- Placeholder menu items (maintenance, spare parts, equipment browse, report stubs) require `manage_settings` and are hidden from viewer/approver.
+
+After changing navigation or **Settings submenu order** in `NavigationMenuSeeder`, run: `php artisan db:seed --class=NavigationMenuSeeder`
+
+## Authentication & SSO (optional)
+
+Super-admins configure methods under **Settings → Authentication & SSO**. Toggles and non-secret values are stored in `settings`; **secrets must be in `.env`** only:
+
+| Variable | Used for |
+|----------|----------|
+| `ENTRA_CLIENT_SECRET` | Microsoft Entra ID (client credentials for token exchange) |
+| `AUTH_LDAP_BIND_PASSWORD` | LDAP service account bind password |
+
+**Entra:** Register redirect URI `https://<your-app-host>/auth/entra/callback` (must match `APP_URL`). Delegated scopes include `openid`, `profile`, `email`, `User.Read`, **`GroupMember.Read.All`** (for group → role mapping via Microsoft Graph). Grant admin consent in Entra if required.
+
+**LDAP:** Requires PHP `ext-ldap`. JIT users get role from `auth_default_role` (default `viewer`) unless **directory group mapping** matches (see below). At least one active company is required.
+
+**Group → role mapping:** Super-admins can set JSON **`auth_directory_group_role_map`** on **Authentication & SSO** (array of `{ "pattern": "substring", "role": "spatie_role_name" }`). Patterns match against LDAP `memberOf` DNs and Entra group **id** / **displayName** (case-insensitive substring). When any rule matches on sign-in, the user’s Spatie roles are **replaced** with the matched roles; otherwise the default JIT role applies for new users and existing roles are unchanged when there is no match.
+
+**Local vs AD:** Configuration is **instance-wide** (not per company). Super-admins also see a short reminder on **Companies** linking to Authentication & SSO.
+
+**Directory users:** In-app “change password” is hidden; set optional **`auth_password_help_url`** on the Authentication & SSO page for a link to your org portal (e.g. Microsoft SSPR).
+
+Run `php artisan migrate` after pull for `users.auth_provider`, `external_id`, `ldap_dn`.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

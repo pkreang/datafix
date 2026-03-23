@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'entra' => [
+        'client_secret' => env('ENTRA_CLIENT_SECRET', ''),
+    ],
+
+    'ldap' => [
+        'bind_password' => env('AUTH_LDAP_BIND_PASSWORD', ''),
+    ],
+
 ];

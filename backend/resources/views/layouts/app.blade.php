@@ -27,12 +27,15 @@
 
     <title>DATA FIX - @yield('title', __('common.dashboard'))</title>
 
+    <link rel="icon" href="data:,">
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     @stack('scripts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full font-sans antialiased bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200" x-data="{ sidebarOpen: false }">
+<body class="h-full font-sans antialiased bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+      x-data="{ sidebarOpen: false, sidebarCollapsed: false }">
     <div class="flex min-h-screen">
         {{-- Mobile overlay --}}
         <div x-show="sidebarOpen"
@@ -47,28 +50,43 @@
              x-cloak
              aria-hidden="true"></div>
 
+        {{-- Spacer: occupies left space so main content is not overlapped (sidebar is fixed) --}}
+        <div class="hidden lg:block flex-shrink-0 transition-[width] duration-200 ease-in-out bg-transparent"
+             :style="{ width: sidebarCollapsed ? '5rem' : '16rem' }"></div>
+
         {{-- Sidebar --}}
-        <aside class="fixed inset-y-0 left-0 z-30 w-64 bg-blue-600 flex flex-col transform transition-transform duration-200 ease-in-out -translate-x-full lg:translate-x-0"
-               :class="{ 'translate-x-0': sidebarOpen }">
-            <div class="h-16 flex items-center justify-between px-6 border-b border-blue-500/40">
-                <a href="{{ route('dashboard') }}" class="text-base font-semibold text-white tracking-wide">
-                    DATA FIX
-                </a>
-                <button @click="sidebarOpen = false" type="button" class="lg:hidden p-2 -mr-2 text-blue-200 hover:text-white focus:outline-none">
+        <aside class="fixed inset-y-0 left-0 z-30 bg-blue-600 flex flex-col transform transition-all duration-200 ease-in-out -translate-x-full lg:translate-x-0"
+               :class="{
+                   'w-64': !sidebarCollapsed,
+                   'w-20': sidebarCollapsed,
+                   'translate-x-0': sidebarOpen
+               }">
+            <div class="h-16 flex items-center justify-between px-4 border-b border-blue-500/40">
+                <button type="button"
+                        @click="sidebarCollapsed = !sidebarCollapsed"
+                        class="sidebar-brand text-white cursor-pointer hover:opacity-90 bg-transparent border-0 p-0 text-left"
+                        style="font-size: 30px; font-weight: 900; letter-spacing: 0.08em; line-height: 1;"
+                        :title="sidebarCollapsed ? 'ขยายเมนู' : 'ยุบเมนู'"
+                        aria-label="ยุบหรือขยายเมนู">
+                    <span x-show="!sidebarCollapsed" x-cloak>DATA FIX</span>
+                    <span x-show="sidebarCollapsed" x-cloak>DF</span>
+                </button>
+                <button @click="sidebarOpen = false" type="button" class="lg:hidden p-2 -mr-2 text-blue-200 hover:text-white focus:outline-none" aria-label="ปิดเมนู">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
 
-            <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav id="sidebar-nav" class="sidebar-nav-scroll flex-1 min-h-0 p-4 space-y-1 overflow-y-auto overflow-x-hidden">
                 <x-sidebar-menu :menus="$navigationMenus ?? collect()" />
             </nav>
 
-            <div class="p-4 border-t border-blue-500/40">
-                <div class="flex items-center gap-3">
-                    <img src="{{ $layoutUserAvatar }}" alt="" class="w-9 h-9 rounded-full object-cover ring-2 ring-blue-400/50">
-                    <div class="min-w-0 flex-1">
+            <div class="p-4 border-t border-blue-500/40"
+                 :class="sidebarCollapsed ? 'flex justify-center' : ''">
+                <div class="flex items-center gap-3" :class="sidebarCollapsed ? 'justify-center' : ''">
+                    <img src="{{ $layoutUserAvatar }}" alt="" class="w-9 h-9 shrink-0 rounded-full object-cover ring-2 ring-blue-400/50">
+                    <div x-show="!sidebarCollapsed" x-cloak class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-white truncate">{{ $layoutUserName }}</p>
                         <p class="text-xs text-blue-200 truncate">{{ $layoutUser['email'] ?? '' }}</p>
                         <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">v{{ config('app.version') }}</div>
@@ -77,7 +95,8 @@
             </div>
         </aside>
 
-        <div class="flex-1 min-w-0 pl-0 lg:pl-64 flex flex-col gap-4 bg-white dark:bg-gray-900">
+        {{-- Main: no extra pl-* on lg; spacer above already reserves sidebar width (fixed aside does not consume flex space) --}}
+        <div class="flex-1 min-w-0 flex flex-col gap-4 bg-white dark:bg-gray-900">
             <header class="sticky top-0 z-20 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between gap-4 px-4 sm:px-8">
                 <div class="flex items-center gap-3 min-w-0">
                     <button @click="sidebarOpen = true" type="button" class="lg:hidden shrink-0 p-2 -ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg focus:outline-none" aria-label="Open menu">
@@ -163,6 +182,7 @@
                                 {{ __('common.my_profile') }}
                             </a>
 
+                            @if (! empty($layoutCanChangePassword))
                             <a href="{{ route('profile.password') }}"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
                                       text-gray-700 dark:text-gray-300
@@ -173,6 +193,18 @@
                                 </svg>
                                 {{ __('common.change_password') }}
                             </a>
+                            @elseif (! empty($authPasswordHelpUrl))
+                            <a href="{{ $authPasswordHelpUrl }}" target="_blank" rel="noopener noreferrer"
+                               class="flex items-center gap-2.5 px-3 py-2 text-sm
+                                      text-gray-700 dark:text-gray-300
+                                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                </svg>
+                                {{ __('auth.open_password_help_link') }}
+                            </a>
+                            @endif
 
                             <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
 
@@ -204,5 +236,42 @@
     <style>
         [x-cloak] { display: none !important; }
     </style>
+    <script>
+        (function() {
+            if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+            window.addEventListener('beforeunload', function() {
+                try {
+                    var n = document.getElementById('sidebar-nav');
+                    if (n) sessionStorage.setItem('sidebarScroll', String(n.scrollTop));
+                } catch (e) {}
+            });
+            function restoreSidebarScroll() {
+                try {
+                    var saved = sessionStorage.getItem('sidebarScroll');
+                    if (saved !== null) {
+                        var nav = document.getElementById('sidebar-nav');
+                        if (nav) {
+                            var n = parseInt(saved, 10);
+                            if (!isNaN(n) && n >= 0) nav.scrollTop = n;
+                        }
+                        sessionStorage.removeItem('sidebarScroll');
+                    }
+                } catch (e) {}
+            }
+            function runRestore() {
+                restoreSidebarScroll();
+                setTimeout(restoreSidebarScroll, 50);
+                setTimeout(restoreSidebarScroll, 200);
+                setTimeout(restoreSidebarScroll, 400);
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    requestAnimationFrame(runRestore);
+                });
+            } else {
+                requestAnimationFrame(runRestore);
+            }
+        })();
+    </script>
 </body>
 </html>

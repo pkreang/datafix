@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class PermissionSeeder extends Seeder
 {
@@ -13,23 +14,19 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'dashboard'       => ['read'],
-            'product'         => ['create', 'read', 'update', 'delete'],
-            'sales'           => ['create', 'read', 'update', 'delete', 'export'],
-            'purchase'        => ['create', 'read', 'update', 'delete', 'export'],
-            'expense'         => ['create', 'read', 'update', 'delete'],
-            'report'          => ['read', 'export'],
-            'loan'            => ['create', 'read', 'update', 'delete'],
-            'company_profile' => ['read', 'update'],
-            'user_access'     => ['create', 'read', 'update', 'delete'],
-            'integrations'    => ['read', 'update'],
+            'dashboard' => ['read'],
+            'user_access' => ['create', 'read', 'update', 'delete'],
+            'role_access' => ['create', 'read', 'update', 'delete'],
+            'permission_access' => ['read'],
         ];
 
+        $allowedNames = [];
         foreach ($permissions as $module => $actions) {
             foreach ($actions as $action) {
+                $name = "{$module}.{$action}";
                 Permission::updateOrCreate(
                     [
-                        'name'       => "{$module}.{$action}",
+                        'name' => $name,
                         'guard_name' => 'web',
                     ],
                     [
@@ -37,7 +34,31 @@ class PermissionSeeder extends Seeder
                         'action' => $action,
                     ]
                 );
+                $allowedNames[] = $name;
             }
         }
+
+        $exactPermissions = [
+            ['name' => 'manage companies', 'module' => 'company', 'action' => 'manage'],
+            ['name' => 'manage_settings', 'module' => 'settings', 'action' => 'manage'],
+            ['name' => 'approval.approve', 'module' => 'approval', 'action' => 'approve'],
+            ['name' => 'manage equipment', 'module' => 'equipment', 'action' => 'manage'],
+            ['name' => 'view equipment', 'module' => 'equipment', 'action' => 'read'],
+        ];
+        foreach ($exactPermissions as $item) {
+            Permission::updateOrCreate(
+                ['name' => $item['name'], 'guard_name' => 'web'],
+                ['module' => $item['module'], 'action' => $item['action']]
+            );
+            $allowedNames[] = $item['name'];
+        }
+
+        // Remove permissions that are not aligned with current menus/features.
+        Permission::query()
+            ->where('guard_name', 'web')
+            ->whereNotIn('name', $allowedNames)
+            ->delete();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

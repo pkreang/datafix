@@ -20,8 +20,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'super-admin', 'guard_name' => $guard],
             [
                 'display_name' => 'Super Administrator',
-                'description'  => 'Full system access',
-                'is_system'    => true,
+                'description' => 'Full system access',
+                'is_system' => true,
             ]
         );
 
@@ -30,8 +30,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'admin', 'guard_name' => $guard],
             [
                 'display_name' => 'Administrator',
-                'description'  => 'Full access to all modules',
-                'is_system'    => true,
+                'description' => 'Full access to all modules',
+                'is_system' => true,
             ]
         );
         $admin->syncPermissions(\Spatie\Permission\Models\Permission::all());
@@ -41,27 +41,52 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'viewer', 'guard_name' => $guard],
             [
                 'display_name' => 'Viewer',
-                'description'  => 'Read-only access to all modules',
-                'is_system'    => false,
+                'description' => 'Read-only access to all modules',
+                'is_system' => false,
             ]
         );
         $viewer->syncPermissions(
             \Spatie\Permission\Models\Permission::whereIn('action', ['read', 'export'])->pluck('name')
         );
 
-        // Super admin user (admin@example.com)
-        $user = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+        // Approver - can approve/reject and audit approval history
+        $approver = Role::firstOrCreate(
+            ['name' => 'approver', 'guard_name' => $guard],
             [
-                'first_name'     => 'Super',
-                'last_name'      => 'Admin',
-                'password'       => 'password',
-                'is_active'      => true,
-                'is_super_admin' => true,
+                'display_name' => 'Approver',
+                'description' => 'Can approve workflow tasks',
+                'is_system' => false,
             ]
         );
-        if (!$user->hasRole('super-admin')) {
+        $approver->syncPermissions(
+            \Spatie\Permission\Models\Permission::whereIn('name', [
+                'approval.approve',
+            ])->pluck('name')
+        );
+
+        // Bootstrap super-admin (admin@example.com) — updateOrCreate so re-seed fixes drift:
+        // wrong password, auth_provider set by SSO JIT, or firstOrCreate having skipped updates.
+        $user = User::updateOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'first_name' => 'Super',
+                'last_name' => 'Admin',
+                'password' => 'password',
+                'is_active' => true,
+                'is_super_admin' => true,
+                'auth_provider' => null,
+                'external_id' => null,
+                'ldap_dn' => null,
+            ]
+        );
+        if (! $user->hasRole('super-admin')) {
             $user->assignRole('super-admin');
+        }
+
+        // Assign manage companies to super-admin
+        $manageCompanies = \Spatie\Permission\Models\Permission::where('name', 'manage companies')->first();
+        if ($manageCompanies && ! $superAdmin->hasPermissionTo('manage companies')) {
+            $superAdmin->givePermissionTo('manage companies');
         }
     }
 }

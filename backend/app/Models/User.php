@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -13,16 +14,23 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'first_name',
         'last_name',
         'email',
+        'auth_provider',
+        'external_id',
+        'ldap_dn',
+        'company_id',
+        'branch_id',
         'password',
         'avatar',
         'department',
         'position',
+        'position_id',
+        'phone',
         'remark',
         'is_active',
         'is_super_admin',
@@ -40,15 +48,36 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'last_active_at'    => 'datetime',
-            'password'          => 'hashed',
-            'is_active'         => 'boolean',
-            'is_super_admin'    => 'boolean',
+            'last_active_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
+            'is_super_admin' => 'boolean',
         ];
     }
 
     protected function fullName(): Attribute
     {
-        return Attribute::get(fn () => trim($this->first_name . ' ' . $this->last_name));
+        return Attribute::get(fn () => trim($this->first_name.' '.$this->last_name));
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /** Master position (Settings → Positions). The `position` string column is kept in sync for display/API. */
+    public function jobPosition(): BelongsTo
+    {
+        return $this->belongsTo(Position::class, 'position_id');
+    }
+
+    public function canChangePasswordInApp(): bool
+    {
+        return \App\Services\Auth\PasswordCapabilityService::canChangePasswordInApp($this);
     }
 }

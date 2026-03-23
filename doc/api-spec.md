@@ -1054,7 +1054,26 @@ Cache::forget("user.{$userId}.permissions");
 
 ---
 
-### 9.8 Checklist ก่อน Production
+### 9.8 Companies & branches — structured address
+
+Endpoints (Sanctum, ตาม `routes/api.php`): `GET/POST /companies`, `PUT/DELETE /companies/{company}`, `GET/POST /companies/{company}/branches`, `PUT/DELETE /companies/{company}/branches/{branch}`.
+
+นอกจากฟิลด์เดิม (`name`, `code`, `email`, `phone`, `is_active`, …) รองรับที่อยู่แบบเดิมและแบบแยกส่วน:
+
+| Field | Type | Max | หมายเหตุ |
+|-------|------|-----|----------|
+| `address` | string | — | ที่อยู่บรรทัดเดียว (legacy); ถ้า client เก่าไม่ส่งฟิลด์แยก ใช้ฟิลด์นี้ได้ตามเดิม |
+| `address_no` | string | 50 | เลขที่ / หน่วย |
+| `address_building` | string | 255 | อาคาร / หมู่บ้าน |
+| `address_street` | string | 255 | ถนน |
+| `address_subdistrict` | string | 120 | ตำบล / แขวง |
+| `address_district` | string | 120 | อำเภอ / เขต |
+| `address_province` | string | 120 | จังหวัด |
+| `address_postal_code` | string | 10 | รหัสไปรษณีย์ |
+
+**กฎ:** ถ้ามีการส่งฟิลด์แยกส่วนอย่างน้อยหนึ่งฟิลด์ที่ไม่ว่าง ระบบจะประกอบและอัปเดต `address` ให้สอดคล้องตอนบันทึก (สำหรับ client ที่อ่านแค่ `address`) หากไม่ส่งฟิลด์แยกแต่ส่ง `address` ให้เก็บ `address` ตามที่ส่ง
+
+### 9.9 Checklist ก่อน Production
 
 - [ ] `APP_DEBUG=false` ใน production
 - [ ] `SANCTUM_STATEFUL_DOMAINS` ตั้งค่าให้ถูก

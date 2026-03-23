@@ -11,30 +11,80 @@ use Illuminate\Support\Facades\Cache;
 class NavigationMenu extends Model
 {
     protected $fillable = [
-        'parent_id', 'label', 'icon', 'route',
+        'parent_id', 'label', 'label_en', 'label_th', 'icon', 'route',
         'permission', 'sort_order', 'is_active',
     ];
 
     /** Map standard labels to common.* translation keys */
     protected static array $labelKeyMap = [
-        'Dashboard'       => 'dashboard',
-        'Settings'        => 'settings',
-        'Users'           => 'users',
-        'Roles'           => 'roles',
-        'Permissions'     => 'permissions',
+        'Dashboard' => 'dashboard',
+        'Settings' => 'settings',
+        'Users' => 'users',
+        'Roles' => 'roles',
+        'Permissions' => 'permissions',
         'Password Policy' => 'password_policy',
-        'Menu Manager'    => 'menu_manager',
+        'Menu Manager' => 'menu_manager',
+        'Companies' => 'companies',
+        'Branding' => 'branding',
+        'Maintenance' => 'maintenance',
+        'Reports' => 'reports',
+        'Repair Request' => 'repair_request',
+        'My Repair Jobs' => 'my_repair_jobs',
+        'Report Repair' => 'repair_request',
+        'Assign Repair Jobs' => 'assign_repair_jobs',
+        'Evaluate Repair Jobs' => 'evaluate_repair_jobs',
+        'Repair History Report' => 'repair_history_report',
+        'PM/AM History Report' => 'pm_am_history_report',
+        'My Approvals' => 'my_approvals',
+        'Create PM/AM Plan' => 'create_pm_am_plan',
+        'Auto Assign Settings' => 'auto_assign_settings',
+        'Spare Parts' => 'spare_parts',
+        'Spare Parts Stock' => 'spare_parts_stock',
+        'Spare Parts Withdrawal History' => 'spare_parts_withdrawal_history',
+        'Equipment Registry' => 'equipment_registry',
+        'Equipment List' => 'equipment_list',
+        'Equipment Machinery Locations' => 'equipment_locations',
+        'Departments' => 'departments',
+        'Positions' => 'positions',
+        'Department workflow bindings' => 'department_workflow_bindings',
+        'Workflow' => 'workflow',
+        'Approval Routing' => 'approval_routing',
+        'Document Forms' => 'document_forms',
+        'Equipment' => 'equipment',
+        'Notifications' => 'notifications',
+        'Equipment Locations' => 'equipment_locations',
+        'Activity History' => 'activity_history',
+        'Authentication & SSO' => 'authentication_sso',
     ];
 
     public function getTranslatedLabelAttribute(): string
     {
-        $key = self::$labelKeyMap[$this->label] ?? null;
+        $locale = \Illuminate\Support\Facades\App::getLocale();
 
-        return $key ? __('common.' . $key) : $this->label;
+        if ($locale === 'th' && $this->label_th !== null && $this->label_th !== '') {
+            return $this->label_th;
+        }
+        if ($locale !== 'th' && $this->label_en !== null && $this->label_en !== '') {
+            return $this->label_en;
+        }
+
+        $key = self::$labelKeyMap[$this->label] ?? null;
+        if ($key) {
+            $commonKey = 'common.'.$key;
+            if (\Illuminate\Support\Facades\Lang::has($commonKey)) {
+                return __($commonKey);
+            }
+            $companyKey = 'company.'.$key;
+            if (\Illuminate\Support\Facades\Lang::has($companyKey)) {
+                return __($companyKey);
+            }
+        }
+
+        return $this->label ?? '';
     }
 
     protected $casts = [
-        'is_active'  => 'boolean',
+        'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -43,14 +93,16 @@ class NavigationMenu extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id')
-                    ->where('is_active', true)
-                    ->orderBy('sort_order');
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function allChildren(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id')
-                    ->orderBy('sort_order');
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function parent(): BelongsTo
@@ -63,21 +115,26 @@ class NavigationMenu extends Model
     public function scopeRootMenus(Builder $query): Builder
     {
         return $query->whereNull('parent_id')
-                     ->where('is_active', true)
-                     ->orderBy('sort_order');
+            ->where('is_active', true)
+            ->orderBy('sort_order');
     }
 
     // ── Helpers ───────────────────────────────────────────
 
     public function isActive(): bool
     {
-        if ($this->route === null) {
+        if ($this->route === null || $this->route === '') {
             return false;
         }
 
-        $path = ltrim($this->route, '/');
+        $routePath = ltrim($this->route, '/');
+        $currentPath = trim(request()->path(), '/');
 
-        return request()->is($path) || request()->is($path . '/*');
+        if ($routePath === '') {
+            return false;
+        }
+
+        return $currentPath === $routePath || str_starts_with($currentPath.'/', $routePath.'/');
     }
 
     public function hasActiveChild(): bool
