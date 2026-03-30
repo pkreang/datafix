@@ -64,6 +64,7 @@ Route::middleware('auth.web')->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/repair-history', [ReportController::class, 'repairHistory'])->name('reports.repair-history');
     Route::get('/reports/pm-am-history', [ReportController::class, 'pmAmHistory'])->name('reports.pm-am-history');
+    Route::get('/reports/dashboards/{dashboard}', [ReportController::class, 'showDashboard'])->name('reports.dashboards.show');
     Route::get('/spare-parts/stock', [SparePartsController::class, 'stock'])->name('spare-parts.stock');
     Route::get('/spare-parts/withdrawal-history', [SparePartsController::class, 'withdrawalHistory'])->name('spare-parts.withdrawal-history');
     Route::get('/spare-parts/requisition', [SparePartsController::class, 'requisitionIndex'])->name('spare-parts.requisition.index');
