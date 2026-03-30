@@ -1,0 +1,13 @@
+@extends('layouts.app')
+
+@section('title', 'Create Dashboard')
+
+@section('content')
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Create Dashboard</h2>
+        <a href="{{ route('settings.dashboards.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
+    </div>
+    <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        @include('settings.dashboards._form')
+    </div>
+@endsection

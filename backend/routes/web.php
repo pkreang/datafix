@@ -8,11 +8,13 @@ use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DepartmentController;
 use App\Http\Controllers\Web\DocumentFormController;
 use App\Http\Controllers\Web\DocumentFormWorkflowPolicyController;
+use App\Http\Controllers\Web\DocumentTypeController;
 use App\Http\Controllers\Web\EquipmentController;
 use App\Http\Controllers\Web\EquipmentLocationController;
 use App\Http\Controllers\Web\EquipmentRegistryController;
 use App\Http\Controllers\Web\MaintenanceController;
 use App\Http\Controllers\Web\NavigationMenuController;
+use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\NotificationSettingController;
 use App\Http\Controllers\Web\PermissionController;
 use App\Http\Controllers\Web\PositionController;
@@ -22,7 +24,11 @@ use App\Http\Controllers\Web\ReportController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\SettingController;
 use App\Http\Controllers\Web\SparePartsController;
+use App\Http\Controllers\Web\LookupController;
+use App\Http\Controllers\Web\RunningNumberController;
+use App\Http\Controllers\Web\ThailandAddressSearchController;
 use App\Http\Controllers\Web\UserController;
+use App\Http\Controllers\Web\ReportDashboardController;
 use App\Http\Controllers\Web\WorkflowController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,11 +60,19 @@ Route::middleware('auth.web')->group(function () {
     Route::get('/maintenance/auto-assign', [MaintenanceController::class, 'autoAssign'])->name('maintenance.auto-assign');
     Route::post('/maintenance/create-plan', [MaintenanceController::class, 'submitPlan'])
         ->name('maintenance.create-plan.submit');
+    Route::get('/maintenance/{instance}', [MaintenanceController::class, 'show'])->name('maintenance.show');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/repair-history', [ReportController::class, 'repairHistory'])->name('reports.repair-history');
     Route::get('/reports/pm-am-history', [ReportController::class, 'pmAmHistory'])->name('reports.pm-am-history');
     Route::get('/spare-parts/stock', [SparePartsController::class, 'stock'])->name('spare-parts.stock');
     Route::get('/spare-parts/withdrawal-history', [SparePartsController::class, 'withdrawalHistory'])->name('spare-parts.withdrawal-history');
+    Route::get('/spare-parts/requisition', [SparePartsController::class, 'requisitionIndex'])->name('spare-parts.requisition.index');
+    Route::get('/spare-parts/requisition/create', [SparePartsController::class, 'requisitionCreate'])->name('spare-parts.requisition.create');
+    Route::post('/spare-parts/requisition', [SparePartsController::class, 'requisitionSubmit'])->name('spare-parts.requisition.submit');
+    Route::get('/spare-parts/requisition/{instance}', [SparePartsController::class, 'requisitionShow'])->name('spare-parts.requisition.show');
+    Route::post('/spare-parts/requisition/{instance}/issue', [SparePartsController::class, 'issueItems'])
+        ->middleware('permission:spare_parts.manage')
+        ->name('spare-parts.requisition.issue');
     Route::get('/equipment-registry', [EquipmentRegistryController::class, 'index'])->name('equipment-registry.index');
     Route::get('/equipment-registry/create', [EquipmentRegistryController::class, 'create'])->name('equipment-registry.create');
     Route::post('/equipment-registry', [EquipmentRegistryController::class, 'store'])->name('equipment-registry.store');
@@ -76,6 +90,9 @@ Route::middleware('auth.web')->group(function () {
     Route::post('/approvals/{instance}/act', [ApprovalController::class, 'act'])
         ->middleware('permission:approval.approve')
         ->name('approvals.act');
+    Route::get('/addresses/thailand/subdistricts', [ThailandAddressSearchController::class, 'subdistricts'])
+        ->name('addresses.thailand.subdistricts');
+    Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
     Route::resource('companies', CompanyController::class);
     Route::post('companies/{company}/branches', [CompanyController::class, 'storeBranch'])->name('companies.branches.store');
     Route::put('companies/{company}/branches/{branch}', [CompanyController::class, 'updateBranch'])->name('companies.branches.update');
@@ -85,6 +102,11 @@ Route::middleware('auth.web')->group(function () {
     Route::resource('users', UserController::class);
     Route::resource('roles', RoleController::class);
     Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -99,6 +121,7 @@ Route::middleware('auth.web')->group(function () {
         Route::post('/settings/branding', [SettingController::class, 'saveBranding'])->name('settings.branding.save');
         Route::get('/settings/departments', [DepartmentController::class, 'index'])->name('settings.departments.index');
         Route::get('/settings/department-workflow-bindings', [DepartmentController::class, 'workflowBindingsMatrix'])->name('settings.department-workflow-bindings.index');
+        Route::post('/settings/department-workflow-bindings', [DepartmentController::class, 'bulkBindWorkflows'])->name('settings.department-workflow-bindings.bulk');
         Route::get('/settings/departments/create', [DepartmentController::class, 'create'])->name('settings.departments.create');
         Route::post('/settings/departments', [DepartmentController::class, 'store'])->name('settings.departments.store');
         Route::get('/settings/departments/{department}/edit', [DepartmentController::class, 'edit'])->name('settings.departments.edit');
@@ -122,6 +145,12 @@ Route::middleware('auth.web')->group(function () {
         Route::post('/settings/approval-routing', [SettingController::class, 'saveApprovalRouting'])->name('settings.approval-routing.save');
         Route::get('/settings/authentication', [SettingController::class, 'authSettings'])->name('settings.auth');
         Route::post('/settings/authentication', [SettingController::class, 'saveAuthSettings'])->name('settings.auth.save');
+        Route::get('/settings/document-types', [DocumentTypeController::class, 'index'])->name('settings.document-types.index');
+        Route::get('/settings/document-types/create', [DocumentTypeController::class, 'create'])->name('settings.document-types.create');
+        Route::post('/settings/document-types', [DocumentTypeController::class, 'store'])->name('settings.document-types.store');
+        Route::get('/settings/document-types/{documentType}/edit', [DocumentTypeController::class, 'edit'])->name('settings.document-types.edit');
+        Route::put('/settings/document-types/{documentType}', [DocumentTypeController::class, 'update'])->name('settings.document-types.update');
+        Route::delete('/settings/document-types/{documentType}', [DocumentTypeController::class, 'destroy'])->name('settings.document-types.destroy');
         Route::get('/settings/document-forms', [DocumentFormController::class, 'index'])->name('settings.document-forms.index');
         Route::get('/settings/document-forms/create', [DocumentFormController::class, 'create'])->name('settings.document-forms.create');
         Route::post('/settings/document-forms', [DocumentFormController::class, 'store'])->name('settings.document-forms.store');
@@ -137,12 +166,20 @@ Route::middleware('auth.web')->group(function () {
         Route::put('/settings/equipment/{equipmentCategory}', [EquipmentController::class, 'update'])->name('settings.equipment.update');
         Route::delete('/settings/equipment/{equipmentCategory}', [EquipmentController::class, 'destroy'])->name('settings.equipment.destroy');
         Route::get('/settings/notifications', [NotificationSettingController::class, 'index'])->name('settings.notifications.index');
+        Route::put('/settings/notifications', [NotificationSettingController::class, 'update'])->name('settings.notifications.update');
         Route::get('/settings/equipment-locations', [EquipmentLocationController::class, 'index'])->name('settings.equipment-locations.index');
         Route::get('/settings/equipment-locations/create', [EquipmentLocationController::class, 'create'])->name('settings.equipment-locations.create');
         Route::post('/settings/equipment-locations', [EquipmentLocationController::class, 'store'])->name('settings.equipment-locations.store');
         Route::get('/settings/equipment-locations/{equipmentLocation}/edit', [EquipmentLocationController::class, 'edit'])->name('settings.equipment-locations.edit');
         Route::put('/settings/equipment-locations/{equipmentLocation}', [EquipmentLocationController::class, 'update'])->name('settings.equipment-locations.update');
         Route::delete('/settings/equipment-locations/{equipmentLocation}', [EquipmentLocationController::class, 'destroy'])->name('settings.equipment-locations.destroy');
+        Route::get('/settings/running-numbers', [RunningNumberController::class, 'index'])->name('settings.running-numbers.index');
+        Route::get('/settings/running-numbers/create', [RunningNumberController::class, 'create'])->name('settings.running-numbers.create');
+        Route::post('/settings/running-numbers', [RunningNumberController::class, 'store'])->name('settings.running-numbers.store');
+        Route::get('/settings/running-numbers/{runningNumberConfig}/edit', [RunningNumberController::class, 'edit'])->name('settings.running-numbers.edit');
+        Route::put('/settings/running-numbers/{runningNumberConfig}', [RunningNumberController::class, 'update'])->name('settings.running-numbers.update');
+        Route::delete('/settings/running-numbers/{runningNumberConfig}', [RunningNumberController::class, 'destroy'])->name('settings.running-numbers.destroy');
+        Route::post('/settings/running-numbers/{runningNumberConfig}/reset', [RunningNumberController::class, 'reset'])->name('settings.running-numbers.reset');
         Route::get('/settings/activity-history', [ActivityHistoryController::class, 'index'])->name('settings.activity-history.index');
         Route::get('/settings/navigation', [NavigationMenuController::class, 'index'])->name('settings.navigation.index');
         Route::get('/settings/navigation/create', [NavigationMenuController::class, 'create'])->name('settings.navigation.create');
@@ -152,5 +189,9 @@ Route::middleware('auth.web')->group(function () {
         Route::delete('/settings/navigation/{navigation}', [NavigationMenuController::class, 'destroy'])->name('settings.navigation.destroy');
         Route::patch('/settings/navigation/reorder', [NavigationMenuController::class, 'reorder'])->name('settings.navigation.reorder');
         Route::patch('/settings/navigation/{navigation}/toggle', [NavigationMenuController::class, 'toggle'])->name('settings.navigation.toggle');
+
+        // Dashboard designer
+        Route::resource('settings/dashboards', ReportDashboardController::class)
+            ->names('settings.dashboards');
     });
 });
