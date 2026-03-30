@@ -192,6 +192,7 @@ Route::middleware('auth.web')->group(function () {
 
         // Dashboard designer
         Route::resource('settings/dashboards', ReportDashboardController::class)
-            ->names('settings.dashboards');
+            ->names('settings.dashboards')
+            ->except(['show']);
     });
 });

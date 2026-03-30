@@ -99,14 +99,14 @@
                     {{-- Title --}}
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-500">Title</label>
-                        <input :name="`widgets[${idx}][title]`" x-model="widget.title" required
+                        <input x-model="widget.title" required
                                class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
                     </div>
 
                     {{-- Col Span --}}
                     <div>
                         <label class="text-xs text-gray-500">Col Span</label>
-                        <select :name="`widgets[${idx}][col_span]`" x-model="widget.col_span"
+                        <select x-model="widget.col_span"
                                 class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                             <option value="0">Auto</option>
                             <option value="1">1</option>
@@ -119,7 +119,7 @@
                     {{-- Data Source --}}
                     <div>
                         <label class="text-xs text-gray-500">Data Source</label>
-                        <select :name="`widgets[${idx}][data_source]`" x-model="widget.data_source"
+                        <select x-model="widget.data_source"
                                 class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                             <template x-for="[key, src] in Object.entries(dataSources)" :key="key">
                                 <option :value="key" x-text="src.label_en"></option>
@@ -130,7 +130,7 @@
                     {{-- Widget Type --}}
                     <div>
                         <label class="text-xs text-gray-500">Widget Type</label>
-                        <select :name="`widgets[${idx}][widget_type]`" x-model="widget.widget_type"
+                        <select x-model="widget.widget_type"
                                 class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                             <option value="metric">Metric</option>
                             <option value="chart">Chart</option>
@@ -299,7 +299,7 @@
             <div class="grid gap-4" :class="`grid-cols-2`">
                 <template x-for="(widget, idx) in widgets" :key="idx">
                     <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-4"
-                         :class="widget.col_span > 0 ? `col-span-${widget.col_span}` : ''">
+                         :class="colSpanClass(widget.col_span)">
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="widget.title"></p>
                             <span class="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -396,6 +396,11 @@ function dashboardBuilder(initialWidgets, dataSources) {
             } catch {
                 widget.table_columns = JSON.stringify([colKey]);
             }
+        },
+
+        colSpanClass(n) {
+            const map = { 1: 'col-span-1', 2: 'col-span-2', 3: 'col-span-3', 4: 'col-span-4' };
+            return map[parseInt(n)] || '';
         },
     };
 }

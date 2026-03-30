@@ -145,7 +145,6 @@ class ReportDashboardController extends Controller
 
     public function destroy(ReportDashboard $dashboard): RedirectResponse
     {
-        $dashboard->widgets()->delete();
         $dashboard->delete();
 
         return redirect()->route('settings.dashboards.index')->with('success', __('common.deleted'));
