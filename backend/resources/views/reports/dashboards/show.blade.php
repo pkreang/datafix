@@ -41,13 +41,13 @@
         <select id="filter-department"
                 class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">All Departments</option>
-            @foreach(\App\Models\Department::orderBy('name')->get() as $dept)
+            @foreach($departments as $dept)
                 <option value="{{ $dept->id }}">{{ $dept->name }}</option>
             @endforeach
         </select>
     </div>
     <button type="button"
-            onclick="document.querySelectorAll('[data-dashboard-widget]').forEach(el => el.__x?.$data?.loadData())"
+            onclick="document.querySelectorAll('[data-dashboard-widget]').forEach(el => { Alpine.$data(el)?.loadData?.(); })"
             class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
         Refresh
     </button>
@@ -144,109 +144,4 @@
     </div>
 @endif
 
-<script>
-function dashboardWidget(widgetId, dashboardId, widgetType) {
-    return {
-        widgetId,
-        dashboardId,
-        widgetType,
-        loading: true,
-        error: null,
-        data: {},
-        chartInstance: null,
-        currentPage: 1,
-
-        async loadData() {
-            this.loading = true;
-            this.error = null;
-
-            const params = new URLSearchParams();
-            const dateFrom = document.getElementById('filter-date-from')?.value;
-            const dateTo   = document.getElementById('filter-date-to')?.value;
-            const deptId   = document.getElementById('filter-department')?.value;
-            if (dateFrom) params.append('date_from', dateFrom);
-            if (dateTo)   params.append('date_to', dateTo);
-            if (deptId)   params.append('department_id', deptId);
-            if (this.currentPage > 1) params.append('page', this.currentPage);
-
-            const apiToken  = document.querySelector('meta[name="api-token"]')?.content || '';
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-
-            try {
-                const resp = await fetch(
-                    `/api/v1/dashboards/${this.dashboardId}/widgets/${this.widgetId}/data?${params}`,
-                    {
-                        headers: {
-                            'Accept': 'application/json',
-                            'Authorization': `Bearer ${apiToken}`,
-                            'X-CSRF-TOKEN': csrfToken,
-                        }
-                    }
-                );
-
-                if (!resp.ok) {
-                    throw new Error(`HTTP ${resp.status}`);
-                }
-
-                this.data = await resp.json();
-
-                if (this.widgetType === 'chart') {
-                    this.$nextTick(() => this.renderChart());
-                }
-            } catch (e) {
-                this.error = 'Failed to load data';
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        renderChart() {
-            const canvas = document.getElementById(`chart-${this.widgetId}`);
-            if (!canvas || !window.Chart) return;
-
-            if (this.chartInstance) {
-                this.chartInstance.destroy();
-                this.chartInstance = null;
-            }
-
-            const chartType = canvas.dataset.chartType || 'bar';
-
-            this.chartInstance = new window.Chart(canvas, {
-                type: chartType === 'donut' ? 'doughnut' : chartType,
-                data: {
-                    labels: this.data.labels || [],
-                    datasets: [{
-                        data: (this.data.datasets?.[0]?.data) || [],
-                        backgroundColor: [
-                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-                            '#06B6D4', '#F97316', '#84CC16', '#EC4899', '#6366F1',
-                        ],
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: ['pie', 'doughnut'].includes(chartType) }
-                    }
-                }
-            });
-        },
-
-        prevPage() {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.loadData();
-            }
-        },
-
-        nextPage() {
-            if (this.data.pagination && this.currentPage < this.data.pagination.last_page) {
-                this.currentPage++;
-                this.loadData();
-            }
-        }
-    };
-}
-</script>
 @endsection

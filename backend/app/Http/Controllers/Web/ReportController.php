@@ -26,6 +26,10 @@ class ReportController extends Controller
 
     public function showDashboard(ReportDashboard $dashboard, Request $request): View|\Illuminate\Http\RedirectResponse
     {
+        if (!$dashboard->is_active) {
+            abort(404);
+        }
+
         // Permission check: if visibility=permission, user must have required_permission
         if ($dashboard->visibility === 'permission' && $dashboard->required_permission) {
             $user = $request->user();
@@ -43,6 +47,8 @@ class ReportController extends Controller
 
         $apiToken = session('api_token');
 
-        return view('reports.dashboards.show', compact('dashboard', 'apiToken'));
+        $departments = \App\Models\Department::orderBy('name')->where('is_active', true)->get(['id', 'name']);
+
+        return view('reports.dashboards.show', compact('dashboard', 'apiToken', 'departments'));
     }
 }
