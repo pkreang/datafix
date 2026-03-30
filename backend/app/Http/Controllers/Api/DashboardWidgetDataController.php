@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ReportDashboard;
 use App\Models\ReportDashboardWidget;
 use App\Support\DataSourceRegistry;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +30,13 @@ class DashboardWidgetDataController extends Controller
             }
         }
 
-        // 3. Get global filters from request
+        // 3. Validate and get global filters from request
+        $request->validate([
+            'date_from'     => 'nullable|date',
+            'date_to'       => 'nullable|date',
+            'department_id' => 'nullable|integer',
+        ]);
+
         $dateFrom     = $request->query('date_from');     // Y-m-d string or null
         $dateTo       = $request->query('date_to');       // Y-m-d string or null
         $departmentId = $request->query('department_id'); // int or null
@@ -43,7 +48,11 @@ class DashboardWidgetDataController extends Controller
             return response()->json(['error' => 'Unknown data source'], 422);
         }
 
-        $query = DataSourceRegistry::query($widget->data_source);
+        try {
+            $query = DataSourceRegistry::query($widget->data_source);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => 'Unknown data source'], 422);
+        }
 
         // Apply global date filter (if source has date_fields and date_from/to set)
         $dateField = $config['date_field'] ?? null;
@@ -59,17 +68,24 @@ class DashboardWidgetDataController extends Controller
 
         // 5. Build response based on widget_type
         return match ($widget->widget_type) {
-            'metric' => $this->metricData($query, $config),
+            'metric' => $this->metricData($query, $config, $source),
             'chart'  => $this->chartData($query, $config, $source),
             'table'  => $this->tableData($query, $config, $source, $request),
             default  => response()->json(['error' => 'Unknown widget type'], 422),
         };
     }
 
-    private function metricData($query, array $config): JsonResponse
+    private function metricData($query, array $config, array $source): JsonResponse
     {
         $aggregation = $config['aggregation'] ?? 'count';
         $field       = $config['field'] ?? 'id';
+
+        // Whitelist field against source's aggregate_fields
+        $allowedFields = array_keys($source['aggregate_fields'] ?? []);
+        if (!in_array($field, $allowedFields, true)) {
+            $field       = 'id';
+            $aggregation = 'count';
+        }
 
         $value = match ($aggregation) {
             'count' => $query->count(),
@@ -86,6 +102,17 @@ class DashboardWidgetDataController extends Controller
         $groupBy     = $config['group_by'] ?? null;
         $aggregation = $config['aggregation'] ?? 'count';
         $field       = $config['field'] ?? 'id';
+
+        // Whitelist field and groupBy against source definition
+        $allowedFields = array_keys($source['aggregate_fields'] ?? []);
+        if (!in_array($field, $allowedFields, true)) {
+            $field = 'id';
+        }
+
+        $allowedGroupBy = array_keys($source['group_by_fields'] ?? []);
+        if ($groupBy && !in_array($groupBy, $allowedGroupBy, true)) {
+            return response()->json(['labels' => [], 'datasets' => [['data' => []]]]);
+        }
 
         if (!$groupBy) {
             return response()->json(['labels' => [], 'datasets' => [['data' => []]]]);
@@ -114,8 +141,8 @@ class DashboardWidgetDataController extends Controller
     private function tableData($query, array $config, array $source, Request $request): JsonResponse
     {
         $columns = $config['columns'] ?? array_keys($source['display_columns'] ?? []);
-        $perPage = (int) ($config['per_page'] ?? 10);
-        $page    = (int) ($request->query('page', 1));
+        $perPage = min(max(1, (int) ($config['per_page'] ?? 10)), 100);
+        $page    = max(1, (int) ($request->query('page', 1)));
 
         // Select only configured columns (whitelist via source display_columns)
         $allowedColumns = array_keys($source['display_columns'] ?? []);
