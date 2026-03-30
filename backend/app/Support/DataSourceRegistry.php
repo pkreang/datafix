@@ -27,22 +27,25 @@ class DataSourceRegistry
                     'id' => 'Count',
                 ],
                 'group_by_fields'  => [
-                    'status'        => 'Status',
-                    'department_id' => 'Department',
+                    'status'              => 'Status',
+                    'department_id'       => 'Department',
+                    'requester_user_id'   => 'Requester',
                 ],
                 'filter_fields'    => [
-                    'status'        => 'Status',
-                    'department_id' => 'Department',
+                    'status'              => 'Status',
+                    'department_id'       => 'Department',
+                    'requester_user_id'   => 'Requester',
                 ],
                 'date_fields'      => [
                     'created_at' => 'Created At',
                     'updated_at' => 'Updated At',
                 ],
                 'display_columns'  => [
-                    'reference_no'  => 'Ref No',
-                    'status'        => 'Status',
-                    'department_id' => 'Department',
-                    'created_at'    => 'Created At',
+                    'reference_no'        => 'Ref No',
+                    'status'              => 'Status',
+                    'department_id'       => 'Department',
+                    'requester_user_id'   => 'Requester',
+                    'created_at'          => 'Created At',
                 ],
             ],
 
@@ -55,22 +58,25 @@ class DataSourceRegistry
                     'id' => 'Count',
                 ],
                 'group_by_fields'  => [
-                    'status'        => 'Status',
-                    'department_id' => 'Department',
+                    'status'              => 'Status',
+                    'department_id'       => 'Department',
+                    'requester_user_id'   => 'Requester',
                 ],
                 'filter_fields'    => [
-                    'status'        => 'Status',
-                    'department_id' => 'Department',
+                    'status'              => 'Status',
+                    'department_id'       => 'Department',
+                    'requester_user_id'   => 'Requester',
                 ],
                 'date_fields'      => [
                     'created_at' => 'Created At',
                     'updated_at' => 'Updated At',
                 ],
                 'display_columns'  => [
-                    'reference_no'  => 'Ref No',
-                    'status'        => 'Status',
-                    'department_id' => 'Department',
-                    'created_at'    => 'Created At',
+                    'reference_no'        => 'Ref No',
+                    'status'              => 'Status',
+                    'department_id'       => 'Department',
+                    'requester_user_id'   => 'Requester',
+                    'created_at'          => 'Created At',
                 ],
             ],
 
@@ -152,12 +158,14 @@ class DataSourceRegistry
                     'unit_cost' => 'Unit Cost',
                 ],
                 'group_by_fields'  => [
-                    'transaction_type' => 'Transaction Type',
-                    'spare_part_id'    => 'Spare Part',
+                    'transaction_type'      => 'Transaction Type',
+                    'spare_part_id'         => 'Spare Part',
+                    'performed_by_user_id'  => 'Performed By',
                 ],
                 'filter_fields'    => [
-                    'transaction_type' => 'Transaction Type',
-                    'spare_part_id'    => 'Spare Part',
+                    'transaction_type'      => 'Transaction Type',
+                    'spare_part_id'         => 'Spare Part',
+                    'performed_by_user_id'  => 'Performed By',
                 ],
                 'date_fields'      => [
                     'created_at' => 'Created At',
@@ -207,18 +215,14 @@ class DataSourceRegistry
                 'aggregate_fields' => [
                     'id' => 'Count',
                 ],
-                'group_by_fields'  => [
-                    'company_id' => 'Company',
-                ],
-                'filter_fields'    => [
-                    'company_id' => 'Company',
-                ],
+                'group_by_fields'  => [],
+                'filter_fields'    => [],
                 'date_fields'      => [
                     'created_at' => 'Created At',
                 ],
                 'display_columns'  => [
                     'name'       => 'Name',
-                    'company_id' => 'Company',
+                    'code'       => 'Code',
                     'created_at' => 'Created At',
                 ],
             ],
@@ -261,7 +265,7 @@ class DataSourceRegistry
         $config = static::sources()[$source] ?? null;
 
         if (! $config) {
-            return User::query()->whereRaw('0=1');
+            throw new \InvalidArgumentException("Unknown data source: [{$source}]");
         }
 
         if (isset($config['base_query']) && $config['base_query'] instanceof \Closure) {
@@ -272,7 +276,7 @@ class DataSourceRegistry
             return $config['model']::query();
         }
 
-        return User::query()->whereRaw('0=1');
+        throw new \InvalidArgumentException("Data source [{$source}] has no model or base_query configured.");
     }
 
     /**
