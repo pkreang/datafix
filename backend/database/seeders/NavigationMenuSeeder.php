@@ -484,7 +484,7 @@ class NavigationMenuSeeder extends Seeder
                 'label_th' => 'แดชบอร์ด',
                 'icon' => 'chart-bar',
                 'route' => '/settings/dashboards',
-                'permission' => 'manage dashboards',
+                'permission' => 'manage_settings',
                 'sort_order' => 20,
             ],
         ];
