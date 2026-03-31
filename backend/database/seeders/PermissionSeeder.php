@@ -47,6 +47,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'spare_parts.manage', 'module' => 'spare_parts', 'action' => 'manage'],
             ['name' => 'spare_parts.view', 'module' => 'spare_parts', 'action' => 'read'],
             ['name' => 'spare_parts.requisition', 'module' => 'spare_parts', 'action' => 'requisition'],
+            ['name' => 'manage dashboards', 'module' => 'dashboard', 'action' => 'manage'],
         ];
         foreach ($exactPermissions as $item) {
             Permission::updateOrCreate(

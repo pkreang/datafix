@@ -11,7 +11,24 @@ class ReportController extends Controller
 {
     public function index(): View
     {
-        return view('reports.index');
+        $user = request()->user();
+        $isSuperAdmin = $user?->is_super_admin ?? false;
+
+        $dashboards = ReportDashboard::withCount('widgets')
+            ->where('is_active', true)
+            ->when(!$isSuperAdmin, function ($query) use ($user) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('visibility', 'all')
+                      ->orWhere(function ($q2) use ($user) {
+                          $q2->where('visibility', 'permission')
+                             ->whereIn('required_permission', $user?->getAllPermissions()->pluck('name') ?? []);
+                      });
+                });
+            })
+            ->orderBy('created_at')
+            ->get();
+
+        return view('reports.index', compact('dashboards'));
     }
 
     public function repairHistory(): View

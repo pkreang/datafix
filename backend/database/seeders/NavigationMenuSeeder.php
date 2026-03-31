@@ -132,17 +132,6 @@ class NavigationMenuSeeder extends Seeder
                 'sort_order' => 2,
             ],
             [
-                'id' => 17,
-                'parent_id' => null,
-                'label' => 'Reports',
-                'label_en' => 'Reports',
-                'label_th' => 'รายงาน',
-                'icon' => 'chart-bar',
-                'route' => null,
-                'permission' => null,
-                'sort_order' => 6,
-            ],
-            [
                 'id' => 26,
                 'parent_id' => null,
                 'label' => 'Spare Parts',
@@ -218,6 +207,17 @@ class NavigationMenuSeeder extends Seeder
                 'route' => '/equipment-locations',
                 'permission' => 'manage_settings',
                 'sort_order' => 2,
+            ],
+            [
+                'id' => 17,
+                'parent_id' => null,
+                'label' => 'Reports',
+                'label_en' => 'Reports',
+                'label_th' => 'รายงาน',
+                'icon' => 'chart-bar',
+                'route' => '/reports',
+                'permission' => null,
+                'sort_order' => 6,
             ],
             [
                 'id' => 23,
@@ -475,6 +475,17 @@ class NavigationMenuSeeder extends Seeder
                 'route' => '/settings/activity-history',
                 'permission' => 'manage_settings',
                 'sort_order' => 19,
+            ],
+            [
+                'id' => 42,
+                'parent_id' => 2,
+                'label' => 'Dashboards',
+                'label_en' => 'Dashboards',
+                'label_th' => 'แดชบอร์ด',
+                'icon' => 'chart-bar',
+                'route' => '/settings/dashboards',
+                'permission' => 'manage dashboards',
+                'sort_order' => 20,
             ],
         ];
 

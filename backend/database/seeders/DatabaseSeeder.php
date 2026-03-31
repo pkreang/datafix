@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             EquipmentSeeder::class,
             SparePartSeeder::class,
             ApprovalWorkflowDemoSeeder::class,
+            ReportDashboardSeeder::class,
         ]);
     }
 }

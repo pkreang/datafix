@@ -355,4 +355,13 @@ return [
     'running_number_reset_counter' => 'Reset counter',
     'running_number_reset_confirm' => 'Are you sure you want to reset the counter to 0?',
     'running_number_reset_done' => 'Counter has been reset.',
+
+    // Reports & Dashboards
+    'reports' => 'Reports',
+    'reports_desc' => 'View your dashboards and reports',
+    'dashboards' => 'Dashboards',
+    'dashboards_desc' => 'Create and manage report dashboards',
+    'manage_dashboards' => 'Manage Dashboards',
+    'no_dashboards' => 'No dashboards available.',
+    'dashboard_widgets' => 'widgets',
 ];

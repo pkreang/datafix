@@ -355,4 +355,13 @@ return [
     'running_number_reset_confirm' => 'คุณต้องการรีเซ็ตตัวนับเป็น 0 ใช่หรือไม่?',
     'running_number_reset_done' => 'รีเซ็ตตัวนับเรียบร้อยแล้ว',
     'delete_confirm' => 'คุณต้องการลบรายการนี้ใช่หรือไม่?',
+
+    // Reports & Dashboards
+    'reports' => 'รายงาน',
+    'reports_desc' => 'ดู Dashboard และรายงานของคุณ',
+    'dashboards' => 'แดชบอร์ด',
+    'dashboards_desc' => 'สร้างและจัดการ Dashboard รายงาน',
+    'manage_dashboards' => 'จัดการแดชบอร์ด',
+    'no_dashboards' => 'ไม่มี Dashboard ที่แสดงได้',
+    'dashboard_widgets' => 'วิดเจ็ต',
 ];
