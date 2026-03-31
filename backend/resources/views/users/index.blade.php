@@ -3,36 +3,26 @@
 @section('title', __('common.users'))
 
 @section('content')
+<div x-data="userIndex({{ json_encode(request('search', '')) }})">
     <div class="flex items-center justify-between mb-2">
         <div>
             <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.all_users') }}</h2>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $totalUsers }} {{ Str::plural('user', $totalUsers) }} total</p>
         </div>
-        <a href="{{ route('users.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            {{ __('common.add_user') }}
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('users.import') }}" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                {{ __('common.import_data') }}
+            </a>
+            <a href="{{ route('users.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                {{ __('common.add_user') }}
+            </a>
+        </div>
     </div>
 
     {{-- Search --}}
-    <div class="mb-5" x-data="{ query: '{{ request('search') }}', loading: false }" x-init="$watch('query', value => {
-        clearTimeout(window.__userSearchTimer);
-        window.__userSearchTimer = setTimeout(() => {
-            loading = true;
-            const url = new URL(window.location);
-            if (value) { url.searchParams.set('search', value); } else { url.searchParams.delete('search'); }
-            history.replaceState(null, '', url.toString());
-            fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(r => r.text())
-                .then(html => {
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const newTable = doc.getElementById('users-table');
-                    if (newTable) document.getElementById('users-table').innerHTML = newTable.innerHTML;
-                    loading = false;
-                })
-                .catch(() => { loading = false; });
-        }, 300);
-    })">
+    <div class="mb-5">
         <div class="relative max-w-sm">
             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <svg class="w-4 h-4 text-gray-400 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -57,7 +47,7 @@
         </div>
     @endif
 
-    <div id="users-table" class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-visible pb-24">
+    <div id="users-table" x-ref="usersTable" class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-visible pb-24">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50 dark:bg-gray-800/80">
                 <tr>
@@ -66,6 +56,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.status') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.last_active') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.created') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('users.phone') }}</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.actions') }}</th>
                 </tr>
             </thead>
@@ -121,6 +112,9 @@
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {{ $user->created_at ? $user->created_at->format('M d, Y') : '-' }}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{ $user->phone ?? '-' }}
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-right">
                             <div class="relative inline-block text-left" x-data="{ open: false }">
@@ -178,10 +172,11 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('common.no_users_found') }}</td>
+                        <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ __('common.no_users_found') }}</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+</div>
 @endsection

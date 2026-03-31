@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\EquipmentCategory;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class EquipmentController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $query = EquipmentCategory::query()->orderBy('name');
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%");
+            });
+        }
+
+        $categories = $query->paginate(15)->withQueryString();
+
+        return view('settings.equipment.index', compact('categories'));
+    }
+
+    public function create(): View
+    {
+        return view('settings.equipment.create');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:equipment_categories,code',
+            'description' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        EquipmentCategory::create([
+            'name' => $validated['name'],
+            'code' => strtoupper($validated['code']),
+            'description' => $validated['description'] ?? null,
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+        ]);
+
+        return redirect()->route('settings.equipment.index')->with('success', __('common.saved'));
+    }
+
+    public function edit(EquipmentCategory $equipmentCategory): View
+    {
+        return view('settings.equipment.edit', compact('equipmentCategory'));
+    }
+
+    public function update(Request $request, EquipmentCategory $equipmentCategory): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => "required|string|max:50|unique:equipment_categories,code,{$equipmentCategory->id}",
+            'description' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $equipmentCategory->update([
+            'name' => $validated['name'],
+            'code' => strtoupper($validated['code']),
+            'description' => $validated['description'] ?? null,
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+        ]);
+
+        return redirect()->route('settings.equipment.index')->with('success', __('common.updated'));
+    }
+
+    public function destroy(EquipmentCategory $equipmentCategory): RedirectResponse
+    {
+        if ($equipmentCategory->equipment()->exists()) {
+            return redirect()->route('settings.equipment.index')
+                ->with('error', __('common.cannot_delete_category_has_equipment'));
+        }
+
+        $equipmentCategory->delete();
+
+        return redirect()->route('settings.equipment.index')->with('success', __('common.deleted'));
+    }
+}

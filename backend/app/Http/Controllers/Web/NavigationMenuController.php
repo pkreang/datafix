@@ -23,7 +23,7 @@ class NavigationMenuController extends Controller
 
     public function create(): View
     {
-        $menu        = new NavigationMenu();
+        $menu = new NavigationMenu;
         $parentMenus = NavigationMenu::whereNull('parent_id')->orderBy('sort_order')->get();
         $permissions = Permission::orderBy('name')->pluck('name');
 
@@ -33,26 +33,29 @@ class NavigationMenuController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'label'      => 'required|string|max:255',
-            'icon'       => 'nullable|string|max:100',
-            'route'      => 'nullable|string|max:255',
-            'parent_id'  => 'nullable|exists:navigation_menus,id',
+            'label' => 'nullable|string|max:255',
+            'label_en' => 'nullable|string|max:255',
+            'label_th' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:100',
+            'route' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|exists:navigation_menus,id',
             'permission' => 'nullable|string|max:255',
             'sort_order' => 'required|integer|min:0',
-            'is_active'  => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['label'] = $data['label'] ?? $data['label_en'] ?? $data['label_th'] ?? '';
 
         NavigationMenu::create($data);
 
         return redirect()->route('settings.navigation.index')
-                         ->with('success', 'Menu item created successfully');
+            ->with('success', 'Menu item created successfully');
     }
 
     public function edit(NavigationMenu $navigation): View
     {
-        $menu        = $navigation;
+        $menu = $navigation;
         $parentMenus = NavigationMenu::whereNull('parent_id')
             ->where('id', '!=', $menu->id)
             ->orderBy('sort_order')
@@ -65,16 +68,19 @@ class NavigationMenuController extends Controller
     public function update(Request $request, NavigationMenu $navigation)
     {
         $data = $request->validate([
-            'label'      => 'required|string|max:255',
-            'icon'       => 'nullable|string|max:100',
-            'route'      => 'nullable|string|max:255',
-            'parent_id'  => 'nullable|exists:navigation_menus,id',
+            'label' => 'nullable|string|max:255',
+            'label_en' => 'nullable|string|max:255',
+            'label_th' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:100',
+            'route' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|exists:navigation_menus,id',
             'permission' => 'nullable|string|max:255',
             'sort_order' => 'required|integer|min:0',
-            'is_active'  => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['label'] = $data['label'] ?? $data['label_en'] ?? $data['label_th'] ?? $navigation->label;
 
         if ($data['parent_id'] == $navigation->id) {
             $data['parent_id'] = null;
@@ -83,20 +89,20 @@ class NavigationMenuController extends Controller
         $navigation->update($data);
 
         return redirect()->route('settings.navigation.index')
-                         ->with('success', 'Menu item updated successfully');
+            ->with('success', 'Menu item updated successfully');
     }
 
     public function destroy(NavigationMenu $navigation)
     {
         if ($navigation->allChildren()->exists()) {
             return redirect()->route('settings.navigation.index')
-                             ->with('error', 'Cannot delete a menu that has children. Remove children first.');
+                ->with('error', 'Cannot delete a menu that has children. Remove children first.');
         }
 
         $navigation->delete();
 
         return redirect()->route('settings.navigation.index')
-                         ->with('success', 'Menu item deleted successfully');
+            ->with('success', 'Menu item deleted successfully');
     }
 
     public function reorder(Request $request)

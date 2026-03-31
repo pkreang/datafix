@@ -44,6 +44,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'approval.approve', 'module' => 'approval', 'action' => 'approve'],
             ['name' => 'manage equipment', 'module' => 'equipment', 'action' => 'manage'],
             ['name' => 'view equipment', 'module' => 'equipment', 'action' => 'read'],
+            ['name' => 'spare_parts.manage', 'module' => 'spare_parts', 'action' => 'manage'],
+            ['name' => 'spare_parts.view', 'module' => 'spare_parts', 'action' => 'read'],
+            ['name' => 'spare_parts.requisition', 'module' => 'spare_parts', 'action' => 'requisition'],
         ];
         foreach ($exactPermissions as $item) {
             Permission::updateOrCreate(

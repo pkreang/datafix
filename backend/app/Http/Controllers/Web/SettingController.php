@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocumentType;
 use App\Models\Setting;
 use App\Services\ApprovalFlowService;
 use App\Services\Auth\AuthModeService;
@@ -27,7 +28,6 @@ class SettingController extends Controller
         $loginBackground = Setting::get('login_background');
         $loginBackgroundColor = Setting::get('login_background_color', '#2563eb');
         $loginIllustration = Setting::get('login_illustration');
-
         return view('settings.branding', compact('systemLogo', 'loginBackground', 'loginBackgroundColor', 'loginIllustration'));
     }
 
@@ -166,21 +166,23 @@ class SettingController extends Controller
      */
     public function approvalRouting(): View
     {
-        $mode = Setting::get('approval_workflow_routing_mode', ApprovalFlowService::ROUTING_HYBRID);
+        $documentTypes = DocumentType::allActive();
 
-        return view('settings.approval-routing', compact('mode'));
+        return view('settings.approval-routing', compact('documentTypes'));
     }
 
     public function saveApprovalRouting(Request $request): RedirectResponse
     {
         $request->validate([
-            'approval_workflow_routing_mode' => 'required|in:hybrid,department_scoped,organization_wide',
+            'routing_modes' => 'required|array',
+            'routing_modes.*' => 'required|in:hybrid,department_scoped,organization_wide',
         ]);
 
-        Setting::set(
-            'approval_workflow_routing_mode',
-            $request->input('approval_workflow_routing_mode')
-        );
+        foreach ($request->input('routing_modes', []) as $code => $mode) {
+            DocumentType::query()
+                ->where('code', $code)
+                ->update(['routing_mode' => $mode]);
+        }
 
         return redirect()
             ->route('settings.approval-routing')

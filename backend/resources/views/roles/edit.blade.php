@@ -6,7 +6,7 @@
     <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.edit_role') }}</h2>
-            <a href="{{ route('roles.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back_to_roles') }}</a>
+            <a href="{{ route('roles.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
         </div>
 
         @if ($errors->any())
@@ -24,7 +24,7 @@
             @method('PUT')
 
             <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role Name</label>
+                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.role_name') }}</label>
                 <input type="text" name="name" id="name" value="{{ old('name', $role['name'] ?? '') }}" required
                        class="w-full max-w-md px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             </div>

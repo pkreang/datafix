@@ -2,11 +2,19 @@
 
 namespace App\Providers;
 
+use App\Events\Approval\WorkflowCompleted;
+use App\Events\Approval\WorkflowPartialApproval;
+use App\Events\Approval\WorkflowStarted;
+use App\Events\Approval\WorkflowStepAdvanced;
+use App\Listeners\Approval\SendApprovalPendingNotification;
+use App\Listeners\Approval\SendPartialApprovalNotification;
+use App\Listeners\Approval\SendWorkflowOutcomeNotification;
 use App\Models\Setting;
 use App\Policies\RolePolicy;
 use App\Services\Auth\PasswordCapabilityService;
 use App\Services\NavigationService;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
         ResetPassword::createUrlUsing(function ($notifiable, $token) {
             return config('app.url').'/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });
+
+        Event::listen(WorkflowStarted::class, SendApprovalPendingNotification::class);
+        Event::listen(WorkflowStepAdvanced::class, SendApprovalPendingNotification::class);
+        Event::listen(WorkflowCompleted::class, SendWorkflowOutcomeNotification::class);
+        Event::listen(WorkflowPartialApproval::class, SendPartialApprovalNotification::class);
 
         Gate::before(function ($user, $ability) {
             if ($user?->is_super_admin ?? false) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Position;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -83,6 +84,7 @@ class UserController extends Controller
                     'last_name' => $lastName ?: '-',
                     'email' => $email,
                     'password' => Str::random(12),
+                    'department_id' => ($dept = Department::where('name', trim($data['department'] ?? $data['แผนก'] ?? ''))->first()) ? $dept->id : null,
                     'department' => trim($data['department'] ?? $data['แผนก'] ?? '') ?: null,
                     'position' => trim($data['position'] ?? $data['ตำแหน่ง'] ?? '') ?: null,
                     'phone' => trim($data['phone'] ?? $data['เบอร์โทร'] ?? '') ?: null,
@@ -110,8 +112,9 @@ class UserController extends Controller
         $roles = Role::orderBy('name')->get();
         $permissionMatrix = $this->buildPermissionMatrix();
         $positions = Position::query()->where('is_active', true)->orderBy('name')->get();
+        $departments = Department::query()->where('is_active', true)->orderBy('name')->get();
 
-        return view('users.create', compact('roles', 'permissionMatrix', 'positions'));
+        return view('users.create', compact('roles', 'permissionMatrix', 'positions', 'departments'));
     }
 
     public function store(Request $request)
@@ -120,7 +123,7 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'department' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
             'position_id' => 'nullable|exists:positions,id',
             'phone' => 'nullable|string|max:50',
             'remark' => 'nullable|string|max:1000',
@@ -140,7 +143,8 @@ class UserController extends Controller
             'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => Str::random(12),
-            'department' => $request->department,
+            'department_id' => $request->department_id,
+            'department' => $request->department_id ? Department::find($request->department_id)?->name : null,
             'position_id' => $position['id'],
             'position' => $position['name'],
             'phone' => $request->phone,
@@ -187,8 +191,17 @@ class UserController extends Controller
             })
             ->orderBy('name')
             ->get();
+        $departments = Department::query()
+            ->where(function ($q) use ($user) {
+                $q->where('is_active', true);
+                if ($user->department_id) {
+                    $q->orWhere('id', $user->department_id);
+                }
+            })
+            ->orderBy('name')
+            ->get();
 
-        return view('users.edit', compact('user', 'roles', 'permissionMatrix', 'positions'));
+        return view('users.edit', compact('user', 'roles', 'permissionMatrix', 'positions', 'departments'));
     }
 
     public function update(Request $request, int $id)
@@ -205,7 +218,7 @@ class UserController extends Controller
         $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'department' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
             'position_id' => 'nullable|exists:positions,id',
             'phone' => 'nullable|string|max:50',
             'remark' => 'nullable|string|max:1000',
@@ -216,7 +229,8 @@ class UserController extends Controller
         $user->update([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
-            'department' => $request->department,
+            'department_id' => $request->department_id,
+            'department' => $request->department_id ? Department::find($request->department_id)?->name : null,
             'position_id' => $position['id'],
             'position' => $position['name'],
             'phone' => $request->phone,

@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\ApprovalWorkflow;
+use App\Models\DocumentForm;
+use App\Models\DocumentType;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class DocumentTypeController extends Controller
+{
+    public function index(): View
+    {
+        $documentTypes = DocumentType::query()->orderBy('sort_order')->orderBy('code')->get();
+
+        return view('settings.document-types.index', compact('documentTypes'));
+    }
+
+    public function create(): View
+    {
+        return view('settings.document-types.form');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'code' => 'required|string|max:100|unique:document_types,code',
+            'label_en' => 'required|string|max:255',
+            'label_th' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'icon' => 'nullable|string|max:50',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        DocumentType::create([
+            'code' => strtolower(str_replace(' ', '_', $validated['code'])),
+            'label_en' => $validated['label_en'],
+            'label_th' => $validated['label_th'],
+            'description' => $validated['description'] ?? null,
+            'icon' => $validated['icon'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? 0,
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+        ]);
+
+        return redirect()
+            ->route('settings.document-types.index')
+            ->with('success', __('common.saved'));
+    }
+
+    public function edit(DocumentType $documentType): View
+    {
+        return view('settings.document-types.form', compact('documentType'));
+    }
+
+    public function update(Request $request, DocumentType $documentType): RedirectResponse
+    {
+        $validated = $request->validate([
+            'code' => "required|string|max:100|unique:document_types,code,{$documentType->id}",
+            'label_en' => 'required|string|max:255',
+            'label_th' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'icon' => 'nullable|string|max:50',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $documentType->update([
+            'code' => strtolower(str_replace(' ', '_', $validated['code'])),
+            'label_en' => $validated['label_en'],
+            'label_th' => $validated['label_th'],
+            'description' => $validated['description'] ?? null,
+            'icon' => $validated['icon'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? 0,
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+        ]);
+
+        return redirect()
+            ->route('settings.document-types.index')
+            ->with('success', __('common.updated'));
+    }
+
+    public function destroy(DocumentType $documentType): RedirectResponse
+    {
+        $hasForm = DocumentForm::where('document_type', $documentType->code)->exists();
+        $hasWorkflow = ApprovalWorkflow::where('document_type', $documentType->code)->exists();
+
+        if ($hasForm || $hasWorkflow) {
+            return redirect()->route('settings.document-types.index')
+                ->with('error', __('common.cannot_delete_document_type'));
+        }
+
+        $documentType->delete();
+
+        return redirect()->route('settings.document-types.index')->with('success', __('common.deleted'));
+    }
+}

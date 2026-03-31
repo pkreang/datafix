@@ -5,13 +5,7 @@
 @section('content')
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.permissions_title') }}</h2>
-        <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{ $total }} {{ __('common.total') }}</span>
-            <a href="#" onclick="alert('Coming soon')" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                {{ __('common.add_permission') }}
-            </a>
-        </div>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{ $total }} {{ __('common.total') }}</span>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -23,12 +17,12 @@
                         @php
                             $action = $perm['action'] ?? '';
                             $colors = match($action) {
-                                'create' => 'bg-green-100 text-green-800',
-                                'read' => 'bg-blue-100 text-blue-800',
-                                'update' => 'bg-yellow-100 text-yellow-800',
-                                'delete' => 'bg-red-100 text-red-800',
-                                'export' => 'bg-purple-100 text-purple-800',
-                                default => 'bg-gray-100 text-gray-800',
+                                'create' => 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+                                'read' => 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+                                'update' => 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+                                'delete' => 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+                                'export' => 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+                                default => 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
                             };
                         @endphp
                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ $colors }}">

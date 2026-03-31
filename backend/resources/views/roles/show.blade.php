@@ -6,7 +6,7 @@
     <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ $role['name'] ?? '' }}</h2>
-            <a href="{{ route('roles.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back_to_roles') }}</a>
+            <a href="{{ route('roles.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">

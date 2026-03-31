@@ -25,7 +25,10 @@
         <span class="mx-1">/</span>
         <span class="text-gray-700 dark:text-gray-300">{{ __('common.edit_user') }}</span>
     </nav>
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{{ __('common.edit_user') }}</h2>
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.edit_user') }}</h2>
+        <a href="{{ route('users.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
+    </div>
 
     @if ($errors->any())
         <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -78,11 +81,15 @@
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('users.email_readonly_hint') }}</p>
                 </div>
                 <div>
-                    <label for="department" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.department') }}</label>
-                    <input type="text" name="department" id="department" value="{{ old('department', $user->department) }}" maxlength="255"
-                           placeholder="{{ __('users.placeholder_department') }}"
-                           class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 @error('department') border-red-400 @enderror">
-                    @error('department')
+                    <label for="department_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.department') }}</label>
+                    <select name="department_id" id="department_id"
+                            class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 @error('department_id') border-red-400 @enderror">
+                        <option value="">{{ __('common.choose_department') }}</option>
+                        @foreach ($departments as $dept)
+                            <option value="{{ $dept->id }}" @selected(old('department_id', $user->department_id) == $dept->id)>{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('department_id')
                         <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                 </div>
@@ -219,10 +226,7 @@
         </div>
 
         {{-- Footer --}}
-        <div class="flex items-center justify-between pt-2 pb-4">
-            <a href="{{ route('users.index') }}" class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
-                &larr; {{ __('common.back') }}
-            </a>
+        <div class="flex items-center justify-end pt-2 pb-4">
             <div class="flex items-center gap-3">
                 <a href="{{ route('users.index') }}"
                    class="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">

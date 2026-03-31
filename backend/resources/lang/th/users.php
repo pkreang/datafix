@@ -1,0 +1,59 @@
+<?php
+
+return [
+    'general_info' => 'ข้อมูลทั่วไป',
+    'validation_email_unique' => 'อีเมลนี้มีในระบบแล้ว กรุณาใช้อีเมลอื่น',
+    'validation_role_required' => 'กรุณาเลือกบทบาท',
+    'validation_permissions_required' => 'กรุณาเลือกสิทธิ์อย่างน้อย 1 รายการ',
+    'email_readonly_hint' => 'ไม่สามารถแก้ไขอีเมลได้ (ใช้สำหรับเข้าสู่ระบบ)',
+    'no_permissions_configured' => 'ยังไม่ได้ตั้งค่าสิทธิ์ กรุณารัน: php artisan db:seed',
+    'remark' => 'หมายเหตุ',
+    'placeholder_first_name' => 'เช่น สมชาย',
+    'placeholder_last_name' => 'เช่น ใจดี',
+    'placeholder_email' => 'เช่น user@company.com',
+    'placeholder_department' => 'เช่น ฝ่ายไอที',
+    'placeholder_position' => 'เช่น นักพัฒนาระบบ',
+    'position_from_master_hint' => 'เลือกจากข้อมูลหลักที่ ตั้งค่า → ตำแหน่ง (ใช้กำหนดผู้อนุมัติใน workflow ตามตำแหน่ง)',
+    'phone' => 'เบอร์โทรศัพท์',
+    'placeholder_phone' => 'เช่น 08-1234-5678',
+    'placeholder_remark' => 'หมายเหตุเพิ่มเติม (ถ้ามี)...',
+
+    // Permission actions (for matrix headers)
+    'action_create' => 'สร้าง',
+    'action_read' => 'ดู',
+    'action_update' => 'แก้ไข',
+    'action_delete' => 'ลบ',
+    'action_export' => 'ส่งออก',
+
+    // Permission modules
+    'module_dashboard' => 'แดชบอร์ด',
+    'module_product' => 'สินค้า',
+    'module_sales' => 'ขาย',
+    'module_purchase' => 'ซื้อ',
+    'module_expense' => 'ค่าใช้จ่าย',
+    'module_report' => 'รายงาน',
+    'module_loan' => 'สินเชื่อ',
+    'module_company_profile' => 'ข้อมูลบริษัท',
+    'module_user_access' => 'ผู้ใช้และสิทธิ์',
+    'module_integrations' => 'เชื่อมต่อระบบ',
+    'module_role_access' => 'บทบาทและสิทธิ์',
+    'module_permission_access' => 'สิทธิ์การเข้าถึง',
+
+    // Import
+    'import_title' => 'นำเข้าผู้ใช้',
+    'import_subtitle' => 'อัปโหลดไฟล์ CSV เพื่อสร้างผู้ใช้จำนวนมาก',
+    'import_upload_label' => 'ไฟล์ CSV',
+    'import_upload_hint' => 'รูปแบบที่รองรับ: .csv, .txt (คั่นด้วยเครื่องหมายจุลภาค)',
+    'import_template_title' => 'รูปแบบไฟล์ CSV',
+    'import_template_hint' => 'ไฟล์ต้องมีคอลัมน์ email คอลัมน์อื่นเป็นทางเลือก',
+    'import_file_required' => 'กรุณาเลือกไฟล์ CSV ที่ต้องการอัปโหลด',
+    'import_file_mimes' => 'ไฟล์ต้องเป็นรูปแบบ CSV (.csv) หรือ text (.txt)',
+    'import_skip_duplicate' => 'ข้าม: :email มีอยู่ในระบบแล้ว',
+    'import_result' => 'สร้างผู้ใช้ :created คน, ข้าม :skipped คน',
+    'import_errors' => ':count แถวมีข้อผิดพลาด',
+
+    // Actions
+    'user_created' => 'สร้างผู้ใช้สำเร็จแล้ว',
+    'user_deleted' => 'ลบผู้ใช้สำเร็จแล้ว',
+    'cannot_delete_super_admin' => 'ไม่สามารถลบผู้ดูแลระบบสูงสุดได้',
+];

@@ -4,9 +4,12 @@
 
 @section('content')
 <div class="max-w-2xl" x-data="navMenuForm()">
-    <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item') }}</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $menu->exists ? __('common.update_menu_item_desc') : __('common.create_menu_item_desc') }}</p>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item') }}</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $menu->exists ? __('common.update_menu_item_desc') : __('common.create_menu_item_desc') }}</p>
+        </div>
+        <a href="{{ route('settings.navigation.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
     </div>
 
     @if ($errors->any())
@@ -25,12 +28,21 @@
         @if ($menu->exists) @method('PUT') @endif
 
         <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
-            {{-- Label --}}
+            {{-- Label (Thai) --}}
             <div>
-                <label for="label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_label') }} <span class="text-red-500">*</span></label>
-                <input type="text" name="label" id="label"
-                       value="{{ old('label', $menu->label) }}"
-                       required placeholder="e.g. Dashboard"
+                <label for="label_th" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_label_th') }}</label>
+                <input type="text" name="label_th" id="label_th"
+                       value="{{ old('label_th', $menu->label_th) }}"
+                       placeholder="{{ __('common.menu_field_label_th_placeholder') }}"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+            </div>
+
+            {{-- Label (English) --}}
+            <div>
+                <label for="label_en" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_label_en') }}</label>
+                <input type="text" name="label_en" id="label_en"
+                       value="{{ old('label_en', $menu->label_en) }}"
+                       placeholder="{{ __('common.menu_field_label_en_placeholder') }}"
                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             </div>
 
@@ -51,7 +63,8 @@
                         <span x-show="!icon || !icons[icon]" class="text-xs text-gray-400 dark:text-gray-400">—</span>
                     </div>
                 </div>
-                <p class="text-xs text-gray-400 dark:text-gray-400 mt-1">Available: home, settings, users, shield, key, lock-closed, bars-3, chart-bar, document, currency, cube</p>
+                <p class="text-xs text-gray-400 dark:text-gray-400 mt-1">{{ __('common.menu_icon_available') }}: home, settings, users, shield, key, lock-closed, bars-3, chart-bar, document, currency, cube, building-office, wrench</p>
+                <p class="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{{ __('common.menu_icon_source') }}</p>
             </div>
 
             {{-- Route --}}
@@ -153,6 +166,8 @@ document.addEventListener('alpine:init', () => {
             'document':    '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>',
             'currency':    '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
             'cube':        '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
+            'building-office': '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"/></svg>',
+            'wrench': '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.427-.526.244-1.395-.538-1.395H12.75M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409m4.5 4.5l1.409 1.409"/></svg>',
         },
     }));
 });

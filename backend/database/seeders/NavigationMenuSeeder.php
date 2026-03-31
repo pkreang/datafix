@@ -99,6 +99,17 @@ class NavigationMenuSeeder extends Seeder
                 'sort_order' => 3,
             ],
             [
+                'id' => 39,
+                'parent_id' => 16,
+                'label' => 'PM/AM Plans',
+                'label_en' => 'PM/AM Plans',
+                'label_th' => 'แผนงาน PM/AM',
+                'icon' => 'clipboard-document-list',
+                'route' => '/maintenance',
+                'permission' => null,
+                'sort_order' => 0,
+            ],
+            [
                 'id' => 24,
                 'parent_id' => 16,
                 'label' => 'Create PM/AM Plan',
@@ -106,7 +117,7 @@ class NavigationMenuSeeder extends Seeder
                 'label_th' => 'สร้างแผนงาน PM/AM',
                 'icon' => 'document',
                 'route' => '/maintenance/create-plan',
-                'permission' => 'manage_settings',
+                'permission' => null,
                 'sort_order' => 1,
             ],
             [
@@ -129,7 +140,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'chart-bar',
                 'route' => null,
                 'permission' => null,
-                'sort_order' => 4,
+                'sort_order' => 6,
             ],
             [
                 'id' => 26,
@@ -143,6 +154,17 @@ class NavigationMenuSeeder extends Seeder
                 'sort_order' => 5,
             ],
             [
+                'id' => 40,
+                'parent_id' => 26,
+                'label' => 'Request Spare Parts',
+                'label_en' => 'Request Spare Parts',
+                'label_th' => 'เบิกอะไหล่',
+                'icon' => 'document-plus',
+                'route' => '/spare-parts/requisition',
+                'permission' => null,
+                'sort_order' => 0,
+            ],
+            [
                 'id' => 27,
                 'parent_id' => 26,
                 'label' => 'Spare Parts Stock',
@@ -150,7 +172,7 @@ class NavigationMenuSeeder extends Seeder
                 'label_th' => 'สต๊อกอะไหล่',
                 'icon' => 'cube',
                 'route' => '/spare-parts/stock',
-                'permission' => 'manage_settings',
+                'permission' => 'spare_parts.view',
                 'sort_order' => 1,
             ],
             [
@@ -161,7 +183,7 @@ class NavigationMenuSeeder extends Seeder
                 'label_th' => 'ประวัติการเบิกอะไหล่',
                 'icon' => 'clock',
                 'route' => '/spare-parts/withdrawal-history',
-                'permission' => 'manage_settings',
+                'permission' => 'spare_parts.view',
                 'sort_order' => 2,
             ],
             [
@@ -173,7 +195,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'building-office',
                 'route' => null,
                 'permission' => null,
-                'sort_order' => 6,
+                'sort_order' => 4,
             ],
             [
                 'id' => 30,
@@ -231,8 +253,8 @@ class NavigationMenuSeeder extends Seeder
                 'sort_order' => 7,
             ],
             /*
-             * Settings children (parent_id=2): sort_order groups — org (1–2), IAM (3–7),
-             * UI (8–9), workflow (10–12), equipment (13–15), audit (16). Re-seed after edits.
+             * Settings children (parent_id=2): sort_order groups — org (1–3), IAM (4–8),
+             * docs/workflow (9–13), equipment (14–15), system (16–19). Re-seed after edits.
              */
             [
                 'id' => 3,
@@ -243,7 +265,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'users',
                 'route' => '/users',
                 'permission' => 'user_access.read',
-                'sort_order' => 3,
+                'sort_order' => 4,
             ],
             [
                 'id' => 4,
@@ -254,7 +276,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'shield',
                 'route' => '/roles',
                 'permission' => 'role_access.read',
-                'sort_order' => 4,
+                'sort_order' => 5,
             ],
             [
                 'id' => 5,
@@ -265,7 +287,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'key',
                 'route' => '/permissions',
                 'permission' => 'permission_access.read',
-                'sort_order' => 5,
+                'sort_order' => 6,
             ],
             [
                 'id' => 6,
@@ -276,7 +298,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'lock-closed',
                 'route' => '/settings/password-policy',
                 'permission' => 'user_access.update',
-                'sort_order' => 6,
+                'sort_order' => 7,
             ],
             [
                 'id' => 7,
@@ -287,7 +309,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'bars-3',
                 'route' => '/settings/navigation',
                 'permission' => 'manage_settings',
-                'sort_order' => 9,
+                'sort_order' => 18,
             ],
             [
                 'id' => 8,
@@ -309,7 +331,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'document',
                 'route' => '/settings/branding',
                 'permission' => 'manage_settings',
-                'sort_order' => 8,
+                'sort_order' => 17,
             ],
             [
                 'id' => 11,
@@ -331,7 +353,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'link',
                 'route' => '/settings/department-workflow-bindings',
                 'permission' => 'manage_settings',
-                'sort_order' => 2,
+                'sort_order' => 13,
             ],
             [
                 'id' => 38,
@@ -342,7 +364,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'briefcase',
                 'route' => '/settings/positions',
                 'permission' => 'manage_settings',
-                'sort_order' => 2,
+                'sort_order' => 3,
             ],
             [
                 'id' => 12,
@@ -353,7 +375,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'chart-bar',
                 'route' => '/settings/workflow',
                 'permission' => 'manage_settings',
-                'sort_order' => 10,
+                'sort_order' => 11,
             ],
             [
                 'id' => 34,
@@ -364,7 +386,18 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'currency',
                 'route' => '/settings/approval-routing',
                 'permission' => 'manage_settings',
-                'sort_order' => 11,
+                'sort_order' => 12,
+            ],
+            [
+                'id' => 41,
+                'parent_id' => 2,
+                'label' => 'Document Types',
+                'label_en' => 'Document Types',
+                'label_th' => 'ประเภทเอกสาร',
+                'icon' => 'document-text',
+                'route' => '/settings/document-types',
+                'permission' => 'manage_settings',
+                'sort_order' => 9,
             ],
             [
                 'id' => 33,
@@ -375,7 +408,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'document',
                 'route' => '/settings/document-forms',
                 'permission' => 'manage_settings',
-                'sort_order' => 12,
+                'sort_order' => 10,
             ],
             [
                 'id' => 13,
@@ -386,7 +419,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'cube',
                 'route' => '/settings/equipment',
                 'permission' => 'manage_settings',
-                'sort_order' => 13,
+                'sort_order' => 14,
             ],
             [
                 'id' => 14,
@@ -397,7 +430,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'bell',
                 'route' => '/settings/notifications',
                 'permission' => 'manage_settings',
-                'sort_order' => 15,
+                'sort_order' => 16,
             ],
             [
                 'id' => 15,
@@ -408,7 +441,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'map-pin',
                 'route' => '/settings/equipment-locations',
                 'permission' => 'manage_settings',
-                'sort_order' => 14,
+                'sort_order' => 15,
             ],
             [
                 'id' => 36,
@@ -419,7 +452,18 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'shield-check',
                 'route' => '/settings/authentication',
                 'permission' => 'manage_settings',
-                'sort_order' => 7,
+                'sort_order' => 8,
+            ],
+            [
+                'id' => 40,
+                'parent_id' => 2,
+                'label' => 'Running Numbers',
+                'label_en' => 'Running Numbers',
+                'label_th' => 'เลขที่เอกสารอัตโนมัติ',
+                'icon' => 'hashtag',
+                'route' => '/settings/running-numbers',
+                'permission' => 'manage_settings',
+                'sort_order' => 11,
             ],
             [
                 'id' => 18,
@@ -430,7 +474,7 @@ class NavigationMenuSeeder extends Seeder
                 'icon' => 'clock',
                 'route' => '/settings/activity-history',
                 'permission' => 'manage_settings',
-                'sort_order' => 16,
+                'sort_order' => 19,
             ],
         ];
 

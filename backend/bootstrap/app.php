@@ -15,10 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [\App\Http\Middleware\ForceRequestUrl::class]);
         $middleware->web(append: [\App\Http\Middleware\SetLocale::class]);
         $middleware->alias([
-            'auth.web'    => \App\Http\Middleware\AuthenticateWeb::class,
+            'auth.web' => \App\Http\Middleware\AuthenticateWeb::class,
             'super-admin' => \App\Http\Middleware\SuperAdminOnly::class,
-            'role'        => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission'  => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

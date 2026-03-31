@@ -19,14 +19,16 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SettingSeeder::class,
             NavigationMenuSeeder::class,
+            DocumentTypeSeeder::class,
             DocumentFormSeeder::class,
             CompanySeeder::class,
-            BranchSeeder::class,
             DepartmentSeeder::class,
+            PositionDemoSeeder::class,
             EquipmentCategorySeeder::class,
             EquipmentLocationSeeder::class,
             EquipmentSeeder::class,
-            RepairApprovalDemoSeeder::class,
+            SparePartSeeder::class,
+            ApprovalWorkflowDemoSeeder::class,
         ]);
     }
 }

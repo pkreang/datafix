@@ -134,6 +134,8 @@
                         </a>
                     </div>
 
+                    <x-notification-bell />
+
                     <div x-data="{ open: false }" class="relative">
                         <button @click="open = !open" type="button"
                                 class="flex items-center gap-1.5 p-1 rounded-lg

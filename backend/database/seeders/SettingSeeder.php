@@ -39,6 +39,17 @@ class SettingSeeder extends Seeder
             'auth_password_help_url' => '',
             /** JSON array of {"pattern":"substring","role":"spatie_role_name"} for LDAP memberOf / Entra groups */
             'auth_directory_group_role_map' => '[]',
+            /** single | multi — single hides "Add Company" button when 1 company exists */
+            'company_mode' => 'single',
+            /** Notification settings */
+            'notifications.email_enabled' => '1',
+            'notifications.approval_pending_email' => '1',
+            'notifications.workflow_approved_email' => '1',
+            'notifications.workflow_rejected_email' => '1',
+            'notifications.line_enabled' => '1',
+            'notifications.approval_pending_line' => '1',
+            'notifications.workflow_approved_line' => '1',
+            'notifications.workflow_rejected_line' => '1',
         ];
 
         foreach ($defaults as $key => $value) {

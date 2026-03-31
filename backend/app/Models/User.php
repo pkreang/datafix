@@ -28,9 +28,11 @@ class User extends Authenticatable
         'password',
         'avatar',
         'department',
+        'department_id',
         'position',
         'position_id',
         'phone',
+        'line_notify_token',
         'remark',
         'is_active',
         'is_super_admin',
@@ -40,6 +42,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'line_notify_token',
     ];
 
     protected $appends = ['full_name'];
@@ -68,6 +71,11 @@ class User extends Authenticatable
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     /** Master position (Settings → Positions). The `position` string column is kept in sync for display/API. */

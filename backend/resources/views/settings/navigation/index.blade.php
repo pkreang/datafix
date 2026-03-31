@@ -49,7 +49,7 @@
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-right">{{ __('common.actions') }}</th>
                     </tr>
                 </thead>
-                <tbody id="menu-table-body">
+                <tbody id="menu-table-body" x-ref="menuTableBody">
                     @foreach ($rootMenus as $menu)
                         <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
                             data-menu-id="{{ $menu->id }}">
@@ -210,7 +210,7 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('navigationIndex', () => ({
         init() {
-            const tbody = document.getElementById('menu-table-body');
+            const tbody = this.$refs.menuTableBody;
             if (tbody) {
                 Sortable.create(tbody, {
                     handle: '.drag-handle',
