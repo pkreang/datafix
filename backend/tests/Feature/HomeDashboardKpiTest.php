@@ -69,4 +69,26 @@ class HomeDashboardKpiTest extends TestCase
         $user->refresh();
         $this->assertEquals(['repair_pending', 'spare_low_stock'], $user->dashboard_config['cards']);
     }
+
+    public function test_dashboard_seeder_creates_three_dashboards(): void
+    {
+        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(\Database\Seeders\DashboardSeeder::class);
+
+        $this->assertDatabaseCount('report_dashboards', 3);
+
+        $this->assertDatabaseHas('report_dashboards', ['name' => 'CMMS Overview']);
+        $this->assertDatabaseHas('report_dashboards', ['name' => 'Maintenance Dashboard']);
+        $this->assertDatabaseHas('report_dashboards', ['name' => 'Inventory Dashboard']);
+    }
+
+    public function test_cmms_overview_dashboard_has_five_widgets(): void
+    {
+        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(\Database\Seeders\DashboardSeeder::class);
+
+        $dashboard = \App\Models\ReportDashboard::where('name', 'CMMS Overview')->first();
+        $this->assertNotNull($dashboard);
+        $this->assertCount(5, $dashboard->widgets);
+    }
 }

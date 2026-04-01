@@ -11,6 +11,11 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * Customer-style install: RBAC, settings, navigation, document types/forms only.
+     * Single login: admin@example.com (RolePermissionSeeder). No demo company, equipment, workflows, etc.
+     *
+     * Optional demo dataset: php artisan db:seed --class=DevelopmentDemoSeeder
      */
     public function run(): void
     {
@@ -21,15 +26,7 @@ class DatabaseSeeder extends Seeder
             NavigationMenuSeeder::class,
             DocumentTypeSeeder::class,
             DocumentFormSeeder::class,
-            CompanySeeder::class,
-            DepartmentSeeder::class,
-            PositionDemoSeeder::class,
-            EquipmentCategorySeeder::class,
-            EquipmentLocationSeeder::class,
-            EquipmentSeeder::class,
-            SparePartSeeder::class,
-            ApprovalWorkflowDemoSeeder::class,
-            ReportDashboardSeeder::class,
+            DashboardSeeder::class,
         ]);
     }
 }
