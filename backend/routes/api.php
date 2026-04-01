@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\DashboardWidgetDataController;
+use App\Http\Controllers\Api\HomeDashboardKpiController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\EquipmentCategoryController;
 use App\Http\Controllers\Api\EquipmentLocationController;
@@ -88,5 +89,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboards/{dashboard}/widgets/{widget}/data',
             [DashboardWidgetDataController::class, 'show']
         );
+
+        // Home dashboard KPI
+        Route::get('/dashboard/kpi/{card}', [HomeDashboardKpiController::class, 'show']);
+        Route::post('/dashboard/kpi-config', [HomeDashboardKpiController::class, 'saveConfig']);
     });
 });
