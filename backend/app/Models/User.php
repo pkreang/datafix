@@ -37,6 +37,7 @@ class User extends Authenticatable
         'is_active',
         'is_super_admin',
         'last_active_at',
+        'dashboard_config',
     ];
 
     protected $hidden = [

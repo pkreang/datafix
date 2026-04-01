@@ -52,7 +52,9 @@ class RolePermissionSeeder extends Seeder
             ]
         );
         $viewer->syncPermissions(
-            \Spatie\Permission\Models\Permission::whereIn('action', ['read', 'export'])->pluck('name')
+            \Spatie\Permission\Models\Permission::whereIn('action', ['read', 'export'])
+                ->pluck('name')
+                ->push('manage_own_dashboard')
         );
 
         // Approver - can approve/reject and audit approval history
@@ -67,6 +69,7 @@ class RolePermissionSeeder extends Seeder
         $approver->syncPermissions(
             \Spatie\Permission\Models\Permission::whereIn('name', [
                 'approval.approve',
+                'manage_own_dashboard',
             ])->pluck('name')
         );
 
