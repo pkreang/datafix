@@ -15,6 +15,12 @@ class RolePermissionSeeder extends Seeder
     {
         $guard = 'web';
 
+        // Ensure manage_own_dashboard permission exists and is granted to all roles
+        $manageDashboardPerm = \Spatie\Permission\Models\Permission::firstOrCreate(
+            ['name' => 'manage_own_dashboard', 'guard_name' => $guard],
+            ['module' => 'dashboard', 'action' => 'manage_own']
+        );
+
         // Super Admin - bypass all, no permissions needed
         $superAdmin = Role::firstOrCreate(
             ['name' => 'super-admin', 'guard_name' => $guard],
@@ -64,6 +70,7 @@ class RolePermissionSeeder extends Seeder
             ])->pluck('name')
         );
 
+        // Sole bootstrap user for fresh installs (DatabaseSeeder does not create any other logins).
         // Bootstrap super-admin (admin@example.com) — updateOrCreate so re-seed fixes drift:
         // wrong password, auth_provider set by SSO JIT, or firstOrCreate having skipped updates.
         $user = User::updateOrCreate(
@@ -81,6 +88,14 @@ class RolePermissionSeeder extends Seeder
         );
         if (! $user->hasRole('super-admin')) {
             $user->assignRole('super-admin');
+        }
+
+        // Grant manage_own_dashboard to admin and viewer roles by default
+        foreach (['admin', 'viewer', 'approver'] as $roleName) {
+            $role = Role::where('name', $roleName)->where('guard_name', $guard)->first();
+            if ($role && !$role->hasPermissionTo('manage_own_dashboard')) {
+                $role->givePermissionTo('manage_own_dashboard');
+            }
         }
 
         // Assign manage companies to super-admin
