@@ -19,5 +19,14 @@ class HomeDashboardKpiTest extends TestCase
         $this->assertTrue(
             Permission::where('name', 'manage_own_dashboard')->where('guard_name', 'web')->exists()
         );
+
+        foreach (['admin', 'viewer', 'approver'] as $roleName) {
+            $role = \Spatie\Permission\Models\Role::where('name', $roleName)->first();
+            $this->assertNotNull($role, "Role {$roleName} should exist");
+            $this->assertTrue(
+                $role->hasPermissionTo('manage_own_dashboard'),
+                "Role {$roleName} should have manage_own_dashboard permission"
+            );
+        }
     }
 }

@@ -70,7 +70,6 @@ class RolePermissionSeeder extends Seeder
             ])->pluck('name')
         );
 
-        // Sole bootstrap user for fresh installs (DatabaseSeeder does not create any other logins).
         // Bootstrap super-admin (admin@example.com) — updateOrCreate so re-seed fixes drift:
         // wrong password, auth_provider set by SSO JIT, or firstOrCreate having skipped updates.
         $user = User::updateOrCreate(
@@ -93,8 +92,8 @@ class RolePermissionSeeder extends Seeder
         // Grant manage_own_dashboard to admin and viewer roles by default
         foreach (['admin', 'viewer', 'approver'] as $roleName) {
             $role = Role::where('name', $roleName)->where('guard_name', $guard)->first();
-            if ($role && !$role->hasPermissionTo('manage_own_dashboard')) {
-                $role->givePermissionTo('manage_own_dashboard');
+            if ($role) {
+                $role->givePermissionTo($manageDashboardPerm);
             }
         }
 
