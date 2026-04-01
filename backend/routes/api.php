@@ -92,6 +92,7 @@ Route::prefix('v1')->group(function () {
 
         // Home dashboard KPI
         Route::get('/dashboard/kpi/{card}', [HomeDashboardKpiController::class, 'show']);
-        Route::post('/dashboard/kpi-config', [HomeDashboardKpiController::class, 'saveConfig']);
+        Route::post('/dashboard/kpi-config', [HomeDashboardKpiController::class, 'saveConfig'])
+            ->middleware('permission:manage_own_dashboard');
     });
 });
