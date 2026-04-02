@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             DocumentTypeSeeder::class,
             DocumentFormSeeder::class,
             DashboardSeeder::class,
+            PurchaseWorkflowSeeder::class,
         ]);
     }
 }
