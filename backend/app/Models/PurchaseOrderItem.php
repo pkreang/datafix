@@ -12,6 +12,15 @@ class PurchaseOrderItem extends Model
         'unit_price', 'total_price', 'notes',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'qty'         => 'decimal:2',
+            'unit_price'  => 'decimal:2',
+            'total_price' => 'decimal:2',
+        ];
+    }
+
     public function approvalInstance(): BelongsTo
     {
         return $this->belongsTo(ApprovalInstance::class);
