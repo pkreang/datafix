@@ -24,6 +24,8 @@ use App\Http\Controllers\Web\ReportController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\SettingController;
 use App\Http\Controllers\Web\SparePartsController;
+use App\Http\Controllers\Web\PurchaseRequestController;
+use App\Http\Controllers\Web\PurchaseOrderController;
 use App\Http\Controllers\Web\LookupController;
 use App\Http\Controllers\Web\RunningNumberController;
 use App\Http\Controllers\Web\ThailandAddressSearchController;
@@ -74,6 +76,22 @@ Route::middleware('auth.web')->group(function () {
     Route::post('/spare-parts/requisition/{instance}/issue', [SparePartsController::class, 'issueItems'])
         ->middleware('permission:spare_parts.manage')
         ->name('spare-parts.requisition.issue');
+    // Purchase Requests
+    Route::get('/purchase-requests', [PurchaseRequestController::class, 'index'])->name('purchase-requests.index');
+    Route::get('/purchase-requests/create', [PurchaseRequestController::class, 'create'])->name('purchase-requests.create');
+    Route::post('/purchase-requests', [PurchaseRequestController::class, 'store'])->name('purchase-requests.store');
+    Route::get('/purchase-requests/{instance}', [PurchaseRequestController::class, 'show'])->name('purchase-requests.show');
+
+    // Purchase Orders
+    Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
+    Route::get('/purchase-orders/create', [PurchaseOrderController::class, 'create'])
+        ->middleware('permission:purchase_order.create')
+        ->name('purchase-orders.create');
+    Route::post('/purchase-orders', [PurchaseOrderController::class, 'store'])
+        ->middleware('permission:purchase_order.create')
+        ->name('purchase-orders.store');
+    Route::get('/purchase-orders/{instance}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+
     Route::get('/equipment-registry', [EquipmentRegistryController::class, 'index'])->name('equipment-registry.index');
     Route::get('/equipment-registry/create', [EquipmentRegistryController::class, 'create'])->name('equipment-registry.create');
     Route::post('/equipment-registry', [EquipmentRegistryController::class, 'store'])->name('equipment-registry.store');
@@ -91,6 +109,9 @@ Route::middleware('auth.web')->group(function () {
     Route::post('/approvals/{instance}/act', [ApprovalController::class, 'act'])
         ->middleware('permission:approval.approve')
         ->name('approvals.act');
+    Route::patch('/approval-instances/{instance}/fields', [ApprovalController::class, 'updateFields'])
+        ->middleware('permission:approval.approve')
+        ->name('approvals.update-fields');
     Route::get('/addresses/thailand/subdistricts', [ThailandAddressSearchController::class, 'subdistricts'])
         ->name('addresses.thailand.subdistricts');
     Route::get('/lookup', [LookupController::class, 'index'])->name('lookup.index');
@@ -102,7 +123,7 @@ Route::middleware('auth.web')->group(function () {
     Route::post('/users/import', [UserController::class, 'import'])->name('users.import.store');
     Route::resource('users', UserController::class);
     Route::resource('roles', RoleController::class);
-    Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
+    Route::resource('permissions', PermissionController::class)->only(['index', 'create', 'store']);
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
