@@ -84,7 +84,7 @@ class PurchaseRequestController extends Controller
             $instance = $approvalFlowService->start(
                 'purchase_request',
                 $validated['department_id'] ?? null,
-                (int) (session('user.id') ?? 1),
+                (int) (session('user.id') ?? 0),
                 null,
                 $payload,
                 $validated['form_key'] ?? null,

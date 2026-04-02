@@ -8,7 +8,7 @@
                 {{ __('common.purchase_request') }}: {{ $instance->reference_no ?? '#'.$instance->id }}
             </h2>
         </div>
-        <div class="flex items-center gap-3 mt-6">
+        <div class="flex items-center gap-3">
             @php $s = $instance->status; @endphp
             <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium
                 {{ $s === 'approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
