@@ -70,6 +70,8 @@ class RolePermissionSeeder extends Seeder
             \Spatie\Permission\Models\Permission::whereIn('name', [
                 'approval.approve',
                 'manage_own_dashboard',
+                'view_purchase_requests',
+                'view_purchase_orders',
             ])->pluck('name')
         );
 

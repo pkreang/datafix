@@ -13,6 +13,8 @@ class DocumentTypeSeeder extends Seeder
             ['code' => 'repair_request', 'label_en' => 'Repair Request', 'label_th' => 'แจ้งซ่อม', 'icon' => 'wrench', 'sort_order' => 1, 'routing_mode' => 'hybrid'],
             ['code' => 'pm_am_plan', 'label_en' => 'PM/AM Plan', 'label_th' => 'แผน PM/AM', 'icon' => 'clipboard-document-check', 'sort_order' => 2, 'routing_mode' => 'organization_wide'],
             ['code' => 'spare_parts_requisition', 'label_en' => 'Spare Parts Requisition', 'label_th' => 'เบิกอะไหล่', 'icon' => 'cube', 'sort_order' => 3, 'routing_mode' => 'hybrid'],
+            ['code' => 'purchase_request', 'label_en' => 'Purchase Request', 'label_th' => 'ใบขอซื้อ',   'icon' => 'shopping-cart',   'sort_order' => 4, 'routing_mode' => 'hybrid'],
+            ['code' => 'purchase_order',   'label_en' => 'Purchase Order',   'label_th' => 'ใบสั่งซื้อ', 'icon' => 'document-check', 'sort_order' => 5, 'routing_mode' => 'organization_wide'],
         ];
 
         foreach ($types as $type) {
