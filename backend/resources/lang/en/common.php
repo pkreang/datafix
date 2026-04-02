@@ -556,4 +556,5 @@ return [
     'no_purchase_orders'        => 'No purchase orders found.',
     'po_already_exists'         => 'A purchase order already exists for this purchase request.',
     'pr_not_approved'           => 'Purchase request must be approved before creating a PO.',
+    'creating_po_from_pr'       => 'Creating Purchase Order from Purchase Request',
 ];
