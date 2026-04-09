@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $pageTitle }} - {{ config('app.name') }}</title>
+    <title>@yield('page-title', $pageTitle ?? config('app.name')) - {{ config('app.name') }}</title>
 
     <link rel="icon" href="data:,">
 
@@ -24,8 +24,8 @@
 
     <div class="fixed bottom-4 right-4 z-50 text-xs text-white/80 font-medium drop-shadow">v{{ config('app.version') }}</div>
 
-    <div class="relative z-10 w-full max-w-[634px] mx-auto flex flex-col lg:flex-row rounded-2xl shadow-2xl overflow-hidden border border-white/10 bg-white dark:bg-gray-900 login-card">
-        <div class="hidden lg:flex lg:w-[42%] flex-col justify-center items-center text-center p-8 lg:p-10 bg-blue-600 text-white login-welcome">
+    <div class="relative z-10 w-full max-w-[634px] mx-auto flex flex-col lg:flex-row rounded-[16px] shadow-2xl overflow-hidden border border-white/10 bg-white dark:bg-gray-900 login-card">
+        <div class="hidden lg:flex lg:w-[42%] flex-col justify-center items-center text-center p-8 lg:p-10 bg-gradient-to-b from-blue-800 to-blue-600 text-white login-welcome">
             @if ($systemLogo ?? null)
                 <img src="{{ asset('storage/' . $systemLogo) }}" alt="{{ config('app.name') }}" class="max-h-20 w-auto object-contain mb-8 opacity-95">
             @else
@@ -53,7 +53,7 @@
     @media (min-width: 1024px) {
         .login-card { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05); }
     }
-    .login-welcome { background-color: #2563eb; color: #fff; }
+    .login-welcome { background: linear-gradient(to bottom, #1e40af, #2563eb); color: #fff; }
     .login-welcome .login-brand,
     .login-welcome .login-welcome-title,
     .login-welcome .login-welcome-desc { color: #fff; }

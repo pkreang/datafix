@@ -39,7 +39,7 @@
     @stack('scripts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full font-sans antialiased bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+<body class="h-full font-sans antialiased bg-slate-50 dark:bg-slate-950 text-gray-800 dark:text-gray-200"
       x-data="{ sidebarOpen: false, sidebarCollapsed: false }">
     <div class="flex min-h-screen">
         {{-- Mobile overlay --}}
@@ -61,13 +61,13 @@
              :style="{ width: sidebarCollapsed ? '5rem' : '16rem' }"></div>
 
         {{-- Sidebar --}}
-        <aside class="fixed inset-y-0 left-0 z-30 bg-blue-600 flex flex-col transform transition-all duration-200 ease-in-out -translate-x-full lg:translate-x-0"
+        <aside class="fixed inset-y-0 left-0 z-30 bg-gradient-to-b from-blue-800 to-blue-700 flex flex-col transform transition-all duration-200 ease-in-out -translate-x-full lg:translate-x-0"
                :class="{
                    'w-64': !sidebarCollapsed,
                    'w-20': sidebarCollapsed,
                    'translate-x-0': sidebarOpen
                }">
-            <div class="h-16 flex items-center justify-between px-4 border-b border-blue-500/40">
+            <div class="h-16 flex items-center justify-between px-4 border-b border-white/10">
                 <button type="button"
                         @click="sidebarCollapsed = !sidebarCollapsed"
                         class="sidebar-brand text-white cursor-pointer hover:opacity-90 bg-transparent border-0 p-0 text-left"
@@ -88,7 +88,7 @@
                 <x-sidebar-menu :menus="$navigationMenus ?? collect()" />
             </nav>
 
-            <div class="p-4 border-t border-blue-500/40"
+            <div class="p-4 border-t border-white/10"
                  :class="sidebarCollapsed ? 'flex justify-center' : ''">
                 <div class="flex items-center gap-3" :class="sidebarCollapsed ? 'justify-center' : ''">
                     <img src="{{ $layoutUserAvatar }}" alt="" class="w-9 h-9 shrink-0 rounded-full object-cover ring-2 ring-blue-400/50">
@@ -102,23 +102,23 @@
         </aside>
 
         {{-- Main: no extra pl-* on lg; spacer above already reserves sidebar width (fixed aside does not consume flex space) --}}
-        <div class="flex-1 min-w-0 flex flex-col gap-4 bg-white dark:bg-gray-900">
-            <header class="sticky top-0 z-20 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between gap-4 px-4 sm:px-8">
+        <div class="flex-1 min-w-0 flex flex-col gap-4">
+            <header class="sticky top-0 z-20 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex items-center justify-between gap-4 px-4 sm:px-8">
                 <div class="flex items-center gap-3 min-w-0">
                     <button @click="sidebarOpen = true" type="button" class="lg:hidden shrink-0 p-2 -ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg focus:outline-none" aria-label="Open menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
                     </button>
-                    <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">@yield('title', __('common.dashboard'))</h1>
+                    <h1 class="text-xl font-semibold text-slate-800 dark:text-slate-100 truncate">@yield('title', __('common.dashboard'))</h1>
                 </div>
 
                 <div class="flex items-center gap-2">
                     @stack('header-actions')
                     <button @click="$store.theme.toggle()"
-                            class="p-1.5 rounded-lg transition-colors
-                                   text-gray-500 dark:text-gray-400
-                                   hover:bg-gray-100 dark:hover:bg-gray-700"
+                            class="p-2 rounded-lg transition-colors
+                                   text-slate-500 dark:text-slate-400
+                                   hover:bg-slate-100 dark:hover:bg-slate-800"
                             aria-label="Toggle dark mode">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path class="block dark:hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -169,11 +169,11 @@
                              x-transition:leave-start="opacity-100 scale-100"
                              x-transition:leave-end="opacity-0 scale-95"
                              class="absolute right-0 top-10 w-52 z-50
-                                    bg-white dark:bg-gray-800
-                                    border border-gray-200 dark:border-gray-700
-                                    rounded-xl shadow-lg py-1">
+                                    bg-white dark:bg-slate-800
+                                    border border-slate-200 dark:border-slate-700
+                                    rounded-[12px] shadow-[var(--shadow-lg)] py-1">
 
-                            <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                            <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
                                 <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                                     {{ $layoutUserName }}
                                 </p>
@@ -183,7 +183,7 @@
                             <a href="{{ route('profile.edit') }}"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
                                       text-gray-700 dark:text-gray-300
-                                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                      hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                                 <svg class="w-4 h-4 text-gray-400 dark:text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
@@ -195,7 +195,7 @@
                             <a href="{{ route('profile.password') }}"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
                                       text-gray-700 dark:text-gray-300
-                                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                      hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                                 <svg class="w-4 h-4 text-gray-400 dark:text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
@@ -206,7 +206,7 @@
                             <a href="{{ $authPasswordHelpUrl }}" target="_blank" rel="noopener noreferrer"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
                                       text-gray-700 dark:text-gray-300
-                                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                      hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                                 <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -215,7 +215,7 @@
                             </a>
                             @endif
 
-                            <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+                            <div class="my-1 border-t border-slate-100 dark:border-slate-700"></div>
 
                             <form method="POST" action="{{ route('logout') }}" novalidate>
                                 @csrf

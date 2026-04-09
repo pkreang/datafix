@@ -1,5 +1,5 @@
 @props([
-    'card',         // string — KPI card key e.g. 'repair_pending'
+    'card',         // string — KPI card key e.g. 'school_pending_approvals'
     'title',        // string — display label
     'icon',         // string — Heroicons SVG path data (d attribute)
     'color',        // string — Tailwind color name e.g. 'blue', 'orange', 'green'
@@ -15,6 +15,7 @@
         'red'    => ['bg' => 'bg-red-100 dark:bg-red-900/30',       'icon' => 'text-red-600 dark:text-red-400'],
         'purple' => ['bg' => 'bg-purple-100 dark:bg-purple-900/30', 'icon' => 'text-purple-600 dark:text-purple-400'],
         'yellow' => ['bg' => 'bg-yellow-100 dark:bg-yellow-900/30', 'icon' => 'text-yellow-600 dark:text-yellow-400'],
+        'gray'   => ['bg' => 'bg-gray-100 dark:bg-gray-800/50',      'icon' => 'text-gray-600 dark:text-gray-400'],
     ];
     $c = $colorMap[$color] ?? $colorMap['blue'];
 @endphp
@@ -45,14 +46,15 @@
         }
     }"
     x-init="fetchKpi()"
-    class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700/50 p-6 relative"
+    class="card p-6 relative"
     data-card-key="{{ $card }}"
 >
     @if($canToggle)
         <button
             @click="$dispatch('hide-kpi-card', { card: '{{ $card }}' })"
-            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
             title="{{ __('common.hide_card') }}"
+            aria-label="{{ __('common.hide_card') }}"
             type="button"
         >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

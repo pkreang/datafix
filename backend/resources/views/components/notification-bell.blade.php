@@ -22,13 +22,13 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          class="absolute right-0 top-10 w-80 z-50
-                bg-white dark:bg-gray-800
-                border border-gray-200 dark:border-gray-700
-                rounded-xl shadow-lg overflow-hidden">
+                bg-white dark:bg-slate-800
+                border border-slate-200 dark:border-slate-700
+                rounded-[12px] shadow-[var(--shadow-lg)] overflow-hidden">
 
-        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ __('notifications.notifications') }}</h3>
-            <form method="POST" action="{{ route('notifications.read-all') }}" x-show="count > 0">
+            <form method="POST" action="{{ route('notifications.read-all') }}" x-show="count > 0" novalidate>
                 @csrf
                 <button type="submit" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                     {{ __('notifications.mark_all_read') }}
@@ -36,7 +36,7 @@
             </form>
         </div>
 
-        <div class="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+        <div class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
             <template x-if="items.length === 0">
                 <div class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
                     {{ __('notifications.no_notifications') }}
@@ -45,7 +45,7 @@
             <template x-for="item in items" :key="item.id">
                 <a :href="'/notifications/' + item.id + '/read'"
                    @click.prevent="goToNotification(item)"
-                   class="flex gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                   class="flex gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                    :class="{ 'bg-blue-50/50 dark:bg-blue-900/10': !item.read_at }">
                     <div class="shrink-0 mt-0.5">
                         <template x-if="item.data?.icon === 'check-circle'">
@@ -76,7 +76,7 @@
             </template>
         </div>
 
-        <div class="px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 text-center">
+        <div class="px-4 py-2.5 border-t border-slate-100 dark:border-slate-700 text-center">
             <a href="{{ route('notifications.index') }}"
                class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
                 {{ __('notifications.view_all') }}
