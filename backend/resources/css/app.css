@@ -12,8 +12,26 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Inter', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Plus Jakarta Sans', 'Inter', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer base {
+    :root {
+        --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+        --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+    }
+    .dark {
+        --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.15);
+        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -1px rgba(0,0,0,0.2);
+        --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.35), 0 4px 6px -2px rgba(0,0,0,0.2);
+    }
 }
 
 body {
@@ -24,13 +42,92 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography utility classes */
-.page-title    { @apply text-xl font-semibold text-gray-900 dark:text-gray-100; }
-.section-title { @apply text-base font-semibold text-gray-800 dark:text-gray-200; }
-.table-header  { @apply text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider; }
-.table-primary { @apply text-sm font-medium text-gray-900 dark:text-gray-100; }
-.table-sub     { @apply text-xs text-gray-400 dark:text-gray-500; }
-.badge-base    { @apply text-xs font-medium px-2.5 py-0.5 rounded-full; }
+/* ===== Design System Utility Classes ===== */
+
+/* Typography */
+.page-title    { @apply text-xl font-semibold text-slate-800 dark:text-slate-100; }
+.section-title { @apply text-base font-semibold text-slate-800 dark:text-slate-200; }
+
+/* Surface / Cards */
+.card {
+    @apply bg-white dark:bg-slate-800
+           rounded-[12px]
+           border border-slate-200 dark:border-slate-700
+           shadow-[var(--shadow-sm)];
+}
+.card-header {
+    @apply px-6 py-4 border-b border-slate-200 dark:border-slate-700;
+}
+
+/* Buttons */
+.btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2 rounded-lg text-sm font-medium
+           bg-blue-600 hover:bg-blue-700 text-white
+           transition-colors duration-200 cursor-pointer
+           disabled:opacity-60 disabled:cursor-not-allowed
+           shadow-[var(--shadow-xs)];
+}
+.btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2 rounded-lg text-sm font-medium
+           bg-slate-100 hover:bg-slate-200
+           dark:bg-slate-700 dark:hover:bg-slate-600
+           text-slate-700 dark:text-slate-200
+           transition-colors duration-200 cursor-pointer;
+}
+.btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2 rounded-lg text-sm font-medium
+           bg-red-600 hover:bg-red-700 text-white
+           transition-colors duration-200 cursor-pointer;
+}
+
+/* Forms */
+.form-label {
+    @apply block text-sm font-medium
+           text-slate-700 dark:text-slate-300
+           mb-1;
+}
+.form-input {
+    @apply w-full px-3 py-2 rounded-lg text-sm
+           bg-white dark:bg-slate-900
+           border border-slate-200 dark:border-slate-600
+           text-slate-900 dark:text-slate-100
+           placeholder:text-slate-400
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent
+           outline-none transition duration-200;
+}
+.form-input-error {
+    @apply border-red-500 ring-2 ring-red-500/30 focus:ring-red-500;
+}
+
+/* Badges */
+.badge-base   { @apply text-xs font-medium px-2.5 py-0.5 rounded-full; }
+.badge-green  { @apply badge-base bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400; }
+.badge-red    { @apply badge-base bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400; }
+.badge-blue   { @apply badge-base bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400; }
+.badge-yellow { @apply badge-base bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400; }
+.badge-gray   { @apply badge-base bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400; }
+
+/* Alerts */
+.alert-base    { @apply p-4 rounded-lg border-l-4 text-sm; }
+.alert-success { @apply alert-base bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-200; }
+.alert-error   { @apply alert-base bg-red-50 border-red-500 text-red-800 dark:bg-red-900/20 dark:text-red-200; }
+.alert-warning { @apply alert-base bg-amber-50 border-amber-500 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200; }
+.alert-info    { @apply alert-base bg-blue-50 border-blue-500 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200; }
+
+/* Tables — overflow-visible so absolute action-menu dropdowns aren't clipped (CLAUDE.md gotcha #2) */
+.table-wrapper {
+    @apply bg-white dark:bg-slate-800
+           rounded-[12px]
+           border border-slate-200 dark:border-slate-700
+           shadow-[var(--shadow-sm)]
+           overflow-visible;
+}
+.table-header  { @apply text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider; }
+.table-primary { @apply text-sm font-medium text-slate-900 dark:text-slate-100; }
+.table-sub     { @apply text-xs text-slate-500 dark:text-slate-400; }
 
 /* Sidebar brand */
 .sidebar-brand {
@@ -61,4 +158,36 @@ body {
 
 .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Document form web pages — plain max-width so layout stays narrow even if Tailwind max-w-* is not emitted */
+.document-form-page {
+    width: 100%;
+    max-width: min(46rem, 100%);
+    margin-inline: auto;
+}
+
+.document-form-show-page {
+    width: 100%;
+    max-width: min(60rem, 100%);
+    margin-inline: auto;
+}
+
+/* Document form builder — preview modal overlay (must sit above the fixed sidebar z-30) */
+.document-form-preview-overlay {
+    z-index: 100;
+}
+
+/* Document form builder — preview modal (fixed height so flex-1 + overflow-y-auto can scroll) */
+.document-form-preview-frame {
+    width: 100%;
+    max-width: min(52rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 4rem);
+    min-height: 0;
+}
+
+.document-form-preview-scroll {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }

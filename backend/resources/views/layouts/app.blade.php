@@ -1,4 +1,9 @@
 @php
+    $appDisplayName = config('app.name');
+    $brandAbbr = collect(preg_split('/\s+/', trim((string) $appDisplayName)))->filter()->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->take(2)->implode('');
+    if ($brandAbbr === '') {
+        $brandAbbr = 'DE';
+    }
     $layoutUser = session('user') ?? [];
     $layoutUserName = trim(($layoutUser['first_name'] ?? '') . ' ' . ($layoutUser['last_name'] ?? '')) ?: ($layoutUser['name'] ?? 'User');
     $layoutUserAvatar = $layoutUser['avatar'] ?? ('https://ui-avatars.com/api/?name=' . urlencode($layoutUserName ?: 'U') . '&background=0ea5e9&color=fff');
@@ -25,11 +30,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>DATA FIX - @yield('title', __('common.dashboard'))</title>
+    <title>{{ $appDisplayName }} - @yield('title', __('common.dashboard'))</title>
 
     <link rel="icon" href="data:,">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     @stack('scripts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -52,6 +57,7 @@
 
         {{-- Spacer: occupies left space so main content is not overlapped (sidebar is fixed) --}}
         <div class="hidden lg:block flex-shrink-0 transition-[width] duration-200 ease-in-out bg-transparent"
+             data-sidebar-spacer
              :style="{ width: sidebarCollapsed ? '5rem' : '16rem' }"></div>
 
         {{-- Sidebar --}}
@@ -68,8 +74,8 @@
                         style="font-size: 30px; font-weight: 900; letter-spacing: 0.08em; line-height: 1;"
                         :title="sidebarCollapsed ? 'ขยายเมนู' : 'ยุบเมนู'"
                         aria-label="ยุบหรือขยายเมนู">
-                    <span x-show="!sidebarCollapsed" x-cloak>DATA FIX</span>
-                    <span x-show="sidebarCollapsed" x-cloak>DF</span>
+                    <span x-show="!sidebarCollapsed" x-cloak>{{ $appDisplayName }}</span>
+                    <span x-show="sidebarCollapsed" x-cloak>{{ $brandAbbr }}</span>
                 </button>
                 <button @click="sidebarOpen = false" type="button" class="lg:hidden p-2 -mr-2 text-blue-200 hover:text-white focus:outline-none" aria-label="ปิดเมนู">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,6 +114,7 @@
                 </div>
 
                 <div class="flex items-center gap-2">
+                    @stack('header-actions')
                     <button @click="$store.theme.toggle()"
                             class="p-1.5 rounded-lg transition-colors
                                    text-gray-500 dark:text-gray-400
@@ -210,7 +217,7 @@
 
                             <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
 
-                            <form method="POST" action="{{ route('logout') }}">
+                            <form method="POST" action="{{ route('logout') }}" novalidate>
                                 @csrf
                                 <button type="submit"
                                         class="w-full flex items-center gap-2.5 px-3 py-2 text-sm
@@ -229,11 +236,19 @@
                 </div>
             </header>
 
-            <main class="p-6 overflow-auto flex-1">
+            {{-- overflow-x-hidden breaks position:sticky inside main (e.g. document form builder). Allow horizontal overflow on those pages only. --}}
+            <main @class([
+                'flex-1 w-full min-w-0 p-4 sm:p-6 lg:px-10',
+                'overflow-x-hidden' => ! request()->routeIs('settings.document-forms.create', 'settings.document-forms.edit'),
+                'overflow-x-visible' => request()->routeIs('settings.document-forms.create', 'settings.document-forms.edit'),
+            ])>
                 @yield('content')
             </main>
         </div>
     </div>
+
+    {{-- Page-level floating actions (outside <main> scroll/overflow) --}}
+    @stack('floating-actions')
 
     <style>
         [x-cloak] { display: none !important; }
