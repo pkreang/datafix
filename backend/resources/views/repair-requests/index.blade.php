@@ -4,26 +4,26 @@
 
 @section('content')
     <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.repair_request') }}</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('common.repair_request_desc') }}</p>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.repair_request') }}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ __('common.repair_request_desc') }}</p>
     </div>
 
     @if ($errors->has('workflow'))
-        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200">
+        <div class="alert-error mb-4">
             {{ $errors->first('workflow') }}
         </div>
     @endif
 
     @if (session('success'))
-        <div class="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-800 dark:text-green-200">
+        <div class="alert-success mb-4">
             {{ session('success') }}
         </div>
     @endif
 
     @if (!empty($showAdminHints))
-        <div class="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-900 dark:text-amber-100">
+        <div class="alert-warning mb-4">
             <p class="font-medium mb-2">{{ __('common.repair_admin_setup_intro') }}</p>
-            <ul class="list-disc list-inside space-y-1 text-amber-800 dark:text-amber-200">
+            <ul class="list-disc list-inside space-y-1">
                 <li><a href="{{ route('settings.workflow.index') }}" class="underline hover:no-underline">{{ __('common.repair_admin_link_workflow') }}</a></li>
                 <li><a href="{{ route('settings.document-forms.index') }}" class="underline hover:no-underline">{{ __('common.repair_admin_link_forms') }}</a></li>
                 <li><a href="{{ route('settings.approval-routing') }}" class="underline hover:no-underline">{{ __('common.repair_admin_link_routing') }}</a></li>
@@ -32,21 +32,24 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div class="card p-5">
             @include('repair-requests._company_header', ['company' => $company ?? null, 'branch' => $branch ?? null])
-            <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-3">{{ __('common.submit') }}</h3>
-            <form method="POST" action="{{ route('repair-requests.submit') }}" class="space-y-3">
+            <h3 class="font-semibold text-slate-900 dark:text-slate-100 mb-3">{{ __('common.submit') }}</h3>
+            <form method="POST" action="{{ route('repair-requests.submit') }}" class="space-y-3" novalidate
+                  x-data="{ submitting: false }" @submit="submitting = true">
                 @csrf
                 @if($form)
                     <input type="hidden" name="form_key" value="{{ $form->form_key }}">
                 @endif
                 <div>
-                    <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.reference_no') }}</label>
-                    <input name="reference_no" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <label for="reference_no" class="form-label">{{ __('common.reference_no') }}</label>
+                    <input id="reference_no" name="reference_no" value="{{ old('reference_no') }}"
+                           class="form-input mt-1">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.department') }}</label>
-                    <select name="department_id" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <label for="department_id" class="form-label">{{ __('common.department') }}</label>
+                    <select id="department_id" name="department_id"
+                            class="form-input mt-1">
                         <option value="">{{ __('common.department_not_selected') }}</option>
                         @foreach($departments as $department)
                             <option value="{{ $department->id }}" @selected(old('department_id') == $department->id)>{{ $department->name }}</option>
@@ -73,9 +76,9 @@
                         @endphp
                         <div @if($span > 1) style="grid-column: span {{ $span }}" @endif>
                             @if(!$isSection)
-                                <label class="text-sm text-gray-600 dark:text-gray-300">{{ $field->label }}</label>
+                                <label for="field_{{ $field->field_key }}" class="form-label">{{ $field->label }}</label>
                             @endif
-                            @include('components.dynamic-field', ['field' => $field, 'name' => $name, 'value' => $value])
+                            @include('components.dynamic-field', ['field' => $field, 'name' => $name, 'value' => $value, 'userDeptId' => $userDeptId ?? null])
                             @if(!$isSection)
                                 @error('form_payload.' . $field->field_key)
                                     <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $message }}</p>
@@ -85,20 +88,29 @@
                     @endforeach
                     </div>
                     <div>
-                        <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.amount_for_workflow') }}</label>
-                        <input type="number" step="0.01" min="0" name="amount" value="{{ old('amount') }}" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <label for="amount" class="form-label">{{ __('common.amount_for_workflow') }}</label>
+                        <input id="amount" type="number" step="0.01" min="0" name="amount" value="{{ old('amount') }}"
+                               class="form-input mt-1">
                     </div>
                 @endif
                 @error('form_payload.title')
                     <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                 @enderror
-                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">{{ __('common.submit') }}</button>
+                <button type="submit"
+                        :disabled="submitting"
+                        class="btn-primary disabled:opacity-60 disabled:cursor-not-allowed">
+                    <svg x-show="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    <span x-text="submitting ? '{{ __('common.submitting') }}' : '{{ __('common.submit') }}'"></span>
+                </button>
             </form>
         </div>
 
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div class="card p-5">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                <h3 class="font-semibold text-gray-900 dark:text-gray-100">{{ __('common.my_submitted_requests') }}</h3>
+                <h3 class="font-semibold text-slate-900 dark:text-slate-100">{{ __('common.my_submitted_requests') }}</h3>
                 @if(in_array('approval.approve', session('user_permissions', []), true))
                     <a href="{{ route('approvals.my') }}" class="text-sm text-blue-600 hover:text-blue-700 whitespace-nowrap">{{ __('common.my_approvals') }}</a>
                 @endif
@@ -106,8 +118,8 @@
 
             <form method="GET" action="{{ route('repair-requests.index') }}" class="mb-4 flex flex-wrap items-end gap-2">
                 <div>
-                    <label class="text-xs text-gray-500 dark:text-gray-400 block mb-1">{{ __('common.filter_by_status') }}</label>
-                    <select name="status" onchange="this.form.submit()" class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                    <label class="text-xs text-slate-500 dark:text-slate-400 block mb-1">{{ __('common.filter_by_status') }}</label>
+                    <select name="status" onchange="this.form.submit()" class="form-input text-sm">
                         <option value="">{{ __('common.status_all') }}</option>
                         <option value="pending" @selected(($status ?? '') === 'pending')>{{ __('common.approval_status_pending') }}</option>
                         <option value="approved" @selected(($status ?? '') === 'approved')>{{ __('common.approval_status_approved') }}</option>
@@ -118,9 +130,9 @@
 
             <div class="space-y-2">
                 @forelse($myInstances as $item)
-                    <a href="{{ route('repair-requests.show', $item) }}" class="block rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-900/20 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
-                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->reference_no ?: ('#' . $item->id) }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                    <a href="{{ route('repair-requests.show', $item) }}" class="block rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900/20 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                        <p class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ $item->reference_no ?: ('#' . $item->id) }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
                             {{ __('common.approval_status_' . $item->status) }}
                             · {{ __('common.workflow_step_short') }} {{ $item->current_step_no }}
                             @if($item->department)
@@ -129,7 +141,7 @@
                         </p>
                     </a>
                 @empty
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('common.no_data') }}</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ __('common.no_data') }}</p>
                 @endforelse
             </div>
 

@@ -16,29 +16,29 @@
     $displayPhone = $branch?->phone ?: $company?->phone;
 @endphp
 @if ($company)
-    <div class="mb-5 flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900/40">
+    <div class="mb-5 flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/40">
         @if ($company->logo)
             <div class="shrink-0">
                 <img src="{{ asset('storage/' . $company->logo) }}" alt="" class="h-14 w-auto max-w-[120px] object-contain rounded-lg">
             </div>
         @endif
         <div class="min-w-0 flex-1 text-sm">
-            <p class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ $company->name }}</p>
+            <p class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ $company->name }}</p>
             @if ($company->code)
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ $company->code }}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ $company->code }}</p>
             @endif
             @if ($branch)
-                <p class="mt-2 text-sm font-medium text-gray-800 dark:text-gray-200">
+                <p class="mt-2 text-sm font-medium text-slate-800 dark:text-slate-200">
                     {{ __('company.branch') }}: {{ $branch->name }}
                     @if ($branch->code)
-                        <span class="text-gray-500 dark:text-gray-400 font-normal">({{ $branch->code }})</span>
+                        <span class="text-slate-500 dark:text-slate-400 font-normal">({{ $branch->code }})</span>
                     @endif
                 </p>
             @endif
             @if ($displayAddress)
-                <p class="mt-2 text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ $displayAddress }}</p>
+                <p class="mt-2 text-slate-700 dark:text-slate-300 whitespace-pre-line">{{ $displayAddress }}</p>
             @endif
-            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
                 @if ($displayPhone)
                     <span>{{ __('company.phone') }}: {{ $displayPhone }}</span>
                 @endif
