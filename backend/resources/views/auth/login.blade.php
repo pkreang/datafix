@@ -76,7 +76,7 @@
         @endif
         @if (! empty($authEntraEnabled))
             <a href="{{ route('auth.entra.redirect') }}"
-               class="btn-secondary w-full py-2.5 mb-4 no-underline bg-gray-800 hover:bg-gray-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white">
+               class="btn-secondary w-full py-2.5 mb-4 no-underline bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white">
                 <svg class="w-5 h-5 shrink-0" viewBox="0 0 21 21" aria-hidden="true"><path fill="currentColor" d="M0 0h10v10H0V0zm11 0h10v10H11V0zM0 11h10v10H0V11zm11 0h10v10H11V11z"/></svg>
                 {{ __('auth.sign_in_with_microsoft') }}
             </a>

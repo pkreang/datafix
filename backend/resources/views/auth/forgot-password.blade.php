@@ -7,7 +7,7 @@
         <div class="alert-success mb-5" role="status">{{ session('status') }}</div>
     @endif
 
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-5 text-center leading-relaxed">{{ __('auth.forgot_password_intro') }}</p>
+    <p class="text-sm text-slate-600 dark:text-slate-400 mb-5 text-center leading-relaxed">{{ __('auth.forgot_password_intro') }}</p>
 
     <form method="POST" action="{{ route('password.email') }}" class="space-y-5" novalidate>
         @csrf
