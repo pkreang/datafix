@@ -4,32 +4,32 @@
     <div class="mb-6">
         <a href="{{ $prInstance ? route('purchase-requests.show', $prInstance) : route('purchase-orders.index') }}"
            class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mt-2">{{ __('common.create_purchase_order') }}</h2>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ __('common.create_purchase_order') }}</h2>
         @if($prInstance)
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 {{ __('common.pr_reference') }}:
-                <span class="font-medium text-gray-700 dark:text-gray-300">{{ $prInstance->reference_no ?? 'PR#'.$prInstance->id }}</span>
+                <span class="font-medium text-slate-700 dark:text-slate-300">{{ $prInstance->reference_no ?? 'PR#'.$prInstance->id }}</span>
             </p>
         @endif
     </div>
 
     @if ($errors->has('workflow'))
-        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200">
+        <div class="alert-error mb-4">
             {{ $errors->first('workflow') }}
         </div>
     @endif
 
     @if($prInstance)
-        <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-800 dark:text-blue-200">
+        <div class="alert-info mb-4">
             {{ __('common.creating_po_from_pr') }}: <span class="font-semibold">{{ $prInstance->reference_no ?? 'PR#'.$prInstance->id }}</span>
         </div>
     @endif
 
     <div x-data="poForm({{ json_encode($prLineItems->map(fn($i) => ['item_name' => $i->item_name, 'qty' => $i->qty, 'unit' => $i->unit, 'unit_price' => $i->unit_price, 'total_price' => $i->total_price, 'notes' => $i->notes ?? ''])->values()) }})" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Left: Form fields --}}
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div class="card p-5">
             @include('repair-requests._company_header', ['company' => $company ?? null, 'branch' => $branch ?? null])
-            <form id="po-form" method="POST" action="{{ route('purchase-orders.store') }}" class="space-y-3">
+            <form id="po-form" method="POST" action="{{ route('purchase-orders.store') }}" class="space-y-3" novalidate>
                 @csrf
                 @if($form)
                     <input type="hidden" name="form_key" value="{{ $form->form_key }}">
@@ -45,7 +45,7 @@
                                 $prInstance?->payload[$field->field_key] ?? null);
                         @endphp
                         <div>
-                            <label class="text-sm text-gray-600 dark:text-gray-300">
+                            <label class="form-label">
                                 {{ $field->label }}
                                 @if($field->is_required) <span class="text-red-500">*</span> @endif
                             </label>
@@ -58,48 +58,48 @@
         </div>
 
         {{-- Right: Line items --}}
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <h4 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">{{ __('common.line_items') }}</h4>
+        <div class="card p-5">
+            <h4 class="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">{{ __('common.line_items') }}</h4>
             <template x-for="(item, index) in items" :key="index">
-                <div class="mb-3 p-3 bg-white dark:bg-gray-900/30 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
+                <div class="mb-3 p-3 bg-white dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
                     <div>
-                        <label class="text-xs text-gray-500">{{ __('common.item_name') }}</label>
+                        <label class="text-xs text-slate-500">{{ __('common.item_name') }}</label>
                         <input :name="'items['+index+'][item_name]'" x-model="item.item_name" required
-                               class="w-full mt-0.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                               class="form-input w-full mt-0.5 text-sm">
                     </div>
                     <div class="grid grid-cols-3 gap-2">
                         <div>
-                            <label class="text-xs text-gray-500">{{ __('common.qty') }}</label>
+                            <label class="text-xs text-slate-500">{{ __('common.qty') }}</label>
                             <input :name="'items['+index+'][qty]'" x-model="item.qty" type="number" min="0.01" step="0.01"
                                    @input="updateTotal(item)" required
-                                   class="w-full mt-0.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                                   class="form-input w-full mt-0.5 text-sm">
                         </div>
                         <div>
-                            <label class="text-xs text-gray-500">{{ __('common.unit_label') }}</label>
+                            <label class="text-xs text-slate-500">{{ __('common.unit_label') }}</label>
                             <input :name="'items['+index+'][unit]'" x-model="item.unit" required
-                                   class="w-full mt-0.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                                   class="form-input w-full mt-0.5 text-sm">
                         </div>
                         <div>
-                            <label class="text-xs text-gray-500">{{ __('common.unit_price') }}</label>
+                            <label class="text-xs text-slate-500">{{ __('common.unit_price') }}</label>
                             <input :name="'items['+index+'][unit_price]'" x-model="item.unit_price" type="number" min="0" step="0.01"
                                    @input="updateTotal(item)" required
-                                   class="w-full mt-0.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                                   class="form-input w-full mt-0.5 text-sm">
                         </div>
                     </div>
                     <input type="hidden" :name="'items['+index+'][total_price]'" :value="item.total_price">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500">
+                        <span class="text-xs text-slate-500">
                             {{ __('common.total_price') }}:
                             <span x-text="Number(item.total_price).toLocaleString('th-TH', {minimumFractionDigits:2})"
-                                  class="font-medium text-gray-800 dark:text-gray-200"></span>
+                                  class="font-medium text-slate-800 dark:text-slate-200"></span>
                         </span>
                         <button type="button" @click="removeItem(index)" x-show="items.length > 1"
                                 class="text-xs text-red-500 hover:text-red-700">{{ __('common.remove') }}</button>
                     </div>
                     <div>
-                        <label class="text-xs text-gray-500">{{ __('common.notes') }}</label>
+                        <label class="text-xs text-slate-500">{{ __('common.notes') }}</label>
                         <input :name="'items['+index+'][notes]'" x-model="item.notes"
-                               class="w-full mt-0.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                               class="form-input w-full mt-0.5 text-sm">
                     </div>
                 </div>
             </template>
@@ -107,14 +107,13 @@
                     class="w-full py-2 text-sm text-blue-600 dark:text-blue-400 border border-dashed border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20">
                 + {{ __('common.add_line_item') }}
             </button>
-            <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between">
-                <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ __('common.total_price') }}</span>
+            <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-600 flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('common.total_price') }}</span>
                 <span x-text="Number(totalAmount).toLocaleString('th-TH', {minimumFractionDigits:2})"
                       class="text-lg font-bold text-blue-600 dark:text-blue-400"></span>
             </div>
             <div class="mt-4">
-                <button type="submit" form="po-form"
-                        class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition">
+                <button type="submit" form="po-form" class="btn-primary w-full py-2.5">
                     {{ __('common.submit') }}
                 </button>
             </div>
