@@ -9,70 +9,89 @@
     'tplDir' => __('common.workflow_template_stage_director'),
     'untitled' => __('common.workflow_stage_untitled'),
     'minLabel' => __('common.workflow_preview_min_label'),
+    'typeRole' => __('common.workflow_approver_role'),
+    'typeUser' => __('common.workflow_approver_user'),
+    'typePosition' => __('common.workflow_approver_position'),
 ]) }})">
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.add') }} {{ __('common.workflow') }}</h2>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.add') }} {{ __('common.workflow') }}</h2>
         <a href="{{ route('settings.workflow.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
     </div>
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div class="xl:col-span-2 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <form method="POST" action="{{ route('settings.workflow.store') }}" class="space-y-5" @submit="return canSubmit()">
+        <div class="xl:col-span-2 card p-6">
+            <form method="POST" action="{{ route('settings.workflow.store') }}" class="space-y-5" @submit="return canSubmit()" novalidate>
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.document_type') }}</label>
-                        <select name="document_type" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <label class="form-label">{{ __('common.document_type') }}</label>
+                        <select name="document_type" class="form-input mt-1">
                             @foreach(\App\Models\DocumentType::allActive() as $dt)
                                 <option value="{{ $dt->code }}">{{ $dt->label() }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.name') }}</label>
-                        <input name="name" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700" />
+                        <label class="form-label">{{ __('common.name') }}</label>
+                        <input name="name" required class="form-input mt-1" />
                     </div>
                 </div>
 
                 <div>
-                    <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.remark') }}</label>
-                    <textarea name="description" rows="2" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"></textarea>
+                    <label class="form-label">{{ __('common.remark') }}</label>
+                    <textarea name="description" rows="2" class="form-input mt-1 resize-y"></textarea>
                 </div>
 
+                <div class="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/20 px-4 py-3 space-y-1">
+                    <input type="hidden" name="allow_requester_as_approver" value="0">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="allow_requester_as_approver" value="1" checked class="mt-1 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500">
+                        <span>
+                            <span class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ __('common.workflow_allow_requester_as_approver') }}</span>
+                            <span class="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ __('common.workflow_allow_requester_as_approver_help') }}</span>
+                        </span>
+                    </label>
+                </div>
+
+                <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed rounded-lg border border-blue-200/80 dark:border-blue-800/80 bg-blue-50/90 dark:bg-blue-950/30 px-3 py-2">
+                    {{ __('common.workflow_stage_assignment_help') }}
+                </p>
+
                 <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" @click="applyTemplate('one')" class="px-3 py-2 rounded bg-gray-300 dark:bg-gray-700 text-sm">{{ __('common.workflow_template_one') }}</button>
-                    <button type="button" @click="applyTemplate('two')" class="px-3 py-2 rounded bg-gray-300 dark:bg-gray-700 text-sm">{{ __('common.workflow_template_two') }}</button>
-                    <button type="button" @click="applyTemplate('three')" class="px-3 py-2 rounded bg-gray-300 dark:bg-gray-700 text-sm">{{ __('common.workflow_template_three') }}</button>
-                    <button type="button" @click="addStage()" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">+ {{ __('common.workflow_add_stage') }}</button>
+                    <button type="button" @click="applyTemplate('one')" class="btn-secondary text-sm">{{ __('common.workflow_template_one') }}</button>
+                    <button type="button" @click="applyTemplate('two')" class="btn-secondary text-sm">{{ __('common.workflow_template_two') }}</button>
+                    <button type="button" @click="applyTemplate('three')" class="btn-secondary text-sm">{{ __('common.workflow_template_three') }}</button>
+                    <button type="button" @click="addStage()" class="btn-primary text-sm">+ {{ __('common.workflow_add_stage') }}</button>
                 </div>
 
                 <template x-for="(stage, idx) in stages" :key="stage.uuid">
-                    <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20 p-4 space-y-3">
+                    <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/20 p-4 space-y-3">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-medium">{{ __('common.workflow_step_short') }} <span x-text="stage.step_no"></span></h3>
+                            <h3 class="font-medium text-slate-800 dark:text-slate-200">{{ __('common.workflow_step_short') }} <span x-text="stage.step_no"></span></h3>
                             <div class="flex items-center gap-2">
-                                <button type="button" @click="moveUp(idx)" class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs">{{ __('common.move_up') }}</button>
-                                <button type="button" @click="moveDown(idx)" class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs">{{ __('common.move_down') }}</button>
-                                <button type="button" @click="cloneStage(idx)" class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs">{{ __('common.workflow_clone') }}</button>
-                                <button type="button" @click="removeStage(idx)" class="px-2 py-1 rounded bg-red-600 text-white text-xs">{{ __('common.delete') }}</button>
+                                <button type="button" @click="moveUp(idx)" class="btn-secondary text-xs px-2 py-1">{{ __('common.move_up') }}</button>
+                                <button type="button" @click="moveDown(idx)" class="btn-secondary text-xs px-2 py-1">{{ __('common.move_down') }}</button>
+                                <button type="button" @click="cloneStage(idx)" class="btn-secondary text-xs px-2 py-1">{{ __('common.workflow_clone') }}</button>
+                                <button type="button" @click="removeStage(idx)" class="btn-danger text-xs px-2 py-1">{{ __('common.delete') }}</button>
                             </div>
                         </div>
                         <input type="hidden" :name="`stages[${idx}][step_no]`" x-model="stage.step_no">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.workflow_stage_name') }}</label>
-                                <input :name="`stages[${idx}][name]`" x-model="stage.name" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700" />
+                                <label class="text-xs text-slate-500">{{ __('common.workflow_stage_name') }}</label>
+                                <input :name="`stages[${idx}][name]`" x-model="stage.name" required class="form-input mt-1" />
                             </div>
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.workflow_approver_type') }}</label>
-                                <select :name="`stages[${idx}][approver_type]`" x-model="stage.approver_type" @change="stage.approver_ref=''; checkValidity()" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                                    <option value="role">{{ __('common.workflow_approver_role') }}</option>
+                                <label class="text-xs text-slate-500">{{ __('common.workflow_approver_type') }}</label>
+                                <select :name="`stages[${idx}][approver_type]`" x-model="stage.approver_type" @change="stage.approver_ref=''; checkValidity()" class="form-input mt-1">
+                                    <option value="position">{{ __('common.workflow_approver_position') }}</option>
                                     <option value="user">{{ __('common.workflow_approver_user') }}</option>
+                                    <option value="role">{{ __('common.workflow_approver_role') }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.workflow_approver_ref') }}</label>
+                                <label class="text-xs text-slate-500">{{ __('common.workflow_approver_ref') }}</label>
                                 <template x-if="stage.approver_type === 'role'">
-                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
                                         <option value="">{{ __('common.workflow_placeholder_select_role') }}</option>
                                         <template x-for="role in roles" :key="`role-${role}`">
                                             <option :value="role" x-text="role"></option>
@@ -80,7 +99,7 @@
                                     </select>
                                 </template>
                                 <template x-if="stage.approver_type === 'user'">
-                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
                                         <option value="">{{ __('common.workflow_placeholder_select_user') }}</option>
                                         <template x-for="user in users" :key="`user-${user.id}`">
                                             <option :value="String(user.id)" x-text="user.label"></option>
@@ -88,7 +107,7 @@
                                     </select>
                                 </template>
                                 <template x-if="stage.approver_type === 'position'">
-                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
                                         <option value="">{{ __('common.workflow_placeholder_select_position') }}</option>
                                         <template x-for="p in positions" :key="`pos-${p.id}`">
                                             <option :value="String(p.id)" x-text="p.label"></option>
@@ -97,29 +116,29 @@
                                 </template>
                             </div>
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.workflow_min_approvals') }}</label>
-                                <input type="number" min="1" :name="`stages[${idx}][min_approvals]`" x-model="stage.min_approvals" required class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700" />
+                                <label class="text-xs text-slate-500">{{ __('common.workflow_min_approvals') }}</label>
+                                <input type="number" min="1" :name="`stages[${idx}][min_approvals]`" x-model="stage.min_approvals" required class="form-input mt-1" />
                             </div>
                         </div>
                     </div>
                 </template>
 
                 <div class="flex items-center justify-end pt-2">
-                    <div class="flex items-center gap-2">
-                        <a href="{{ route('settings.workflow.index') }}" class="px-4 py-2 rounded bg-gray-300 dark:bg-gray-700 text-sm">{{ __('common.cancel') }}</a>
-                        <button :disabled="!isValid" :class="isValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'" class="px-4 py-2 text-white rounded-lg text-sm">{{ __('common.save') }}</button>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="{{ route('settings.workflow.index') }}" class="btn-secondary">{{ __('common.cancel') }}</a>
+                        <button :disabled="!isValid" :class="isValid ? '' : 'opacity-50 cursor-not-allowed'" class="btn-primary">{{ __('common.save') }}</button>
                     </div>
                 </div>
             </form>
         </div>
 
-        <div class="xl:col-span-1 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">{{ __('common.workflow_flow_preview') }}</h3>
+        <div class="xl:col-span-1 card p-5">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">{{ __('common.workflow_flow_preview') }}</h3>
             <div class="space-y-2">
                 <template x-for="stage in stages" :key="stage.uuid + '-preview'">
-                    <div class="rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20 px-3 py-2 text-sm">
-                        <span class="font-medium">#<span x-text="stage.step_no"></span> <span x-text="stage.name || i18n.untitled"></span></span>
-                        <div class="text-xs text-gray-500 mt-1"><span x-text="stage.approver_type"></span>: <span x-text="stage.approver_ref || '-'"></span> | <span x-text="i18n.minLabel"></span> <span x-text="stage.min_approvals"></span></div>
+                    <div class="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/20 px-3 py-2 text-sm">
+                        <span class="font-medium text-slate-800 dark:text-slate-200">#<span x-text="stage.step_no"></span> <span x-text="stage.name || i18n.untitled"></span></span>
+                        <div class="text-xs text-slate-500 mt-1"><span x-text="approverTypeLabel(stage.approver_type)"></span>: <span x-text="stage.approver_ref || '-'"></span> | <span x-text="i18n.minLabel"></span> <span x-text="stage.min_approvals"></span></div>
                     </div>
                 </template>
             </div>
@@ -133,7 +152,7 @@
             roles: roles || [],
             users: users || [],
             positions: positions || [],
-            i18n: i18n || { tplSuper: '', tplMgr: '', tplDir: '', untitled: '', minLabel: 'min.' },
+            i18n: i18n || { tplSuper: '', tplMgr: '', tplDir: '', untitled: '', minLabel: 'min.', typeRole: 'Role', typeUser: 'User', typePosition: 'Position' },
             stages: [],
             seq: 1,
             isValid: true,
@@ -144,13 +163,47 @@
             nextStepNo() {
                 return this.stages.length + 1;
             },
+            firstPositionId(preferredCodes) {
+                for (const code of preferredCodes) {
+                    const p = this.positions.find((x) => x.code === code);
+                    if (p) return String(p.id);
+                }
+                return this.positions[0] ? String(this.positions[0].id) : '';
+            },
+            firstUserId() {
+                return this.users[0] ? String(this.users[0].id) : '';
+            },
+            resolveStage(name, preferredPositionCodes) {
+                const pid = this.firstPositionId(preferredPositionCodes);
+                if (pid) {
+                    return { name, approver_type: 'position', approver_ref: pid, min_approvals: 1 };
+                }
+                const uid = this.firstUserId();
+                if (uid) {
+                    return { name, approver_type: 'user', approver_ref: uid, min_approvals: 1 };
+                }
+                return { name, approver_type: 'position', approver_ref: '', min_approvals: 1 };
+            },
             addStage(data = {}) {
+                const refProvided = Object.prototype.hasOwnProperty.call(data, 'approver_ref');
+                const typeProvided = Object.prototype.hasOwnProperty.call(data, 'approver_type');
+                let approver_type = typeProvided
+                    ? data.approver_type
+                    : (this.positions[0] ? 'position' : (this.users[0] ? 'user' : 'role'));
+                let approver_ref = refProvided ? String(data.approver_ref ?? '') : '';
+                if (!refProvided) {
+                    if (approver_type === 'position' && this.positions[0]) {
+                        approver_ref = String(this.positions[0].id);
+                    } else if (approver_type === 'user' && this.users[0]) {
+                        approver_ref = String(this.users[0].id);
+                    }
+                }
                 this.stages.push({
                     uuid: this.seq++,
                     step_no: this.nextStepNo(),
                     name: data.name || '',
-                    approver_type: data.approver_type || 'role',
-                    approver_ref: data.approver_ref || '',
+                    approver_type,
+                    approver_ref,
                     min_approvals: data.min_approvals || 1,
                 });
                 this.normalize();
@@ -182,14 +235,14 @@
                 const t = this.i18n;
                 this.stages = [];
                 if (type === 'one') {
-                    this.addStage({name: t.tplSuper, approver_type: 'role', approver_ref: 'supervisor'});
+                    this.addStage(this.resolveStage(t.tplSuper, ['MAINT_SUP', 'SCH_ACAD_HEAD', 'DEPT_MGR']));
                 } else if (type === 'two') {
-                    this.addStage({name: t.tplSuper, approver_type: 'role', approver_ref: 'supervisor'});
-                    this.addStage({name: t.tplMgr, approver_type: 'role', approver_ref: 'manager'});
+                    this.addStage(this.resolveStage(t.tplSuper, ['MAINT_SUP', 'SCH_ACAD_HEAD']));
+                    this.addStage(this.resolveStage(t.tplMgr, ['DEPT_MGR', 'SCH_VICE_PRINCIPAL']));
                 } else {
-                    this.addStage({name: t.tplSuper, approver_type: 'role', approver_ref: 'supervisor'});
-                    this.addStage({name: t.tplMgr, approver_type: 'role', approver_ref: 'manager'});
-                    this.addStage({name: t.tplDir, approver_type: 'role', approver_ref: 'director'});
+                    this.addStage(this.resolveStage(t.tplSuper, ['MAINT_SUP']));
+                    this.addStage(this.resolveStage(t.tplMgr, ['DEPT_MGR']));
+                    this.addStage(this.resolveStage(t.tplDir, ['PLANT_MGR', 'SCH_VICE_PRINCIPAL']));
                 }
                 this.normalize();
                 this.checkValidity();
@@ -207,7 +260,14 @@
             canSubmit() {
                 this.checkValidity();
                 return this.isValid;
-            }
+            },
+            approverTypeLabel(t) {
+                const i = this.i18n;
+                if (t === 'role') return i.typeRole;
+                if (t === 'user') return i.typeUser;
+                if (t === 'position') return i.typePosition;
+                return t || '—';
+            },
         };
     }
 </script>
