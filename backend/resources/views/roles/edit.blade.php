@@ -51,7 +51,7 @@
                                     <label class="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
                                         <input type="checkbox" name="permissions[]" value="{{ $perm['id'] }}"
                                                {{ in_array($perm['id'], old('permissions', $assignedIds)) ? 'checked' : '' }}
-                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                               class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                         {{ \App\Support\PermissionDisplay::label($perm['name'] ?? '') }}
                                     </label>
                                 @endforeach
