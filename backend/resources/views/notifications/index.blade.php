@@ -11,11 +11,7 @@
         @if($notifications->total() > 0)
             <form method="POST" action="{{ route('notifications.read-all') }}" novalidate>
                 @csrf
-                <button type="submit"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                               text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20
-                               hover:bg-blue-100 dark:hover:bg-blue-900/30
-                               rounded-lg transition-colors">
+                <button type="submit" class="btn-secondary">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
@@ -34,7 +30,7 @@
             <p class="text-slate-500 dark:text-slate-400">{{ __('notifications.no_notifications') }}</p>
         </div>
     @else
-        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700">
+        <div class="card overflow-hidden divide-y divide-slate-100 dark:divide-slate-700">
             @foreach($notifications as $notification)
                 <a href="{{ route('notifications.read', $notification->id) }}"
                    class="flex gap-4 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors

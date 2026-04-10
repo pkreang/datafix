@@ -56,7 +56,7 @@
 {{-- Widget grid --}}
 <div class="grid gap-4" style="grid-template-columns: repeat({{ $dashboard->layout_columns ?? 2 }}, minmax(0, 1fr))">
     @foreach($dashboard->widgets as $widget)
-        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4"
+        <div class="card p-4"
              style="grid-column: span {{ $widget->col_span ?: 1 }}"
              data-dashboard-widget
              x-data="dashboardWidget({{ $widget->id }}, {{ $dashboard->id }}, '{{ $widget->widget_type }}')"

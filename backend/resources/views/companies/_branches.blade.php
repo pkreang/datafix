@@ -11,18 +11,18 @@
     @else
         <div class="space-y-6 mb-8">
             @foreach ($company->branches as $branch)
-                <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/30 p-4">
+                <div class="card p-4">
                     <form method="POST" action="{{ route('companies.branches.update', [$company, $branch]) }}" class="space-y-3" novalidate>
                         @csrf
                         @method('PUT')
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('company.branch_code') }} <span class="text-red-500">*</span></label>
+                                <label class="form-label">{{ __('company.branch_code') }} <span class="text-red-500">*</span></label>
                                 <input type="text" name="code" value="{{ $branch->code }}" required maxlength="50"
                                        class="form-input">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('company.branch_name') }} <span class="text-red-500">*</span></label>
+                                <label class="form-label">{{ __('company.branch_name') }} <span class="text-red-500">*</span></label>
                                 <input type="text" name="name" value="{{ $branch->name }}" required maxlength="255"
                                        class="form-input">
                             </div>
@@ -33,7 +33,7 @@
                                 'legacyInputId' => 'branch-legacy-'.$branch->id,
                             ])
                             <div>
-                                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('company.branch_phone') }}</label>
+                                <label class="form-label">{{ __('company.branch_phone') }}</label>
                                 <input type="text" name="phone" value="{{ $branch->phone }}" maxlength="20"
                                        class="form-input">
                             </div>
@@ -42,7 +42,7 @@
                                     name="is_active"
                                     :checked="$branch->is_active"
                                     :label="__('company.branch_active')"
-                                    label-class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1" />
+                                    label-class="form-label" />
                             </div>
                         </div>
                         @can('manage profile')
@@ -70,18 +70,18 @@
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('company.branch_code') }} <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('company.branch_code') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="branch_code" value="{{ old('branch_code') }}" required maxlength="50"
                            class="form-input">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('company.branch_name') }} <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('company.branch_name') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="branch_name" value="{{ old('branch_name') }}" required maxlength="255"
                            class="form-input">
                 </div>
                 @include('companies._address_fields', ['prefix' => 'branch_', 'model' => null, 'showLegacy' => false])
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('company.branch_phone') }}</label>
+                    <label class="form-label">{{ __('company.branch_phone') }}</label>
                     <input type="text" name="branch_phone" value="{{ old('branch_phone') }}" maxlength="20"
                            class="form-input">
                 </div>
@@ -90,7 +90,7 @@
                         name="branch_is_active"
                         :checked="old('branch_is_active', '1') === '1'"
                         :label="__('company.branch_active')"
-                        label-class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1" />
+                        label-class="form-label" />
                 </div>
             </div>
             <button type="submit" class="btn-secondary">

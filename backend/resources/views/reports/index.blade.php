@@ -20,7 +20,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach($dashboards as $dashboard)
                 <a href="{{ route('reports.dashboards.show', $dashboard) }}"
-                   class="group block bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all duration-150">
+                   class="group block card p-5 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all duration-150">
                     <div class="flex items-start gap-4">
                         <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
