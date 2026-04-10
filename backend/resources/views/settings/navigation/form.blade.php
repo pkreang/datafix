@@ -6,15 +6,15 @@
 <div class="max-w-2xl" x-data="navMenuForm()">
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item') }}</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ $menu->exists ? __('common.update_menu_item_desc') : __('common.create_menu_item_desc') }}</p>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item') }}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ $menu->exists ? __('common.update_menu_item_desc') : __('common.create_menu_item_desc') }}</p>
         </div>
         <a href="{{ route('settings.navigation.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
     </div>
 
     @if ($errors->any())
-        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <ul class="text-sm text-red-700 dark:text-red-400 space-y-1">
+        <div class="alert-error mb-4">
+            <ul class="space-y-1">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -23,65 +23,64 @@
     @endif
 
     <form method="POST"
-          action="{{ $menu->exists ? route('settings.navigation.update', $menu) : route('settings.navigation.store') }}">
+          action="{{ $menu->exists ? route('settings.navigation.update', $menu) : route('settings.navigation.store') }}" novalidate>
         @csrf
         @if ($menu->exists) @method('PUT') @endif
 
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
+        <div class="card p-6 space-y-5">
             {{-- Label (Thai) --}}
             <div>
-                <label for="label_th" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_label_th') }}</label>
+                <label for="label_th" class="form-label">{{ __('common.menu_field_label_th') }}</label>
                 <input type="text" name="label_th" id="label_th"
                        value="{{ old('label_th', $menu->label_th) }}"
                        placeholder="{{ __('common.menu_field_label_th_placeholder') }}"
-                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                       class="form-input">
             </div>
 
             {{-- Label (English) --}}
             <div>
-                <label for="label_en" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_label_en') }}</label>
+                <label for="label_en" class="form-label">{{ __('common.menu_field_label_en') }}</label>
                 <input type="text" name="label_en" id="label_en"
                        value="{{ old('label_en', $menu->label_en) }}"
                        placeholder="{{ __('common.menu_field_label_en_placeholder') }}"
-                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                       class="form-input">
             </div>
 
             {{-- Icon --}}
             <div>
-                <label for="icon" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_icon') }}</label>
+                <label for="icon" class="form-label">{{ __('common.menu_field_icon') }}</label>
                 <div class="flex items-center gap-3">
                     <input type="text" name="icon" id="icon"
                            x-model="icon"
                            value="{{ old('icon', $menu->icon) }}"
                            placeholder="e.g. home, users, key"
-                           class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg min-w-[100px]">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">Preview:</span>
+                           class="form-input flex-1">
+                    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg min-w-[100px]">
+                        <span class="text-xs text-slate-500 dark:text-slate-400">Preview:</span>
                         <span x-show="icon && icons[icon]"
                               x-html="icons[icon] || ''"
                               class="w-5 h-5 text-blue-600"></span>
-                        <span x-show="!icon || !icons[icon]" class="text-xs text-gray-400 dark:text-gray-400">—</span>
+                        <span x-show="!icon || !icons[icon]" class="text-xs text-slate-400 dark:text-slate-400">—</span>
                     </div>
                 </div>
-                <p class="text-xs text-gray-400 dark:text-gray-400 mt-1">{{ __('common.menu_icon_available') }}: home, settings, users, shield, key, lock-closed, bars-3, chart-bar, document, currency, cube, building-office, wrench</p>
-                <p class="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{{ __('common.menu_icon_source') }}</p>
+                <p class="text-xs text-slate-400 dark:text-slate-400 mt-1">{{ __('common.menu_icon_available') }}: home, settings, users, shield, key, lock-closed, bars-3, chart-bar, document, currency, cube, building-office, wrench</p>
+                <p class="text-xs text-slate-400 dark:text-slate-400 mt-0.5">{{ __('common.menu_icon_source') }}</p>
             </div>
 
             {{-- Route --}}
             <div>
-                <label for="route" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_route') }}</label>
+                <label for="route" class="form-label">{{ __('common.menu_field_route') }}</label>
                 <input type="text" name="route" id="route"
                        value="{{ old('route', $menu->route) }}"
                        placeholder="/dashboard (leave empty for group/parent)"
-                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                <p class="text-xs text-gray-400 dark:text-gray-400 mt-1">Leave empty if this is a parent/group menu (e.g. Settings)</p>
+                       class="form-input">
+                <p class="text-xs text-slate-400 dark:text-slate-400 mt-1">Leave empty if this is a parent/group menu (e.g. Settings)</p>
             </div>
 
             {{-- Parent Menu --}}
             <div>
-                <label for="parent_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.parent_menu') }}</label>
-                <select name="parent_id" id="parent_id"
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <label for="parent_id" class="form-label">{{ __('common.parent_menu') }}</label>
+                <select name="parent_id" id="parent_id" class="form-input">
                     <option value="">{{ __('common.none_root_menu') }}</option>
                     @foreach ($parentMenus as $parent)
                         <option value="{{ $parent->id }}"
@@ -94,14 +93,14 @@
 
             {{-- Permission --}}
             <div>
-                <label for="permission" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_permission') }}</label>
-                <select name="permission" id="permission"
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <label for="permission" class="form-label">{{ __('common.menu_field_permission') }}</label>
+                <select name="permission" id="permission" class="form-input">
                     <option value="">{{ __('common.none_visible_all') }}</option>
                     @foreach ($permissions as $perm)
                         <option value="{{ $perm }}"
+                                title="{{ $perm }}"
                                 {{ old('permission', $menu->permission) === $perm ? 'selected' : '' }}>
-                            {{ $perm }}
+                            {{ \App\Support\PermissionDisplay::label($perm) }}
                         </option>
                     @endforeach
                 </select>
@@ -109,42 +108,28 @@
 
             {{-- Sort Order --}}
             <div>
-                <label for="sort_order" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('common.menu_field_order') }}</label>
+                <label for="sort_order" class="form-label">{{ __('common.menu_field_order') }}</label>
                 <input type="number" name="sort_order" id="sort_order"
                        value="{{ old('sort_order', $menu->sort_order ?? 0) }}"
                        min="0" max="999"
-                       class="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                       class="form-input w-24 text-center">
             </div>
 
             {{-- Status --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ __('common.status') }}</label>
-                <div class="flex items-center gap-6">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="is_active" value="1"
-                               {{ old('is_active', $menu->exists ? $menu->is_active : true) ? 'checked' : '' }}
-                               class="text-blue-600 focus:ring-blue-500">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ __('common.active') }}</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="is_active" value="0"
-                               {{ old('is_active', $menu->exists ? $menu->is_active : true) ? '' : 'checked' }}
-                               class="text-blue-600 focus:ring-blue-500">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ __('common.inactive') }}</span>
-                    </label>
-                </div>
+                <x-form.active-toggle
+                    name="is_active"
+                    :checked="old('is_active', $menu->exists ? $menu->is_active : true)" />
             </div>
         </div>
 
         {{-- Footer --}}
         <div class="flex items-center justify-end gap-3 mt-6">
-            <a href="{{ route('settings.navigation.index') }}"
-               class="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+            <a href="{{ route('settings.navigation.index') }}" class="btn-secondary">
                 {{ __('common.cancel') }}
             </a>
-            <button type="submit"
-                    class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
-                {{ $menu->exists ? __('common.update') : __('common.save') }}
+            <button type="submit" class="btn-primary">
+                {{ __('common.save') }}
             </button>
         </div>
     </form>

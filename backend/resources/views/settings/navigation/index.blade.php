@@ -9,12 +9,11 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.navigation_menu') }}</h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ __('common.manage_menu_items') }}</p>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.navigation_menu') }}</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ __('common.manage_menu_items') }}</p>
         </div>
-        <a href="{{ route('settings.navigation.create') }}"
-           class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="{{ route('settings.navigation.create') }}" class="btn-primary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
             {{ __('common.add_menu_item') }}
@@ -22,39 +21,35 @@
     </div>
 
     @if (session('success'))
-        <div class="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <p class="text-sm text-green-700 dark:text-green-400">{{ session('success') }}</p>
-        </div>
+        <div class="alert-success mb-4">{{ session('success') }}</div>
     @endif
 
     @if (session('error'))
-        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p class="text-sm text-red-700 dark:text-red-400">{{ session('error') }}</p>
-        </div>
+        <div class="alert-error mb-4">{{ session('error') }}</div>
     @endif
 
     {{-- Table --}}
-    <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
+    <div class="table-wrapper">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
-                <thead class="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700">
+                <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
                     <tr>
                         <th class="px-6 py-3 w-10"></th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.menu_field_icon') }}</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.menu_field_label') }}</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.menu_field_route') }}</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{{ __('common.menu_field_permission') }}</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">{{ __('common.menu_field_order') }}</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-center">{{ __('common.status') }}</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider text-right">{{ __('common.actions') }}</th>
+                        <th class="table-header">{{ __('common.menu_field_icon') }}</th>
+                        <th class="table-header">{{ __('common.menu_field_label') }}</th>
+                        <th class="table-header">{{ __('common.menu_field_route') }}</th>
+                        <th class="table-header">{{ __('common.menu_field_permission') }}</th>
+                        <th class="table-header text-center">{{ __('common.menu_field_order') }}</th>
+                        <th class="table-header text-center">{{ __('common.status') }}</th>
+                        <th class="table-header text-right">{{ __('common.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody id="menu-table-body" x-ref="menuTableBody">
                     @foreach ($rootMenus as $menu)
-                        <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+                        <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150"
                             data-menu-id="{{ $menu->id }}">
                             <td class="px-6 py-3">
-                                <span class="drag-handle cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <span class="drag-handle cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                                 </span>
                             </td>
@@ -63,10 +58,10 @@
                                     <x-nav-icon :name="$menu->icon ?? ''" class="w-4 h-4" />
                                 </span>
                             </td>
-                            <td class="px-6 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $menu->translated_label }}</td>
-                            <td class="px-6 py-3 text-xs text-gray-400 dark:text-gray-500 font-mono">{{ $menu->route ?? '—' }}</td>
-                            <td class="px-6 py-3 text-xs text-gray-400 dark:text-gray-500">{{ $menu->permission ?? '—' }}</td>
-                            <td class="px-6 py-3 text-center text-sm text-gray-500 dark:text-gray-400">{{ $menu->sort_order }}</td>
+                            <td class="px-6 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">{{ $menu->translated_label }}</td>
+                            <td class="px-6 py-3 text-xs text-slate-400 dark:text-slate-500 font-mono">{{ $menu->route ?? '—' }}</td>
+                            <td class="px-6 py-3 text-xs text-slate-400 dark:text-slate-500">{{ $menu->permission ?? '—' }}</td>
+                            <td class="px-6 py-3 text-center text-sm text-slate-500 dark:text-slate-400">{{ $menu->sort_order }}</td>
                             <td class="px-6 py-3 text-center">
                                 <button @click="toggleActive({{ $menu->id }}, $event)"
                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors
@@ -78,9 +73,9 @@
                             <td class="px-6 py-3 text-right">
                                 <div x-data="{ open: false }" class="relative inline-block">
                                     <button @click="open = !open" type="button"
-                                            class="p-1.5 rounded-lg text-gray-400
-                                                   hover:text-gray-600 dark:hover:text-gray-300
-                                                   hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                            class="p-1.5 rounded-lg text-slate-400
+                                                   hover:text-slate-600 dark:hover:text-slate-300
+                                                   hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                             <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                                         </svg>
@@ -92,21 +87,21 @@
                                          x-transition:leave="transition ease-in duration-75"
                                          x-transition:leave-end="opacity-0 scale-95"
                                          x-cloak
-                                         class="absolute right-0 top-8 w-36 z-30
-                                                bg-white dark:bg-gray-800
-                                                border border-gray-200 dark:border-gray-700
+                                         class="absolute right-0 top-full mt-2 w-40 z-50
+                                                bg-white dark:bg-slate-800
+                                                border border-slate-200 dark:border-slate-700
                                                 rounded-xl shadow-lg py-1">
                                         <a href="{{ route('settings.navigation.edit', $menu) }}"
                                            class="flex items-center gap-2 px-3 py-2 text-sm
-                                                  text-gray-700 dark:text-gray-300
-                                                  hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                                            <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  text-slate-700 dark:text-slate-300
+                                                  hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                             </svg>
                                             {{ __('common.edit') }}
                                         </a>
                                         @if ($menu->allChildren->isEmpty())
-                                        <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+                                        <div class="my-1 border-t border-slate-100 dark:border-slate-700"></div>
                                         <button @click="open = false;
                                                         $dispatch('open-nav-delete-modal', { id: {{ $menu->id }}, name: {{ json_encode($menu->translated_label ?? '') }} })"
                                                 class="w-full flex items-center gap-2 px-3 py-2 text-sm text-left
@@ -125,25 +120,25 @@
 
                         {{-- Children --}}
                         @foreach ($menu->allChildren as $child)
-                        <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 bg-gray-50/30 dark:bg-gray-800/30 transition-colors duration-150"
+                        <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 bg-slate-50/30 dark:bg-slate-800/30 transition-colors duration-150"
                             data-menu-id="{{ $child->id }}">
                             <td class="px-6 py-3">
-                                <span class="drag-handle cursor-grab active:cursor-grabbing text-gray-300 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-300 ml-4">
+                                <span class="drag-handle cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-500 hover:text-slate-500 dark:hover:text-slate-300 ml-4">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                                 </span>
                             </td>
                             <td class="px-6 py-3">
-                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 ml-4">
+                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 ml-4">
                                     <x-nav-icon :name="$child->icon ?? ''" class="w-3.5 h-3.5" />
                                 </span>
                             </td>
                             <td class="px-6 py-3">
-                                <span class="text-gray-400 mr-1">└</span>
-                                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $child->translated_label }}</span>
+                                <span class="text-slate-400 mr-1">└</span>
+                                <span class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ $child->translated_label }}</span>
                             </td>
-                            <td class="px-6 py-3 text-xs text-gray-400 dark:text-gray-500 font-mono">{{ $child->route ?? '—' }}</td>
-                            <td class="px-6 py-3 text-xs text-gray-400 dark:text-gray-500">{{ $child->permission ?? '—' }}</td>
-                            <td class="px-6 py-3 text-center text-sm text-gray-500 dark:text-gray-400">{{ $child->sort_order }}</td>
+                            <td class="px-6 py-3 text-xs text-slate-400 dark:text-slate-500 font-mono">{{ $child->route ?? '—' }}</td>
+                            <td class="px-6 py-3 text-xs text-slate-400 dark:text-slate-500">{{ $child->permission ?? '—' }}</td>
+                            <td class="px-6 py-3 text-center text-sm text-slate-500 dark:text-slate-400">{{ $child->sort_order }}</td>
                             <td class="px-6 py-3 text-center">
                                 <button @click="toggleActive({{ $child->id }}, $event)"
                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors
@@ -155,9 +150,9 @@
                             <td class="px-6 py-3 text-right">
                                 <div x-data="{ open: false }" class="relative inline-block">
                                     <button @click="open = !open" type="button"
-                                            class="p-1.5 rounded-lg text-gray-400
-                                                   hover:text-gray-600 dark:hover:text-gray-300
-                                                   hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                            class="p-1.5 rounded-lg text-slate-400
+                                                   hover:text-slate-600 dark:hover:text-slate-300
+                                                   hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                             <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                                         </svg>
@@ -169,20 +164,20 @@
                                          x-transition:leave="transition ease-in duration-75"
                                          x-transition:leave-end="opacity-0 scale-95"
                                          x-cloak
-                                         class="absolute right-0 top-8 w-36 z-30
-                                                bg-white dark:bg-gray-800
-                                                border border-gray-200 dark:border-gray-700
+                                         class="absolute right-0 top-full mt-2 w-40 z-50
+                                                bg-white dark:bg-slate-800
+                                                border border-slate-200 dark:border-slate-700
                                                 rounded-xl shadow-lg py-1">
                                         <a href="{{ route('settings.navigation.edit', $child) }}"
                                            class="flex items-center gap-2 px-3 py-2 text-sm
-                                                  text-gray-700 dark:text-gray-300
-                                                  hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                                            <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  text-slate-700 dark:text-slate-300
+                                                  hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                             </svg>
                                             {{ __('common.edit') }}
                                         </a>
-                                        <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
+                                        <div class="my-1 border-t border-slate-100 dark:border-slate-700"></div>
                                         <button @click="open = false;
                                                         $dispatch('open-nav-delete-modal', { id: {{ $child->id }}, name: {{ json_encode($child->translated_label ?? '') }} })"
                                                 class="w-full flex items-center gap-2 px-3 py-2 text-sm text-left
@@ -255,7 +250,7 @@ document.addEventListener('alpine:init', () => {
             })
             .then(r => r.json())
             .then(data => {
-                const dot  = btn.querySelector('span');
+                const dot = btn.querySelector('span');
                 if (data.is_active) {
                     btn.className = btn.className
                         .replace('bg-gray-100', 'bg-green-50')
@@ -283,35 +278,28 @@ document.addEventListener('alpine:init', () => {
          x-show="show" x-cloak x-transition
          class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div @click.outside="show = false"
-             class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-80 shadow-xl text-center">
+             class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-80 shadow-xl text-center">
             <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                 <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
             </div>
-            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
+            <h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">
                 {{ __('common.confirm_delete') }}
             </h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 {{ __('common.delete') }} <strong x-text="name"></strong>?
-                <br><span class="text-xs text-gray-500 dark:text-gray-400">{{ __('common.cannot_undo') }}</span>
+                <br><span class="text-xs text-slate-500 dark:text-slate-400">{{ __('common.cannot_undo') }}</span>
             </p>
             <div class="flex gap-2 mt-4">
-                <button @click="show = false"
-                        class="flex-1 px-4 py-2 text-sm font-medium rounded-lg
-                               border border-gray-300 dark:border-gray-600
-                               text-gray-700 dark:text-gray-300
-                               bg-white dark:bg-gray-800
-                               hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <button @click="show = false" class="btn-secondary flex-1">
                     {{ __('common.cancel') }}
                 </button>
-                <form x-bind:action="`{{ url('settings/navigation') }}/${id}`" method="POST" class="flex-1" x-show="id">
+                <form x-bind:action="`{{ url('settings/navigation') }}/${id}`" method="POST" class="flex-1" x-show="id" novalidate>
                     @csrf
                     @method('DELETE')
-                    <button type="submit"
-                            class="w-full px-4 py-2 text-sm font-medium rounded-lg
-                                   bg-red-600 hover:bg-red-700 text-white transition-colors">
+                    <button type="submit" class="btn-danger w-full">
                         {{ __('common.delete') }}
                     </button>
                 </form>

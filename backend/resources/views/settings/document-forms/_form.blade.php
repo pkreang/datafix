@@ -1,5 +1,6 @@
 @php
-    $isEdit = isset($documentForm);
+    $documentForm = $documentForm ?? null;
+    $isEdit = $documentForm !== null;
     $action = $isEdit ? route('settings.document-forms.update', $documentForm) : route('settings.document-forms.store');
     $cascadingRelations = \App\Support\LookupRegistry::cascadingRelations();
     $initialFields = old('fields', $isEdit ? $documentForm->fields->map(function ($f) {
@@ -26,35 +27,296 @@
 @endphp
 
 <div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }})">
-    @if ($errors->any())
-        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <ul class="text-sm text-red-700 dark:text-red-400 space-y-1">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+    {{-- Preview Modal — teleported to <body> to escape stacking context --}}
+    <template x-teleport="body">
+    <div x-show="showPreview" x-cloak
+         class="fixed inset-0 flex items-center justify-center overflow-hidden p-4 sm:p-6 md:p-8"
+         style="z-index:9999"
+         @keydown.escape.window="showPreview = false">
 
-    <form method="POST" action="{{ $action }}" class="space-y-5">
+        {{-- Backdrop --}}
+        <div x-show="showPreview" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+             class="absolute inset-0 bg-black/50 dark:bg-black/60" @click="showPreview = false"></div>
+
+        {{-- Modal panel --}}
+        <div x-show="showPreview" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 scale-100" x-transition:leave-end="opacity-0 translate-y-4 scale-[0.98]"
+             class="document-form-preview-frame relative flex flex-col min-h-0 overflow-hidden rounded-2xl shadow-2xl bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-700">
+
+            {{-- Header --}}
+            <div class="shrink-0 flex items-center justify-between px-6 sm:px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="shrink-0 w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate" x-text="previewTitle || '{{ __('common.document_form_preview') }}'"></h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('common.document_form_preview_hint') }}</p>
+                    </div>
+                </div>
+                <button type="button" @click="showPreview = false"
+                        class="shrink-0 p-2 -mr-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        aria-label="{{ __('common.close') }}">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Form preview body --}}
+            <div class="document-form-preview-scroll flex-1 min-h-0 overflow-y-auto px-6 py-6 sm:px-10 sm:py-8 bg-white dark:bg-gray-900">
+                <template x-if="fields.length === 0">
+                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                        <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <p class="text-base text-gray-400 dark:text-gray-500">{{ __('common.document_form_preview_empty') }}</p>
+                    </div>
+                </template>
+
+                <div class="grid gap-5 sm:gap-6" :style="`grid-template-columns: repeat(${layoutColumns}, minmax(0, 1fr))`">
+                <template x-for="(field, idx) in fields" :key="'preview-'+field._rowId">
+                    <div :style="field.field_type === 'section' ? `grid-column: span ${layoutColumns}` : previewGridStyle(field)">
+                        {{-- section divider --}}
+                        <template x-if="field.field_type === 'section'">
+                            <div class="pt-4 pb-2 first:pt-0">
+                                <h4 class="text-base font-semibold text-gray-900 dark:text-gray-100 pb-2 border-b-2 border-blue-500/30 dark:border-blue-400/30" x-text="field.label || '{{ __('common.document_form_type_section') }}'"></h4>
+                            </div>
+                        </template>
+
+                        <template x-if="field.field_type !== 'section'">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <span x-text="field.label || '{{ __('common.document_form_field_untitled') }}'"></span>
+                                <span x-show="field.is_required" class="text-red-500 ml-0.5">*</span>
+                            </label>
+                        </template>
+
+                        {{-- textarea --}}
+                        <template x-if="field.field_type === 'textarea'">
+                            <textarea readonly rows="3" tabindex="-1"
+                                      :placeholder="field.placeholder || ''"
+                                      class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none"></textarea>
+                        </template>
+
+                        {{-- select --}}
+                        <template x-if="field.field_type === 'select'">
+                            <select tabindex="-1" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none">
+                                <option value="">{{ __('common.please_select') }}</option>
+                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
+                                    <option x-text="opt.trim()"></option>
+                                </template>
+                            </select>
+                        </template>
+
+                        {{-- number --}}
+                        <template x-if="field.field_type === 'number'">
+                            <input type="number" step="0.01" readonly tabindex="-1"
+                                   :placeholder="field.placeholder || '0.00'"
+                                   class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+
+                        {{-- date --}}
+                        <template x-if="field.field_type === 'date'">
+                            <input type="date" readonly tabindex="-1" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+
+                        {{-- time --}}
+                        <template x-if="field.field_type === 'time'">
+                            <input type="time" readonly tabindex="-1" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+
+                        {{-- datetime --}}
+                        <template x-if="field.field_type === 'datetime'">
+                            <input type="datetime-local" readonly tabindex="-1" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+
+                        {{-- email --}}
+                        <template x-if="field.field_type === 'email'">
+                            <input type="email" readonly tabindex="-1" :placeholder="field.placeholder || 'name@example.com'" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+
+                        {{-- phone --}}
+                        <template x-if="field.field_type === 'phone'">
+                            <input type="tel" readonly tabindex="-1" :placeholder="field.placeholder || '0xx-xxx-xxxx'" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+
+                        {{-- currency --}}
+                        <template x-if="field.field_type === 'currency'">
+                            <div class="relative mt-1.5">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm font-medium">฿</span>
+                                <input type="number" step="0.01" readonly tabindex="-1" :placeholder="field.placeholder || '0.00'" class="w-full pl-8 pr-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                            </div>
+                        </template>
+
+                        {{-- checkbox --}}
+                        <template x-if="field.field_type === 'checkbox'">
+                            <div class="mt-2 space-y-2">
+                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
+                                    <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 pointer-events-none select-none">
+                                        <input type="checkbox" tabindex="-1" class="h-4 w-4 rounded border-gray-300 dark:border-gray-500 text-blue-600 accent-blue-600">
+                                        <span x-text="opt.trim()"></span>
+                                    </label>
+                                </template>
+                                <template x-if="!(field.options_raw || '').trim()">
+                                    <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 pointer-events-none select-none">
+                                        <input type="checkbox" tabindex="-1" class="h-4 w-4 rounded border-gray-300 dark:border-gray-500 text-blue-600 accent-blue-600">
+                                        <span x-text="field.label || '{{ __('common.document_form_field_untitled') }}'"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </template>
+
+                        {{-- radio --}}
+                        <template x-if="field.field_type === 'radio'">
+                            <div class="mt-2 space-y-2">
+                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
+                                    <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 pointer-events-none select-none">
+                                        <input type="radio" tabindex="-1" class="h-4 w-4 border-gray-300 dark:border-gray-500 text-blue-600 accent-blue-600">
+                                        <span x-text="opt.trim()"></span>
+                                    </label>
+                                </template>
+                                <template x-if="!(field.options_raw || '').trim()">
+                                    <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">{{ __('common.document_form_options_hint') }}</p>
+                                </template>
+                            </div>
+                        </template>
+
+                        {{-- file --}}
+                        <template x-if="field.field_type === 'file'">
+                            <div class="mt-1.5 flex items-center gap-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 px-4 py-5 pointer-events-none select-none">
+                                <svg class="w-6 h-6 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ __('common.document_form_type_file') }}</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ __('common.document_form_preview_file_hint') }}</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- signature --}}
+                        <template x-if="field.field_type === 'signature'">
+                            <div class="mt-1.5 w-full min-h-[6rem] rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 flex items-center justify-center pointer-events-none select-none">
+                                <div class="text-center">
+                                    <svg class="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                    </svg>
+                                    <span class="text-xs font-medium text-gray-400 dark:text-gray-500">{{ __('common.document_form_type_signature') }}</span>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- lookup --}}
+                        <template x-if="field.field_type === 'lookup'">
+                            <select tabindex="-1" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none">
+                                <option value="" x-text="field.lookup_source ? ('{{ __('common.please_select') }} — ' + (lookupSources[field.lookup_source]?.label_{{ app()->getLocale() }} || lookupSources[field.lookup_source]?.label_en || '')) : '{{ __('common.document_form_preview_lookup_pick_source') }}'"></option>
+                            </select>
+                        </template>
+
+                        {{-- table --}}
+                        <template x-if="field.field_type === 'table'">
+                            <div class="mt-1.5">
+                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-gray-50 dark:bg-gray-800">
+                                            <tr>
+                                                <template x-for="col in (field.table_columns || [])" :key="col.key">
+                                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600" x-text="col.label || col.key"></th>
+                                                </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-900">
+                                            <tr>
+                                                <template x-for="col in (field.table_columns || [])" :key="'cell-'+col.key">
+                                                    <td class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
+                                                        <span class="text-gray-300 dark:text-gray-600">—</span>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{{ __('common.document_form_table_add_row_hint') }}</p>
+                            </div>
+                        </template>
+
+                        {{-- text (default) --}}
+                        <template x-if="field.field_type === 'text' || (!field.field_type)">
+                            <input type="text" readonly tabindex="-1"
+                                   :placeholder="field.placeholder || ''"
+                                   class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none focus:outline-none">
+                        </template>
+                    </div>
+                </template>
+                </div>
+            </div>
+        </div>
+    </div>
+    </template>
+
+    {{-- Save confirmation — teleported like preview --}}
+    <template x-teleport="body">
+        <div x-show="showSaveConfirm" x-cloak
+             class="fixed inset-0 z-[10000] flex items-center justify-center overflow-hidden p-4 sm:p-6"
+             @keydown.escape.window="showSaveConfirm = false">
+            <div x-show="showSaveConfirm" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                 class="absolute inset-0 bg-black/50 dark:bg-black/60" @click="showSaveConfirm = false" aria-hidden="true"></div>
+            <div x-show="showSaveConfirm" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 scale-100" x-transition:leave-end="opacity-0 translate-y-4 scale-[0.98]"
+                 class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700"
+                 role="dialog" aria-modal="true" aria-labelledby="doc-form-save-confirm-title" @click.stop>
+                <h3 id="doc-form-save-confirm-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ __('common.document_form_save_confirm_title') }}</h3>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ __('common.document_form_save_confirm_message') }}</p>
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button type="button" @click="showSaveConfirm = false"
+                            class="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">{{ __('common.cancel') }}</button>
+                    <button type="button" @click="confirmSave()"
+                            class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700">{{ __('common.save') }}</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <form id="document-form-builder" method="POST" action="{{ $action }}" class="space-y-5">
         @csrf
         @if($isEdit)
             @method('PUT')
         @endif
 
+        @if($inlineToolbar ?? false)
+            {{-- Fixed actions + flow spacer sit above the gray card (not inside the “table” panel) --}}
+            @include('settings.document-forms._form-fixed-primary-actions')
+            <div class="card p-6">
+        @endif
+
+        @if ($errors->any())
+            <div class="alert-error mb-4">
+                <ul class="space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.document_form_key') }}</label>
-                <input name="form_key" value="{{ old('form_key', $documentForm->form_key ?? '') }}" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <input name="form_key" value="{{ old('form_key', $documentForm?->form_key ?? '') }}" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
             </div>
             <div>
                 <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.name') }}</label>
-                <input name="name" value="{{ old('name', $documentForm->name ?? '') }}" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <input name="name" value="{{ old('name', $documentForm?->name ?? '') }}" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
             </div>
             <div>
                 <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.document_type') }}</label>
                 <select name="document_type" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                    @php $docType = old('document_type', $documentForm->document_type ?? ''); @endphp
+                    @php $docType = old('document_type', $documentForm?->document_type ?? ''); @endphp
                     @foreach(\App\Models\DocumentType::allActive() as $dt)
                         <option value="{{ $dt->code }}" @selected($docType === $dt->code)>{{ $dt->label() }}</option>
                     @endforeach
@@ -63,16 +325,30 @@
             <div>
                 <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.form_layout') }}</label>
                 <select name="layout_columns" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                    @php $layoutCols = (int) old('layout_columns', $documentForm->layout_columns ?? 1); @endphp
+                    @php $layoutCols = (int) old('layout_columns', $documentForm?->layout_columns ?? 1); @endphp
                     <option value="1" @selected($layoutCols === 1)>{{ __('common.form_layout_1col') }}</option>
                     <option value="2" @selected($layoutCols === 2)>{{ __('common.form_layout_2col') }}</option>
                     <option value="3" @selected($layoutCols === 3)>{{ __('common.form_layout_3col') }}</option>
                     <option value="4" @selected($layoutCols === 4)>{{ __('common.form_layout_4col') }}</option>
                 </select>
             </div>
+            <div>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.table_name') }}</label>
+                @if($isEdit && $documentForm?->submission_table)
+                    <input name="table_name" value="{{ $documentForm->submission_table }}" readonly
+                           class="mt-1 w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed outline-none" />
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ __('common.table_name_locked') }}</p>
+                @else
+                    <input name="table_name" value="{{ old('table_name', '') }}" required
+                           placeholder="เช่น maintenance_requests"
+                           pattern="[a-z][a-z0-9_]*" maxlength="64"
+                           class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ __('common.table_name_hint') }}</p>
+                @endif
+            </div>
             <div class="flex items-end">
                 <label class="inline-flex items-center gap-2">
-                    <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $documentForm->is_active ?? true))>
+                    <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $documentForm?->is_active ?? true))>
                     <span class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.active') }}</span>
                 </label>
             </div>
@@ -80,18 +356,26 @@
 
         <div>
             <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.remark') }}</label>
-            <textarea name="description" rows="2" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">{{ old('description', $documentForm->description ?? '') }}</textarea>
+            <textarea name="description" rows="2" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">{{ old('description', $documentForm?->description ?? '') }}</textarea>
         </div>
 
-        <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ __('common.document_form_fields') }}</h3>
-            <div class="flex gap-2">
-                <button type="button" @click="addField()" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">+ {{ __('common.document_form_add_field') }}</button>
-                <button type="button" @click="addSection()" class="px-3 py-2 rounded bg-gray-500 text-white text-sm">+ {{ __('common.document_form_add_section') }}</button>
+        @if($inlineToolbar ?? false)
+            @include('settings.document-forms._form-inline-field-actions')
+        @endif
+
+        <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-2 justify-between border-b border-gray-200/80 pb-3 dark:border-gray-600">
+            <div class="flex min-w-0 flex-wrap items-center gap-3">
+<h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ __('common.document_form_fields') }}</h3>
             </div>
+            @unless($inlineToolbar ?? false)
+                <div class="ml-auto flex shrink-0 flex-wrap justify-end gap-2">
+                    <button type="button" @click="addField()" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">+ {{ __('common.document_form_add_field') }}</button>
+                    <button type="button" @click="addSection()" class="px-3 py-2 rounded bg-gray-500 text-white text-sm">+ {{ __('common.document_form_add_section') }}</button>
+                </div>
+            @endunless
         </div>
 
-        <template x-for="(field, idx) in fields" :key="idx">
+        <template x-for="(field, idx) in fields" :key="field._rowId">
             <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20 p-4 space-y-3">
                 <div class="flex justify-between items-center">
                     <p class="font-medium">{{ __('common.document_form_field_short') }} <span x-text="idx + 1"></span></p>
@@ -227,245 +511,56 @@
             </div>
         </template>
 
-        <div class="flex items-center justify-end gap-2">
-            <button type="button" @click="showPreview = true"
-                    class="px-4 py-2 rounded text-sm border bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
-                <span class="inline-flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                    </svg>
-                    {{ __('common.document_form_preview') }}
-                </span>
-            </button>
-            <a href="{{ route('settings.document-forms.index') }}" class="px-4 py-2 rounded bg-gray-300 dark:bg-gray-700 text-sm">{{ __('common.cancel') }}</a>
-            <button class="px-4 py-2 rounded bg-blue-600 text-white text-sm">{{ __('common.save') }}</button>
-        </div>
+        @if($inlineToolbar ?? false)
+            </div>
+        @endif
+
     </form>
 
-    {{-- Preview Modal --}}
-    <div x-show="showPreview" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center p-4"
-         @keydown.escape.window="showPreview = false">
-
-        {{-- Backdrop --}}
-        <div x-show="showPreview" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-             class="absolute inset-0 bg-black/50" @click="showPreview = false"></div>
-
-        {{-- Modal Content --}}
-        <div x-show="showPreview" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-             class="relative w-full max-w-lg max-h-[85vh] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col">
-
-            {{-- Header --}}
-            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-                <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                    </svg>
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ __('common.document_form_preview') }}</h3>
-                </div>
-                <button type="button" @click="showPreview = false"
-                        class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-
-            {{-- Hint --}}
-            <div class="px-5 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/30 shrink-0">
-                <p class="text-xs text-blue-600 dark:text-blue-400">{{ __('common.document_form_preview_hint') }}</p>
-            </div>
-
-            {{-- Body --}}
-            <div class="px-5 py-5 overflow-y-auto">
-                <template x-if="fields.length === 0">
-                    <p class="text-sm text-gray-400 dark:text-gray-500 italic">{{ __('common.document_form_preview_empty') }}</p>
-                </template>
-
-                <div class="grid gap-4" :style="`grid-template-columns: repeat(${layoutColumns}, minmax(0, 1fr))`">
-                <template x-for="(field, idx) in fields" :key="'preview-'+idx">
-                    <div :style="field.field_type === 'section' ? `grid-column: span ${layoutColumns}` : previewGridStyle(field)">
-                        {{-- section divider --}}
-                        <template x-if="field.field_type === 'section'">
-                            <div class="border-b border-gray-300 dark:border-gray-600 pb-1 mt-2">
-                                <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200" x-text="field.label || '{{ __('common.document_form_type_section') }}'"></h4>
-                            </div>
-                        </template>
-
-                        <template x-if="field.field_type !== 'section'">
-                            <label class="text-sm text-gray-600 dark:text-gray-300">
-                                <span x-text="field.label || '{{ __('common.document_form_field_untitled') }}'"></span>
-                                <span x-show="field.is_required" class="text-red-500">*</span>
-                            </label>
-                        </template>
-
-                        {{-- textarea --}}
-                        <template x-if="field.field_type === 'textarea'">
-                            <textarea disabled rows="3"
-                                      :placeholder="field.placeholder || ''"
-                                      class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed"></textarea>
-                        </template>
-
-                        {{-- select --}}
-                        <template x-if="field.field_type === 'select'">
-                            <select disabled class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                                <option>{{ __('common.please_select') }}</option>
-                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
-                                    <option x-text="opt.trim()"></option>
-                                </template>
-                            </select>
-                        </template>
-
-                        {{-- number --}}
-                        <template x-if="field.field_type === 'number'">
-                            <input type="number" step="0.01" disabled
-                                   :placeholder="field.placeholder || '0.00'"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- date --}}
-                        <template x-if="field.field_type === 'date'">
-                            <input type="date" disabled class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- time --}}
-                        <template x-if="field.field_type === 'time'">
-                            <input type="time" disabled class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- datetime --}}
-                        <template x-if="field.field_type === 'datetime'">
-                            <input type="datetime-local" disabled class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- email --}}
-                        <template x-if="field.field_type === 'email'">
-                            <input type="email" disabled :placeholder="field.placeholder || 'name@example.com'" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- phone --}}
-                        <template x-if="field.field_type === 'phone'">
-                            <input type="tel" disabled :placeholder="field.placeholder || '0xx-xxx-xxxx'" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- currency --}}
-                        <template x-if="field.field_type === 'currency'">
-                            <div class="relative mt-1">
-                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">฿</span>
-                                <input type="number" step="0.01" disabled :placeholder="field.placeholder || '0.00'" class="w-full pl-8 rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                            </div>
-                        </template>
-
-                        {{-- checkbox --}}
-                        <template x-if="field.field_type === 'checkbox'">
-                            <div class="mt-2 space-y-1">
-                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
-                                    <label class="flex items-center gap-2 text-sm text-gray-400">
-                                        <input type="checkbox" disabled class="rounded border-gray-300 dark:border-gray-600">
-                                        <span x-text="opt.trim()"></span>
-                                    </label>
-                                </template>
-                                <template x-if="!(field.options_raw || '').trim()">
-                                    <label class="flex items-center gap-2 text-sm text-gray-400">
-                                        <input type="checkbox" disabled class="rounded border-gray-300 dark:border-gray-600">
-                                        <span x-text="field.label || '{{ __('common.document_form_field_untitled') }}'"></span>
-                                    </label>
-                                </template>
-                            </div>
-                        </template>
-
-                        {{-- radio --}}
-                        <template x-if="field.field_type === 'radio'">
-                            <div class="mt-2 space-y-1">
-                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
-                                    <label class="flex items-center gap-2 text-sm text-gray-400">
-                                        <input type="radio" disabled class="border-gray-300 dark:border-gray-600">
-                                        <span x-text="opt.trim()"></span>
-                                    </label>
-                                </template>
-                                <template x-if="!(field.options_raw || '').trim()">
-                                    <p class="text-xs text-gray-400 italic mt-1">{{ __('common.document_form_options_hint') }}</p>
-                                </template>
-                            </div>
-                        </template>
-
-                        {{-- file --}}
-                        <template x-if="field.field_type === 'file'">
-                            <input type="file" disabled class="mt-1 w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-gray-100 dark:file:bg-gray-700 file:text-gray-400 cursor-not-allowed">
-                        </template>
-
-                        {{-- signature --}}
-                        <template x-if="field.field_type === 'signature'">
-                            <div class="mt-1 w-full h-24 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center">
-                                <span class="text-xs text-gray-400">{{ __('common.document_form_type_signature') }}</span>
-                            </div>
-                        </template>
-
-                        {{-- lookup --}}
-                        <template x-if="field.field_type === 'lookup'">
-                            <select disabled class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                                <option x-text="'{{ __('common.please_select') }} — ' + (lookupSources[field.lookup_source]?.label_{{ app()->getLocale() }} || lookupSources[field.lookup_source]?.label_en || '...')"></option>
-                            </select>
-                        </template>
-
-                        {{-- table --}}
-                        <template x-if="field.field_type === 'table'">
-                            <div class="mt-1 overflow-x-auto">
-                                <table class="min-w-full border border-gray-300 dark:border-gray-600 rounded-lg text-sm">
-                                    <thead class="bg-gray-50 dark:bg-gray-700/50">
-                                        <tr>
-                                            <template x-for="col in (field.table_columns || [])" :key="col.key">
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600" x-text="col.label || col.key"></th>
-                                            </template>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <template x-for="col in (field.table_columns || [])" :key="'cell-'+col.key">
-                                                <td class="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-                                                    <span class="text-gray-300 dark:text-gray-500">—</span>
-                                                </td>
-                                            </template>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <p class="text-xs text-gray-400 mt-1 italic">{{ __('common.document_form_table_add_row_hint') }}</p>
-                            </div>
-                        </template>
-
-                        {{-- text (default) --}}
-                        <template x-if="field.field_type === 'text' || (!field.field_type)">
-                            <input type="text" disabled
-                                   :placeholder="field.placeholder || ''"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-400 cursor-not-allowed">
-                        </template>
-                    </div>
-                </template>
-                </div>
-            </div>
-
-            {{-- Footer --}}
-            <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700 shrink-0 flex justify-end">
-                <button type="button" @click="showPreview = false"
-                        class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                    {{ __('common.close') }}
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
+    function ensureFieldRowId(field) {
+        const f = { ...field };
+        if (!f._rowId) {
+            f._rowId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : 'row_' + Math.random().toString(36).slice(2, 11);
+        }
+        return f;
+    }
+
     function formBuilder(initialFields, lookupSources, cascadingRelations) {
         return {
-            fields: initialFields || [],
+            fields: (initialFields || []).map((f) => ensureFieldRowId(f)),
             lookupSources: lookupSources || {},
             cascadingRelations: cascadingRelations || {},
             showPreview: false,
+            showSaveConfirm: false,
+            previewTitle: '',
+            init() {},
+            openSaveConfirm() {
+                this.showSaveConfirm = true;
+            },
+            confirmSave() {
+                this.showSaveConfirm = false;
+                const form = document.getElementById('document-form-builder');
+                if (!form) {
+                    return;
+                }
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            },
+            openPreview() {
+                const form = this.$el.querySelector('form');
+                const name = form?.querySelector('input[name="name"]')?.value?.trim() || '';
+                const key = form?.querySelector('input[name="form_key"]')?.value?.trim() || '';
+                this.previewTitle = name || key || '';
+                this.showPreview = true;
+            },
             get layoutColumns() {
                 return parseInt(document.querySelector('select[name="layout_columns"]')?.value || 1);
             },
@@ -475,11 +570,16 @@
                 return span > 1 ? `grid-column: span ${span}` : '';
             },
             addField() {
-                this.fields.push({field_key: '', label: '', field_type: 'text', is_required: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: []});
+                this.fields.push(ensureFieldRowId({field_key: '', label: '', field_type: 'text', is_required: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: []}));
             },
             addSection() {
-                const idx = this.fields.filter(f => f.field_type === 'section').length + 1;
-                this.fields.push({field_key: 'section_' + idx, label: '', field_type: 'section', is_required: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: []});
+                let max = 0;
+                for (const f of this.fields) {
+                    const m = /^section_(\d+)$/.exec(f.field_key || '');
+                    if (m) max = Math.max(max, parseInt(m[1], 10));
+                }
+                const n = max + 1;
+                this.fields.push(ensureFieldRowId({field_key: 'section_' + n, label: '', field_type: 'section', is_required: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: []}));
             },
             addTableColumn(field) {
                 if (!field.table_columns) field.table_columns = [];
