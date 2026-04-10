@@ -13,7 +13,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 text-base text-gray-800 dark:text-gray-200 relative">
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 text-base text-slate-800 dark:text-slate-200 relative">
     @php
         $bgImage = ($loginBackground ?? null)
             ? asset('storage/' . $loginBackground)

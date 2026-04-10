@@ -1,8 +1,8 @@
 <div x-data="notificationBell()" x-init="init()" class="relative">
     <button @click="toggle()" type="button"
             class="relative p-1.5 rounded-lg transition-colors
-                   text-gray-500 dark:text-gray-400
-                   hover:bg-gray-100 dark:hover:bg-gray-700"
+                   text-slate-500 dark:text-slate-400
+                   hover:bg-slate-100 dark:hover:bg-slate-700"
             aria-label="{{ __('notifications.notifications') }}">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -27,7 +27,7 @@
                 rounded-[12px] shadow-[var(--shadow-lg)] overflow-hidden">
 
         <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ __('notifications.notifications') }}</h3>
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('notifications.notifications') }}</h3>
             <form method="POST" action="{{ route('notifications.read-all') }}" x-show="count > 0" novalidate>
                 @csrf
                 <button type="submit" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
@@ -38,7 +38,7 @@
 
         <div class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
             <template x-if="items.length === 0">
-                <div class="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+                <div class="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
                     {{ __('notifications.no_notifications') }}
                 </div>
             </template>
@@ -65,9 +65,9 @@
                         </template>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" x-text="item.data?.title"></p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5" x-text="item.data?.body"></p>
-                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1" x-text="timeAgo(item.created_at)"></p>
+                        <p class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate" x-text="item.data?.title"></p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5" x-text="item.data?.body"></p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1" x-text="timeAgo(item.created_at)"></p>
                     </div>
                     <div x-show="!item.read_at" class="shrink-0 mt-2">
                         <span class="block w-2 h-2 rounded-full bg-blue-500"></span>

@@ -39,7 +39,7 @@
     @stack('scripts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full font-sans antialiased bg-slate-50 dark:bg-slate-950 text-gray-800 dark:text-gray-200"
+<body class="h-full font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200"
       x-data="{ sidebarOpen: false, sidebarCollapsed: false }">
     <div class="flex min-h-screen">
         {{-- Mobile overlay --}}
@@ -51,7 +51,7 @@
              x-transition:leave-start="opacity-100"
              x-transition:leave-end="opacity-0"
              @click="sidebarOpen = false"
-             class="fixed inset-0 z-20 bg-gray-900/50 lg:hidden"
+             class="fixed inset-0 z-20 bg-slate-900/50 lg:hidden"
              x-cloak
              aria-hidden="true"></div>
 
@@ -105,7 +105,7 @@
         <div class="flex-1 min-w-0 flex flex-col gap-4">
             <header class="sticky top-0 z-20 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex items-center justify-between gap-4 px-4 sm:px-8">
                 <div class="flex items-center gap-3 min-w-0">
-                    <button @click="sidebarOpen = true" type="button" class="lg:hidden shrink-0 p-2 -ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg focus:outline-none" aria-label="Open menu">
+                    <button @click="sidebarOpen = true" type="button" class="lg:hidden shrink-0 p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg focus:outline-none" aria-label="Open menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
@@ -128,15 +128,15 @@
                         </svg>
                     </button>
 
-                    <div class="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
+                    <div class="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs">
                         <a href="{{ route('lang.switch', 'th') }}"
                            class="px-2.5 py-1 font-medium transition-colors
-                                  {{ app()->getLocale() === 'th' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                  {{ app()->getLocale() === 'th' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700' }}">
                             TH
                         </a>
                         <a href="{{ route('lang.switch', 'en') }}"
-                           class="px-2.5 py-1 font-medium transition-colors border-l border-gray-200 dark:border-gray-700
-                                  {{ app()->getLocale() === 'en' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                           class="px-2.5 py-1 font-medium transition-colors border-l border-slate-200 dark:border-slate-700
+                                  {{ app()->getLocale() === 'en' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700' }}">
                             EN
                         </a>
                     </div>
@@ -146,7 +146,7 @@
                     <div x-data="{ open: false }" class="relative">
                         <button @click="open = !open" type="button"
                                 class="flex items-center gap-1.5 p-1 rounded-lg
-                                       hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                       hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                             @if($layoutUser['avatar'] ?? null)
                                 <img src="{{ $layoutUserAvatar }}" alt="" class="w-7 h-7 rounded-full object-cover">
                             @else
@@ -156,7 +156,7 @@
                                     {{ $layoutUserInitials }}
                                 </div>
                             @endif
-                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </button>
@@ -174,17 +174,17 @@
                                     rounded-[12px] shadow-[var(--shadow-lg)] py-1">
 
                             <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
-                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                <p class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                                     {{ $layoutUserName }}
                                 </p>
-                                <p class="text-xs text-gray-400 dark:text-gray-400 truncate">{{ $layoutUser['email'] ?? '' }}</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-400 truncate">{{ $layoutUser['email'] ?? '' }}</p>
                             </div>
 
                             <a href="{{ route('profile.edit') }}"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
-                                      text-gray-700 dark:text-gray-300
+                                      text-slate-700 dark:text-slate-300
                                       hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                <svg class="w-4 h-4 text-gray-400 dark:text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-4 h-4 text-slate-400 dark:text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>
@@ -194,9 +194,9 @@
                             @if (! empty($layoutCanChangePassword))
                             <a href="{{ route('profile.password') }}"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
-                                      text-gray-700 dark:text-gray-300
+                                      text-slate-700 dark:text-slate-300
                                       hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                <svg class="w-4 h-4 text-gray-400 dark:text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-4 h-4 text-slate-400 dark:text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                                 </svg>
@@ -205,9 +205,9 @@
                             @elseif (! empty($authPasswordHelpUrl))
                             <a href="{{ $authPasswordHelpUrl }}" target="_blank" rel="noopener noreferrer"
                                class="flex items-center gap-2.5 px-3 py-2 text-sm
-                                      text-gray-700 dark:text-gray-300
+                                      text-slate-700 dark:text-slate-300
                                       hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
                                 </svg>

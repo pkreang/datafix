@@ -15,7 +15,7 @@
         'red'    => ['bg' => 'bg-red-100 dark:bg-red-900/30',       'icon' => 'text-red-600 dark:text-red-400'],
         'purple' => ['bg' => 'bg-purple-100 dark:bg-purple-900/30', 'icon' => 'text-purple-600 dark:text-purple-400'],
         'yellow' => ['bg' => 'bg-yellow-100 dark:bg-yellow-900/30', 'icon' => 'text-yellow-600 dark:text-yellow-400'],
-        'gray'   => ['bg' => 'bg-gray-100 dark:bg-gray-800/50',      'icon' => 'text-gray-600 dark:text-gray-400'],
+        'gray'   => ['bg' => 'bg-slate-100 dark:bg-slate-800/50',      'icon' => 'text-slate-600 dark:text-slate-400'],
     ];
     $c = $colorMap[$color] ?? $colorMap['blue'];
 @endphp
@@ -52,7 +52,7 @@
     @if($canToggle)
         <button
             @click="$dispatch('hide-kpi-card', { card: '{{ $card }}' })"
-            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+            class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
             title="{{ __('common.hide_card') }}"
             aria-label="{{ __('common.hide_card') }}"
             type="button"
@@ -70,13 +70,13 @@
             </svg>
         </div>
         <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $title }}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ $title }}</p>
             <template x-if="loading">
-                <div class="h-7 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-1"></div>
+                <div class="h-7 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>
             </template>
             <template x-if="!loading">
                 <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="value ?? '—'"></p>
+                    <p class="text-2xl font-bold text-slate-900 dark:text-slate-100" x-text="value ?? '—'"></p>
                     <template x-if="delta !== null">
                         <span
                             class="text-xs font-medium"
