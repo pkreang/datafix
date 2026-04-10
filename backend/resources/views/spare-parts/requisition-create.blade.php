@@ -5,32 +5,32 @@
 @section('content')
     <div class="mb-6">
         <a href="{{ route('spare-parts.requisition.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mt-2">{{ __('common.create_requisition') }}</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('common.create_requisition_desc') }}</p>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ __('common.create_requisition') }}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ __('common.create_requisition_desc') }}</p>
     </div>
 
     @if ($errors->has('workflow'))
-        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-800 dark:text-red-200">
+        <div class="alert-error mb-4">
             {{ $errors->first('workflow') }}
         </div>
     @endif
 
     <div x-data="requisitionForm()" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Left: Form --}}
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div class="card p-5">
             @include('repair-requests._company_header', ['company' => $company ?? null, 'branch' => $branch ?? null])
-            <form method="POST" action="{{ route('spare-parts.requisition.submit') }}" class="space-y-3">
+            <form method="POST" action="{{ route('spare-parts.requisition.submit') }}" class="space-y-3" novalidate>
                 @csrf
                 @if($form)
                     <input type="hidden" name="form_key" value="{{ $form->form_key }}">
                 @endif
                 <div>
-                    <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.reference_no') }}</label>
-                    <input name="reference_no" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <label class="form-label">{{ __('common.reference_no') }}</label>
+                    <input name="reference_no" value="{{ old('reference_no') }}" class="form-input mt-1">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.department') }}</label>
-                    <select name="department_id" class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <label class="form-label">{{ __('common.department') }}</label>
+                    <select name="department_id" class="form-input mt-1">
                         <option value="">{{ __('common.department_not_selected') }}</option>
                         @foreach($departments as $department)
                             <option value="{{ $department->id }}" @selected(old('department_id') == $department->id)>{{ $department->name }}</option>
@@ -60,9 +60,9 @@
                         @endphp
                         <div @if($span > 1) style="grid-column: span {{ $span }}" @endif>
                             @if(!$isSection)
-                                <label class="text-sm text-gray-600 dark:text-gray-300">{{ $field->label }}</label>
+                                <label class="form-label">{{ $field->label }}</label>
                             @endif
-                            @include('components.dynamic-field', ['field' => $field, 'name' => $name, 'value' => $value])
+                            @include('components.dynamic-field', ['field' => $field, 'name' => $name, 'value' => $value, 'userDeptId' => $userDeptId ?? null])
                         </div>
                     @endforeach
                     </div>
@@ -71,15 +71,15 @@
                 <input type="hidden" name="amount" :value="totalAmount">
 
                 {{-- Line Items --}}
-                <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
-                    <h4 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">{{ __('common.spare_parts_items') }}</h4>
+                <div class="border-t border-slate-200 dark:border-slate-600 pt-4">
+                    <h4 class="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">{{ __('common.spare_parts_items') }}</h4>
                     <template x-for="(item, index) in items" :key="index">
-                        <div class="flex flex-wrap items-end gap-2 mb-2 p-2 bg-white dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div class="flex flex-wrap items-end gap-2 mb-2 p-2 bg-white dark:bg-slate-900/20 rounded-lg border border-slate-200 dark:border-slate-700">
                             <div class="flex-1 min-w-[180px]">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ __('common.spare_part') }}</label>
+                                <label class="text-xs text-slate-500 dark:text-slate-400">{{ __('common.spare_part') }}</label>
                                 <select :name="'items['+index+'][spare_part_id]'" x-model="item.spare_part_id" required
                                         @change="updateCost(index)"
-                                        class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                                        class="form-input mt-1 text-sm">
                                     <option value="">{{ __('common.please_select') }}</option>
                                     @foreach($spareParts as $sp)
                                         <option value="{{ $sp->id }}" data-cost="{{ $sp->unit_cost }}" data-stock="{{ $sp->current_stock }}">
@@ -89,21 +89,21 @@
                                 </select>
                             </div>
                             <div class="w-24">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ __('common.quantity') }}</label>
+                                <label class="text-xs text-slate-500 dark:text-slate-400">{{ __('common.quantity') }}</label>
                                 <input type="number" step="1" min="1" :name="'items['+index+'][quantity]'" x-model="item.quantity" required
                                        @input="calcTotal()"
-                                       class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm">
+                                       class="form-input mt-1 text-sm">
                             </div>
                             <div class="w-28">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ __('common.subtotal') }}</label>
-                                <p class="mt-1 text-sm text-gray-900 dark:text-gray-100 py-2" x-text="formatNumber(item.quantity * item.unit_cost)"></p>
+                                <label class="text-xs text-slate-500 dark:text-slate-400">{{ __('common.subtotal') }}</label>
+                                <p class="mt-1 text-sm text-slate-900 dark:text-slate-100 py-2" x-text="formatNumber(item.quantity * item.unit_cost)"></p>
                             </div>
                             <input type="hidden" :name="'items['+index+'][note]'" value="">
                             <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700 text-sm pb-2">&times;</button>
                         </div>
                     </template>
                     <button type="button" @click="addItem()" class="text-sm text-blue-600 hover:text-blue-700">+ {{ __('common.add_item') }}</button>
-                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-2">
+                    <p class="text-sm font-semibold text-slate-900 dark:text-slate-100 mt-2">
                         {{ __('common.total') }}: <span x-text="formatNumber(totalAmount)"></span> {{ __('common.baht') }}
                     </p>
                 </div>
@@ -112,19 +112,19 @@
                     <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                 @enderror
 
-                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">{{ __('common.submit') }}</button>
+                <button class="btn-primary">{{ __('common.submit') }}</button>
             </form>
         </div>
 
         {{-- Right: Spare parts catalog quick view --}}
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-3">{{ __('common.spare_parts_catalog') }}</h3>
+        <div class="card p-5">
+            <h3 class="font-semibold text-slate-900 dark:text-slate-100 mb-3">{{ __('common.spare_parts_catalog') }}</h3>
             <div class="space-y-1 max-h-96 overflow-y-auto">
                 @foreach($spareParts as $sp)
-                    <div class="text-sm p-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
-                        <span class="font-medium text-gray-900 dark:text-gray-100">[{{ $sp->code }}]</span>
-                        <span class="text-gray-700 dark:text-gray-300">{{ $sp->name }}</span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">{{ __('common.stock') }}: {{ number_format($sp->current_stock, 0) }} {{ $sp->unit }} · ฿{{ number_format($sp->unit_cost, 2) }}</span>
+                    <div class="text-sm p-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/20">
+                        <span class="font-medium text-slate-900 dark:text-slate-100">[{{ $sp->code }}]</span>
+                        <span class="text-slate-700 dark:text-slate-300">{{ $sp->name }}</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">{{ __('common.stock') }}: {{ number_format($sp->current_stock, 0) }} {{ $sp->unit }} · ฿{{ number_format($sp->unit_cost, 2) }}</span>
                     </div>
                 @endforeach
             </div>
