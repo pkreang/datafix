@@ -61,7 +61,7 @@
              :style="{ width: sidebarCollapsed ? '5rem' : '16rem' }"></div>
 
         {{-- Sidebar --}}
-        <aside class="fixed inset-y-0 left-0 z-30 bg-gradient-to-b from-blue-800 to-blue-700 flex flex-col transform transition-all duration-200 ease-in-out -translate-x-full lg:translate-x-0"
+        <aside class="app-sidebar fixed inset-y-0 left-0 z-30 flex flex-col transform transition-all duration-200 ease-in-out -translate-x-full lg:translate-x-0"
                :class="{
                    'w-64': !sidebarCollapsed,
                    'w-20': sidebarCollapsed,
