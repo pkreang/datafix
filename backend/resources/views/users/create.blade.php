@@ -11,7 +11,7 @@
 <div>
 
     <div class="flex items-center justify-between gap-4 mb-6">
-        <nav class="text-sm text-gray-500 dark:text-gray-400">
+        <nav class="text-sm text-slate-500 dark:text-slate-400">
             <span>{{ __('common.settings') }}</span>
             <span class="mx-1">/</span>
             <a href="{{ route('users.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400">{{ __('common.user_and_access') }}</a>
@@ -101,7 +101,7 @@
                             <option value="{{ $pos->id }}" @selected(old('position_id') == $pos->id)>{{ $pos->name }} ({{ $pos->code }})</option>
                         @endforeach
                     </select>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('users.position_from_master_hint') }}</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ __('users.position_from_master_hint') }}</p>
                     @error('position_id')
                         <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
@@ -142,15 +142,15 @@
             <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ __('common.role_and_access') }}</h3>
 
             {{-- Toggle tabs --}}
-            <div class="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 mb-6">
+            <div class="inline-flex rounded-lg border border-slate-300 dark:border-slate-600 mb-6">
                 <button type="button" @click="roleType = 'default'"
-                        :class="roleType === 'default' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
-                        class="px-4 py-2 text-sm font-medium rounded-l-lg transition border-gray-300 dark:border-gray-600">
+                        :class="roleType === 'default' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'"
+                        class="px-4 py-2 text-sm font-medium rounded-l-lg transition border-slate-300 dark:border-slate-600">
                     {{ __('common.default_role') }}
                 </button>
                 <button type="button" @click="roleType = 'custom'"
-                        :class="roleType === 'custom' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
-                        class="px-4 py-2 text-sm font-medium rounded-r-lg border-l border-gray-300 dark:border-gray-600 transition">
+                        :class="roleType === 'custom' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'"
+                        class="px-4 py-2 text-sm font-medium rounded-r-lg border-l border-slate-300 dark:border-slate-600 transition">
                     {{ __('common.custom_role') }}
                 </button>
             </div>
@@ -188,8 +188,8 @@
                 @if(empty($permissionMatrix))
                     <p class="text-sm text-amber-600 dark:text-amber-400 py-4">{{ __('users.no_permissions_configured') }}</p>
                 @else
-                    <div class="overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-lg">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <div class="overflow-x-auto border border-slate-200 dark:border-slate-600 rounded-lg">
+                        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                             <thead class="bg-slate-50 dark:bg-slate-800/60">
                                 <tr>
                                     <th class="table-header px-6 py-3 text-left w-56">
@@ -205,7 +205,7 @@
                             <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
                                 @foreach ($permissionMatrix as $row)
                                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
-                                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
                                             {{ $row['label'] }}
                                         </td>
                                         @foreach ($permissionActions as $action)
@@ -213,10 +213,10 @@
                                                 @if(!empty($row['actions'][$action]))
                                                     <input type="checkbox" name="permissions[]" value="{{ $row['actions'][$action] }}"
                                                            :disabled="roleType !== 'custom'"
-                                                           class="permission-cb rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                           class="permission-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                                            {{ in_array($row['actions'][$action], $oldPermissions) ? 'checked' : '' }}>
                                                 @else
-                                                    <span class="text-gray-300 dark:text-gray-500">&mdash;</span>
+                                                    <span class="text-slate-300 dark:text-slate-500">&mdash;</span>
                                                 @endif
                                             </td>
                                         @endforeach

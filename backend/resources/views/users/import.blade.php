@@ -4,7 +4,7 @@
 
 @section('content')
 <div>
-    <nav class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+    <nav class="text-sm text-slate-500 dark:text-slate-400 mb-2">
         <a href="{{ route('users.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400">{{ __('common.users') }}</a>
         <span class="mx-1">/</span>
         <span>{{ __('common.import') }}</span>
@@ -48,8 +48,8 @@
                         {{ __('users.import_upload_label') }}
                     </label>
                     <input type="file" name="file" accept=".csv,.txt" required
-                           class="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50" />
-                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ __('users.import_upload_hint') }}</p>
+                           class="w-full text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50" />
+                    <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">{{ __('users.import_upload_hint') }}</p>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-end gap-3">
@@ -68,13 +68,13 @@
             <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">{{ __('users.import_template_hint') }}</p>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-xs">
-                    <thead>
-                        <tr class="border-b border-gray-200 dark:border-gray-700">
-                            <th class="py-2 pr-4 text-left font-medium text-gray-600 dark:text-gray-300">Column</th>
-                            <th class="py-2 text-left font-medium text-gray-600 dark:text-gray-300">Required</th>
+                    <thead class="bg-slate-50 dark:bg-slate-800/60">
+                        <tr>
+                            <th class="table-header py-2 pr-4 text-left">Column</th>
+                            <th class="table-header py-2 text-left">Required</th>
                         </tr>
                     </thead>
-                    <tbody class="text-gray-700 dark:text-gray-300">
+                    <tbody class="text-slate-700 dark:text-slate-300">
                         <tr><td class="py-1.5 pr-4 font-mono">email</td><td>*</td></tr>
                         <tr><td class="py-1.5 pr-4 font-mono">first_name</td><td></td></tr>
                         <tr><td class="py-1.5 pr-4 font-mono">last_name</td><td></td></tr>

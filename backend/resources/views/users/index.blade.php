@@ -6,8 +6,8 @@
 <div x-data="userIndex({{ json_encode(request('search', '')) }})">
     <div class="flex items-center justify-between mb-2">
         <div>
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('common.all_users') }}</h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $totalUsers }} {{ Str::plural('user', $totalUsers) }} total</p>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.all_users') }}</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ $totalUsers }} {{ Str::plural('user', $totalUsers) }} total</p>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('users.import') }}" class="btn-secondary inline-flex items-center">
@@ -25,12 +25,12 @@
     <div class="mb-5">
         <div class="relative max-w-sm">
             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg class="w-4 h-4 text-gray-400 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <svg class="w-4 h-4 text-slate-400 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </div>
             <input type="text" x-model="query" placeholder="{{ __('common.search_placeholder') }}"
-                   class="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-gray-100">
+                   class="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-slate-900 dark:text-slate-100">
             <div x-show="loading" class="absolute inset-y-0 right-0 flex items-center pr-3">
-                <svg class="w-4 h-4 text-gray-400 dark:text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                <svg class="w-4 h-4 text-slate-400 dark:text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             </div>
         </div>
     </div>
@@ -88,8 +88,8 @@
                                     <span class="text-xs font-semibold text-white leading-none">{{ $initials }}</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ $fullName }}</p>
-                                    <p class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $user->email ?? '' }}</p>
+                                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{{ $fullName }}</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500 truncate">{{ $user->email ?? '' }}</p>
                                 </div>
                             </div>
                         </td>
@@ -117,7 +117,7 @@
                         <td class="px-6 py-3 whitespace-nowrap text-right">
                             <div class="relative inline-block text-left" x-data="{ open: false }">
                                 <button @click="open = !open" type="button"
-                                        class="p-1 rounded-lg text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                                        class="p-1 rounded-lg text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
                                     </svg>
@@ -130,9 +130,9 @@
                                      x-transition:leave="transition ease-in duration-75"
                                      x-transition:leave-start="opacity-100 scale-100"
                                      x-transition:leave-end="opacity-0 scale-95"
-                                     class="absolute right-0 bottom-full mb-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                                     class="absolute right-0 bottom-full mb-2 w-40 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
                                     <a href="{{ route('users.edit', $user->id) }}"
-                                       class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+                                       class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                         {{ __('common.edit') }}
                                     </a>
@@ -141,7 +141,7 @@
                                         @method('PUT')
                                         <input type="hidden" name="toggle_active" value="1">
                                         <button type="submit"
-                                                class="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+                                                class="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
                                             @if ($user->is_active ?? true)
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                                                 {{ __('common.disable') }}
@@ -152,7 +152,7 @@
                                         </button>
                                     </form>
                                     @if (!$isSuperAdmin)
-                                        <div class="border-t border-gray-100 my-1"></div>
+                                        <div class="border-t border-slate-100 my-1"></div>
                                         <form method="POST" action="{{ route('users.destroy', $user->id) }}" class="block"
                                               onsubmit="return confirm('{{ addslashes(__('common.confirm_delete_user')) }}')" novalidate>
                                             @csrf

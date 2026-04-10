@@ -5,11 +5,11 @@
 @section('content')
     {{-- Page header --}}
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-200">
             {{ __('common.dashboard') }}
         </h2>
         @if($canCustomize)
-            <p class="text-xs text-gray-400 dark:text-gray-500">{{ __('common.dashboard_customize_hint') }}</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">{{ __('common.dashboard_customize_hint') }}</p>
         @endif
     </div>
 
