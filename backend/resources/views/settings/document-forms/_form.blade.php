@@ -268,13 +268,13 @@
                  class="absolute inset-0 bg-black/50 dark:bg-black/60" @click="showSaveConfirm = false" aria-hidden="true"></div>
             <div x-show="showSaveConfirm" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                  x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 scale-100" x-transition:leave-end="opacity-0 translate-y-4 scale-[0.98]"
-                 class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700"
+                 class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700"
                  role="dialog" aria-modal="true" aria-labelledby="doc-form-save-confirm-title" @click.stop>
-                <h3 id="doc-form-save-confirm-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ __('common.document_form_save_confirm_title') }}</h3>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ __('common.document_form_save_confirm_message') }}</p>
+                <h3 id="doc-form-save-confirm-title" class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ __('common.document_form_save_confirm_title') }}</h3>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">{{ __('common.document_form_save_confirm_message') }}</p>
                 <div class="mt-6 flex flex-wrap justify-end gap-2">
                     <button type="button" @click="showSaveConfirm = false"
-                            class="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">{{ __('common.cancel') }}</button>
+                            class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">{{ __('common.cancel') }}</button>
                     <button type="button" @click="confirmSave()"
                             class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700">{{ __('common.save') }}</button>
                 </div>
@@ -306,16 +306,16 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.document_form_key') }}</label>
-                <input name="form_key" value="{{ old('form_key', $documentForm?->form_key ?? '') }}" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <label class="form-label">{{ __('common.document_form_key') }}</label>
+                <input name="form_key" value="{{ old('form_key', $documentForm?->form_key ?? '') }}" required class="form-input mt-1" />
             </div>
             <div>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.name') }}</label>
-                <input name="name" value="{{ old('name', $documentForm?->name ?? '') }}" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                <label class="form-label">{{ __('common.name') }}</label>
+                <input name="name" value="{{ old('name', $documentForm?->name ?? '') }}" required class="form-input mt-1" />
             </div>
             <div>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.document_type') }}</label>
-                <select name="document_type" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <label class="form-label">{{ __('common.document_type') }}</label>
+                <select name="document_type" class="form-input mt-1">
                     @php $docType = old('document_type', $documentForm?->document_type ?? ''); @endphp
                     @foreach(\App\Models\DocumentType::allActive() as $dt)
                         <option value="{{ $dt->code }}" @selected($docType === $dt->code)>{{ $dt->label() }}</option>
@@ -323,8 +323,8 @@
                 </select>
             </div>
             <div>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.form_layout') }}</label>
-                <select name="layout_columns" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <label class="form-label">{{ __('common.form_layout') }}</label>
+                <select name="layout_columns" class="form-input mt-1">
                     @php $layoutCols = (int) old('layout_columns', $documentForm?->layout_columns ?? 1); @endphp
                     <option value="1" @selected($layoutCols === 1)>{{ __('common.form_layout_1col') }}</option>
                     <option value="2" @selected($layoutCols === 2)>{{ __('common.form_layout_2col') }}</option>
@@ -333,73 +333,73 @@
                 </select>
             </div>
             <div>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.table_name') }}</label>
+                <label class="form-label">{{ __('common.table_name') }}</label>
                 @if($isEdit && $documentForm?->submission_table)
                     <input name="table_name" value="{{ $documentForm->submission_table }}" readonly
-                           class="mt-1 w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed outline-none" />
-                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ __('common.table_name_locked') }}</p>
+                           class="form-input mt-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed" />
+                    <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">{{ __('common.table_name_locked') }}</p>
                 @else
                     <input name="table_name" value="{{ old('table_name', '') }}" required
                            placeholder="เช่น maintenance_requests"
                            pattern="[a-z][a-z0-9_]*" maxlength="64"
-                           class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
-                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ __('common.table_name_hint') }}</p>
+                           class="form-input mt-1" />
+                    <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">{{ __('common.table_name_hint') }}</p>
                 @endif
             </div>
             <div class="flex items-end">
                 <label class="inline-flex items-center gap-2">
                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $documentForm?->is_active ?? true))>
-                    <span class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.active') }}</span>
+                    <span class="text-sm text-slate-600 dark:text-slate-300">{{ __('common.active') }}</span>
                 </label>
             </div>
         </div>
 
         <div>
-            <label class="text-sm text-gray-600 dark:text-gray-300">{{ __('common.remark') }}</label>
-            <textarea name="description" rows="2" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">{{ old('description', $documentForm?->description ?? '') }}</textarea>
+            <label class="form-label">{{ __('common.remark') }}</label>
+            <textarea name="description" rows="2" class="form-input mt-1 resize-y">{{ old('description', $documentForm?->description ?? '') }}</textarea>
         </div>
 
         @if($inlineToolbar ?? false)
             @include('settings.document-forms._form-inline-field-actions')
         @endif
 
-        <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-2 justify-between border-b border-gray-200/80 pb-3 dark:border-gray-600">
+        <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-2 justify-between border-b border-slate-200/80 pb-3 dark:border-slate-600">
             <div class="flex min-w-0 flex-wrap items-center gap-3">
-<h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ __('common.document_form_fields') }}</h3>
+<h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ __('common.document_form_fields') }}</h3>
             </div>
             @unless($inlineToolbar ?? false)
                 <div class="ml-auto flex shrink-0 flex-wrap justify-end gap-2">
                     <button type="button" @click="addField()" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">+ {{ __('common.document_form_add_field') }}</button>
-                    <button type="button" @click="addSection()" class="px-3 py-2 rounded bg-gray-500 text-white text-sm">+ {{ __('common.document_form_add_section') }}</button>
+                    <button type="button" @click="addSection()" class="px-3 py-2 rounded bg-slate-500 text-white text-sm">+ {{ __('common.document_form_add_section') }}</button>
                 </div>
             @endunless
         </div>
 
         <template x-for="(field, idx) in fields" :key="field._rowId">
-            <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20 p-4 space-y-3">
+            <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/20 p-4 space-y-3">
                 <div class="flex justify-between items-center">
                     <p class="font-medium">{{ __('common.document_form_field_short') }} <span x-text="idx + 1"></span></p>
                     <div class="space-x-2">
-                        <button type="button" @click="moveUp(idx)" class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs">{{ __('common.move_up') }}</button>
-                        <button type="button" @click="moveDown(idx)" class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs">{{ __('common.move_down') }}</button>
+                        <button type="button" @click="moveUp(idx)" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-xs">{{ __('common.move_up') }}</button>
+                        <button type="button" @click="moveDown(idx)" class="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-xs">{{ __('common.move_down') }}</button>
                         <button type="button" @click="removeField(idx)" class="px-2 py-1 rounded bg-red-600 text-white text-xs">{{ __('common.delete') }}</button>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div x-show="field.field_type !== 'section'">
-                        <label class="text-xs text-gray-500">{{ __('common.document_form_field_key') }}</label>
-                        <input :name="`fields[${idx}][field_key]`" x-model="field.field_key" :required="field.field_type !== 'section'" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                        <label class="text-xs text-slate-500">{{ __('common.document_form_field_key') }}</label>
+                        <input :name="`fields[${idx}][field_key]`" x-model="field.field_key" :required="field.field_type !== 'section'" class="form-input mt-1" />
                     </div>
                     <template x-if="field.field_type === 'section'">
                         <input type="hidden" :name="`fields[${idx}][field_key]`" :value="field.field_key">
                     </template>
                     <div :class="field.field_type === 'section' ? 'md:col-span-2' : ''">
-                        <label class="text-xs text-gray-500" x-text="field.field_type === 'section' ? '{{ __('common.document_form_section_title') }}' : '{{ __('common.document_form_field_label') }}'"></label>
-                        <input :name="`fields[${idx}][label]`" x-model="field.label" required class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                        <label class="text-xs text-slate-500" x-text="field.field_type === 'section' ? '{{ __('common.document_form_section_title') }}' : '{{ __('common.document_form_field_label') }}'"></label>
+                        <input :name="`fields[${idx}][label]`" x-model="field.label" required class="form-input mt-1" />
                     </div>
                     <div>
-                        <label class="text-xs text-gray-500">{{ __('common.document_form_field_type') }}</label>
-                        <select :name="`fields[${idx}][field_type]`" x-model="field.field_type" @change="if(field.field_type !== 'lookup') { field.lookup_source=''; field.depends_on=''; field.foreign_key=''; }" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                        <label class="text-xs text-slate-500">{{ __('common.document_form_field_type') }}</label>
+                        <select :name="`fields[${idx}][field_type]`" x-model="field.field_type" @change="if(field.field_type !== 'lookup') { field.lookup_source=''; field.depends_on=''; field.foreign_key=''; }" class="form-input mt-1">
                             <option value="text">{{ __('common.document_form_type_text') }}</option>
                             <option value="textarea">{{ __('common.document_form_type_textarea') }}</option>
                             <option value="number">{{ __('common.document_form_type_number') }}</option>
@@ -420,20 +420,20 @@
                         </select>
                     </div>
                     <div x-show="!['lookup','table','section'].includes(field.field_type)">
-                        <label class="text-xs text-gray-500">{{ __('common.document_form_placeholder') }}</label>
-                        <input :name="`fields[${idx}][placeholder]`" x-model="field.placeholder" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                        <label class="text-xs text-slate-500">{{ __('common.document_form_placeholder') }}</label>
+                        <input :name="`fields[${idx}][placeholder]`" x-model="field.placeholder" class="form-input mt-1" />
                     </div>
                     <div class="md:col-span-2" x-show="['select','radio','checkbox'].includes(field.field_type)">
-                        <label class="text-xs text-gray-500">{{ __('common.document_form_options_hint') }}</label>
-                        <textarea :name="`fields[${idx}][options_raw]`" x-model="field.options_raw" rows="2" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"></textarea>
+                        <label class="text-xs text-slate-500">{{ __('common.document_form_options_hint') }}</label>
+                        <textarea :name="`fields[${idx}][options_raw]`" x-model="field.options_raw" rows="2" class="form-input mt-1 resize-y"></textarea>
                     </div>
 
                     {{-- Lookup config --}}
                     <template x-if="field.field_type === 'lookup'">
-                        <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.document_form_lookup_source') }}</label>
-                                <select :name="`fields[${idx}][lookup_source]`" x-model="field.lookup_source" @change="autoSuggestForeignKey(field)" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <label class="text-xs text-slate-500">{{ __('common.document_form_lookup_source') }}</label>
+                                <select :name="`fields[${idx}][lookup_source]`" x-model="field.lookup_source" @change="autoSuggestForeignKey(field)" class="form-input mt-1">
                                     <option value="">{{ __('common.please_select') }}</option>
                                     <template x-for="[key, src] in Object.entries(lookupSources)" :key="key">
                                         <option :value="key" x-text="src.label_{{ app()->getLocale() }} || src.label_en"></option>
@@ -441,8 +441,8 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.document_form_depends_on') }}</label>
-                                <select :name="`fields[${idx}][depends_on]`" x-model="field.depends_on" @change="autoSuggestForeignKey(field)" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <label class="text-xs text-slate-500">{{ __('common.document_form_depends_on') }}</label>
+                                <select :name="`fields[${idx}][depends_on]`" x-model="field.depends_on" @change="autoSuggestForeignKey(field)" class="form-input mt-1">
                                     <option value="">{{ __('common.none') }}</option>
                                     <template x-for="(other, oi) in fields" :key="'dep-'+oi">
                                         <template x-if="oi !== idx && other.field_type === 'lookup' && other.field_key">
@@ -452,32 +452,32 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-xs text-gray-500">{{ __('common.document_form_foreign_key') }}</label>
-                                <input :name="`fields[${idx}][foreign_key]`" x-model="field.foreign_key" placeholder="e.g. company_id" class="mt-1 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                                <label class="text-xs text-slate-500">{{ __('common.document_form_foreign_key') }}</label>
+                                <input :name="`fields[${idx}][foreign_key]`" x-model="field.foreign_key" placeholder="e.g. company_id" class="form-input mt-1" />
                             </div>
                         </div>
                     </template>
 
                     {{-- Table columns config --}}
                     <template x-if="field.field_type === 'table'">
-                        <div class="md:col-span-3 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
+                        <div class="md:col-span-3 border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
                             <div class="flex items-center justify-between">
-                                <p class="text-xs font-medium text-gray-500">{{ __('common.document_form_table_columns') }}</p>
+                                <p class="text-xs font-medium text-slate-500">{{ __('common.document_form_table_columns') }}</p>
                                 <button type="button" @click="addTableColumn(field)" class="px-2 py-1 rounded bg-blue-600 text-white text-xs">+ {{ __('common.document_form_table_add_column') }}</button>
                             </div>
                             <template x-for="(col, ci) in field.table_columns" :key="ci">
                                 <div class="flex items-end gap-2">
                                     <div class="flex-1">
-                                        <label class="text-xs text-gray-400" x-show="ci === 0">{{ __('common.document_form_field_key') }}</label>
-                                        <input x-model="col.key" placeholder="key" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                                        <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_key') }}</label>
+                                        <input x-model="col.key" placeholder="key" class="form-input" />
                                     </div>
                                     <div class="flex-1">
-                                        <label class="text-xs text-gray-400" x-show="ci === 0">{{ __('common.document_form_field_label') }}</label>
-                                        <input x-model="col.label" placeholder="{{ __('common.document_form_field_label') }}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                                        <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_label') }}</label>
+                                        <input x-model="col.label" placeholder="{{ __('common.document_form_field_label') }}" class="form-input" />
                                     </div>
                                     <div class="w-32">
-                                        <label class="text-xs text-gray-400" x-show="ci === 0">{{ __('common.document_form_field_type') }}</label>
-                                        <select x-model="col.type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                        <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_type') }}</label>
+                                        <select x-model="col.type" class="form-input">
                                             <option value="text">{{ __('common.document_form_type_text') }}</option>
                                             <option value="number">{{ __('common.document_form_type_number') }}</option>
                                             <option value="select">{{ __('common.document_form_type_select') }}</option>
@@ -495,11 +495,11 @@
                 <div class="flex items-center gap-4" x-show="field.field_type !== 'section'">
                     <label class="inline-flex items-center gap-2">
                         <input type="checkbox" :name="`fields[${idx}][is_required]`" value="1" x-model="field.is_required">
-                        <span class="text-xs text-gray-600 dark:text-gray-300">{{ __('common.document_form_required') }}</span>
+                        <span class="text-xs text-slate-600 dark:text-slate-300">{{ __('common.document_form_required') }}</span>
                     </label>
                     <div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">{{ __('common.document_form_col_span') }}</span>
-                        <select :name="`fields[${idx}][col_span]`" x-model.number="field.col_span" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                        <span class="text-xs text-slate-500">{{ __('common.document_form_col_span') }}</span>
+                        <select :name="`fields[${idx}][col_span]`" x-model.number="field.col_span" class="form-input py-1 px-2 text-xs">
                             <option value="0">{{ __('common.document_form_col_span_auto') }}</option>
                             <option value="1">1</option>
                             <option value="2">2</option>

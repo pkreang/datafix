@@ -4,7 +4,7 @@
 @endphp
 {{-- Fixed under app header; spacer height tracks real bar height (ResizeObserver) so fields never sit under the bar. --}}
 <div id="doc-form-primary-bar"
-     class="right-0 z-[110] bg-white dark:bg-gray-800"
+     class="right-0 z-[110] bg-white dark:bg-slate-800"
      style="position:fixed;top:4rem;left:0;box-shadow:0 1px 3px 0 rgb(0 0 0/.08),0 4px 12px -2px rgb(0 0 0/.06)">
     {{-- full-height row — everything starts at top-0, buttons use border-t-[3px] to "connect" to the accent --}}
     <div class="flex items-stretch px-4 sm:px-6 lg:px-10" style="min-height:3.25rem">

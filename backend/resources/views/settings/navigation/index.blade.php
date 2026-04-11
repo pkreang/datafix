@@ -65,8 +65,8 @@
                             <td class="px-6 py-3 text-center">
                                 <button @click="toggleActive({{ $menu->id }}, $event)"
                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors
-                                               {{ $menu->is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $menu->is_active ? 'bg-green-500' : 'bg-gray-400' }}"></span>
+                                               {{ $menu->is_active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500' }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $menu->is_active ? 'bg-green-500' : 'bg-slate-400' }}"></span>
                                     {{ $menu->is_active ? __('common.active') : __('common.inactive') }}
                                 </button>
                             </td>
@@ -142,8 +142,8 @@
                             <td class="px-6 py-3 text-center">
                                 <button @click="toggleActive({{ $child->id }}, $event)"
                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors
-                                               {{ $child->is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $child->is_active ? 'bg-green-500' : 'bg-gray-400' }}"></span>
+                                               {{ $child->is_active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500' }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $child->is_active ? 'bg-green-500' : 'bg-slate-400' }}"></span>
                                     {{ $child->is_active ? __('common.active') : __('common.inactive') }}
                                 </button>
                             </td>
@@ -253,17 +253,17 @@ document.addEventListener('alpine:init', () => {
                 const dot = btn.querySelector('span');
                 if (data.is_active) {
                     btn.className = btn.className
-                        .replace('bg-gray-100', 'bg-green-50')
-                        .replace('text-gray-500', 'text-green-700');
+                        .replace('bg-slate-100', 'bg-green-50')
+                        .replace('text-slate-500', 'text-green-700');
                     dot.className = dot.className
-                        .replace('bg-gray-400', 'bg-green-500');
+                        .replace('bg-slate-400', 'bg-green-500');
                     btn.lastChild.textContent = activeTxt;
                 } else {
                     btn.className = btn.className
-                        .replace('bg-green-50', 'bg-gray-100')
-                        .replace('text-green-700', 'text-gray-500');
+                        .replace('bg-green-50', 'bg-slate-100')
+                        .replace('text-green-700', 'text-slate-500');
                     dot.className = dot.className
-                        .replace('bg-green-500', 'bg-gray-400');
+                        .replace('bg-green-500', 'bg-slate-400');
                     btn.lastChild.textContent = inactiveTxt;
                 }
             });
