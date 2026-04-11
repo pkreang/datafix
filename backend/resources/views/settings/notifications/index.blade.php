@@ -4,23 +4,33 @@
 
 @section('content')
     <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ __('notifications.notification_settings') }}</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ __('notifications.notification_settings_desc') }}</p>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('notifications.notification_settings') }}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ __('notifications.notification_settings_desc') }}</p>
     </div>
 
     @if(session('success'))
-        <div class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-400">
+        <div class="alert-success mb-4">
             {{ session('success') }}
         </div>
     @endif
 
-    <form method="POST" action="{{ route('settings.notifications.update') }}">
+    @if($errors->any())
+        <div class="alert-error mb-4">
+            <ul class="list-disc list-inside space-y-1 text-sm">
+                @foreach($errors->all() as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('settings.notifications.update') }}" novalidate>
         @csrf
         @method('PUT')
 
         <div class="space-y-6">
             {{-- Email Section --}}
-            <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div class="card p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                         <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -28,8 +38,8 @@
                         </svg>
                     </div>
                     <div>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ __('notifications.email_notifications') }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('notifications.email_notifications_desc') }}</p>
+                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('notifications.email_notifications') }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('notifications.email_notifications_desc') }}</p>
                     </div>
                 </div>
 
@@ -38,8 +48,8 @@
                         <input type="hidden" name="toggle[notifications.email_enabled]" value="0">
                         <input type="checkbox" name="toggle[notifications.email_enabled]" value="1"
                                {{ ($settings['notifications.email_enabled'] ?? '1') === '1' ? 'checked' : '' }}
-                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ __('notifications.email_notifications') }}</span>
+                               class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4">
+                        <span class="text-sm text-slate-700 dark:text-slate-300">{{ __('notifications.email_notifications') }}</span>
                     </label>
 
                     @php
@@ -47,6 +57,7 @@
                             'notifications.approval_pending_email' => __('notifications.event_approval_pending'),
                             'notifications.workflow_approved_email' => __('notifications.event_workflow_approved'),
                             'notifications.workflow_rejected_email' => __('notifications.event_workflow_rejected'),
+                            'notifications.stock_low_email' => __('notifications.event_stock_low'),
                         ];
                     @endphp
 
@@ -55,15 +66,99 @@
                             <input type="hidden" name="toggle[{{ $key }}]" value="0">
                             <input type="checkbox" name="toggle[{{ $key }}]" value="1"
                                    {{ ($settings[$key] ?? '1') === '1' ? 'checked' : '' }}
-                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $label }}</span>
+                                   class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4">
+                            <span class="text-sm text-slate-700 dark:text-slate-300">{{ $label }}</span>
                         </label>
                     @endforeach
+                </div>
+
+                <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-600">
+                    <p class="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">{{ __('notifications.mail_outbound_title') }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ __('notifications.mail_outbound_desc') }}</p>
+
+                    <label class="flex items-center gap-3 cursor-pointer mb-4">
+                        <input type="hidden" name="toggle[mail.use_db_settings]" value="0">
+                        <input type="checkbox" name="toggle[mail.use_db_settings]" value="1"
+                               {{ ($settings['mail.use_db_settings'] ?? '0') === '1' ? 'checked' : '' }}
+                               class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4">
+                        <span class="text-sm text-slate-700 dark:text-slate-300">{{ __('notifications.mail_use_db_label') }}</span>
+                    </label>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 ml-7">{{ __('notifications.mail_use_db_hint') }}</p>
+
+                    @php
+                        $mHost = old('mail_smtp_host', $settings['mail.smtp_host'] ?? '');
+                        $mPort = old('mail_smtp_port', $settings['mail.smtp_port'] ?? (string) config('mail.mailers.smtp.port', 587));
+                        $mUser = old('mail_smtp_username', $settings['mail.smtp_username'] ?? '');
+                        $mEnc = old('mail_smtp_encryption', ($settings['mail.smtp_encryption'] ?? '') === '' ? 'none' : $settings['mail.smtp_encryption']);
+                        $mMailer = old('mail_mailer', $settings['mail.mailer'] ?? config('mail.default', 'smtp'));
+                        $mFrom = old('mail_from_address', $settings['mail.from_address'] ?? config('mail.from.address', ''));
+                        $mFromName = old('mail_from_name', $settings['mail.from_name'] ?? config('mail.from.name', ''));
+                    @endphp
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-2">
+                            <label for="mail_mailer" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_mailer') }}</label>
+                            <select id="mail_mailer" name="mail_mailer" class="form-input w-full">
+                                <option value="smtp" @selected($mMailer === 'smtp')>SMTP</option>
+                                <option value="log" @selected($mMailer === 'log')>{{ __('notifications.mail_mailer_log') }}</option>
+                                <option value="sendmail" @selected($mMailer === 'sendmail')>{{ __('notifications.mail_mailer_sendmail') }}</option>
+                                <option value="array" @selected($mMailer === 'array')>{{ __('notifications.mail_mailer_array') }}</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="mail_smtp_host" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_host') }}</label>
+                            <input type="text" id="mail_smtp_host" name="mail_smtp_host" value="{{ $mHost }}"
+                                   class="form-input w-full"
+                                   autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="mail_smtp_port" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_port') }}</label>
+                            <input type="number" id="mail_smtp_port" name="mail_smtp_port" value="{{ $mPort }}" min="1" max="65535"
+                                   class="form-input w-full">
+                        </div>
+                        <div>
+                            <label for="mail_smtp_encryption" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_encryption') }}</label>
+                            <select id="mail_smtp_encryption" name="mail_smtp_encryption" class="form-input w-full">
+                                <option value="none" @selected($mEnc === 'none')>{{ __('notifications.mail_encryption_none') }}</option>
+                                <option value="tls" @selected($mEnc === 'tls')>{{ __('notifications.mail_encryption_tls') }}</option>
+                                <option value="ssl" @selected($mEnc === 'ssl')>{{ __('notifications.mail_encryption_ssl') }}</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="mail_smtp_username" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_username') }}</label>
+                            <input type="text" id="mail_smtp_username" name="mail_smtp_username" value="{{ $mUser }}"
+                                   class="form-input w-full"
+                                   autocomplete="off">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="mail_smtp_password" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_password') }}</label>
+                            <input type="password" id="mail_smtp_password" name="mail_smtp_password" value=""
+                                   class="form-input w-full"
+                                   autocomplete="new-password" placeholder="{{ __('notifications.mail_smtp_password_placeholder') }}">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                @if($smtpPasswordConfigured)
+                                    {{ __('notifications.mail_password_stored') }}
+                                @else
+                                    {{ __('notifications.mail_smtp_password_hint') }}
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <label for="mail_from_address" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_from_address') }}</label>
+                            <input type="email" id="mail_from_address" name="mail_from_address" value="{{ $mFrom }}"
+                                   class="form-input w-full">
+                        </div>
+                        <div>
+                            <label for="mail_from_name" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_from_name') }}</label>
+                            <input type="text" id="mail_from_name" name="mail_from_name" value="{{ $mFromName }}"
+                                   class="form-input w-full">
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {{-- LINE Notify Section --}}
-            <div class="bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div class="card p-6">
                 <div class="flex items-center gap-3 mb-2">
                     <div class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                         <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
@@ -71,12 +166,12 @@
                         </svg>
                     </div>
                     <div>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ __('notifications.line_notifications') }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('notifications.line_notifications_desc') }}</p>
+                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ __('notifications.line_notifications') }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('notifications.line_notifications_desc') }}</p>
                     </div>
                 </div>
 
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 ml-11">
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 ml-11">
                     {{ __('notifications.line_token_hint') }}
                     <a href="https://notify-bot.line.me/" target="_blank" rel="noopener noreferrer"
                        class="text-blue-600 dark:text-blue-400 hover:underline">notify-bot.line.me</a>
@@ -87,8 +182,8 @@
                         <input type="hidden" name="toggle[notifications.line_enabled]" value="0">
                         <input type="checkbox" name="toggle[notifications.line_enabled]" value="1"
                                {{ ($settings['notifications.line_enabled'] ?? '1') === '1' ? 'checked' : '' }}
-                               class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4">
-                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ __('notifications.line_notifications') }}</span>
+                               class="rounded border-slate-300 text-green-600 focus:ring-green-500 w-4 h-4">
+                        <span class="text-sm text-slate-700 dark:text-slate-300">{{ __('notifications.line_notifications') }}</span>
                     </label>
 
                     @php
@@ -96,6 +191,7 @@
                             'notifications.approval_pending_line' => __('notifications.event_approval_pending'),
                             'notifications.workflow_approved_line' => __('notifications.event_workflow_approved'),
                             'notifications.workflow_rejected_line' => __('notifications.event_workflow_rejected'),
+                            'notifications.stock_low_line' => __('notifications.event_stock_low'),
                         ];
                     @endphp
 
@@ -104,8 +200,8 @@
                             <input type="hidden" name="toggle[{{ $key }}]" value="0">
                             <input type="checkbox" name="toggle[{{ $key }}]" value="1"
                                    {{ ($settings[$key] ?? '1') === '1' ? 'checked' : '' }}
-                                   class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $label }}</span>
+                                   class="rounded border-slate-300 text-green-600 focus:ring-green-500 w-4 h-4">
+                            <span class="text-sm text-slate-700 dark:text-slate-300">{{ $label }}</span>
                         </label>
                     @endforeach
                 </div>
@@ -113,9 +209,7 @@
         </div>
 
         <div class="mt-6 flex justify-end">
-            <button type="submit"
-                    class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium
-                           rounded-lg hover:bg-blue-700 transition-colors">
+            <button type="submit" class="btn-primary">
                 {{ __('notifications.save_settings') }}
             </button>
         </div>
