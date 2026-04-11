@@ -62,6 +62,7 @@
 
         {{-- Sidebar --}}
         <aside class="app-sidebar fixed inset-y-0 left-0 z-30 flex flex-col transform transition-all duration-200 ease-in-out -translate-x-full lg:translate-x-0"
+               style="background: linear-gradient(to bottom, #1e40af, #1d4ed8);"
                :class="{
                    'w-64': !sidebarCollapsed,
                    'w-20': sidebarCollapsed,
