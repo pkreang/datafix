@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements HasLocalePreference
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
@@ -20,16 +22,18 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'email',
+        'locale',
+        'theme',
         'auth_provider',
         'external_id',
         'ldap_dn',
         'company_id',
         'branch_id',
         'password',
+        'password_changed_at',
+        'password_must_change',
         'avatar',
-        'department',
         'department_id',
-        'position',
         'position_id',
         'phone',
         'line_notify_token',
@@ -53,6 +57,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_active_at' => 'datetime',
+            'password_changed_at' => 'datetime',
+            'password_must_change' => 'boolean',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
@@ -86,8 +92,28 @@ class User extends Authenticatable
         return $this->belongsTo(Position::class, 'position_id');
     }
 
+    public function passwordHistories(): HasMany
+    {
+        return $this->hasMany(UserPasswordHistory::class);
+    }
+
     public function canChangePasswordInApp(): bool
     {
         return \App\Services\Auth\PasswordCapabilityService::canChangePasswordInApp($this);
+    }
+
+    /**
+     * Locale for queued mail / database notifications (queue workers have no session).
+     */
+    public function preferredLocale(): ?string
+    {
+        $l = $this->locale;
+        if (is_string($l) && $l !== '' && in_array($l, ['th', 'en'], true)) {
+            return $l;
+        }
+
+        $fallback = (string) config('app.locale', 'th');
+
+        return in_array($fallback, ['th', 'en'], true) ? $fallback : 'th';
     }
 }

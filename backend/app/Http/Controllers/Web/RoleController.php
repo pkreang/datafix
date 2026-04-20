@@ -14,6 +14,7 @@ class RoleController extends Controller
     {
         $roles = Role::withCount('permissions')->get()->map(function ($role) {
             $role->users_count = $role->users()->count();
+
             return $role;
         })->toArray();
 
@@ -27,12 +28,12 @@ class RoleController extends Controller
 
         $permissionsByModule = [];
         foreach ($role->permissions as $perm) {
-            $parts = explode('.', $perm->name);
-            $module = $parts[0] ?? 'other';
+            $module = $this->moduleKeyForPermission($perm);
+            $parts = explode('.', $perm->name, 2);
             $action = $parts[1] ?? $perm->name;
             $permissionsByModule[$module][] = [
-                'id'     => $perm->id,
-                'name'   => $perm->name,
+                'id' => $perm->id,
+                'name' => $perm->name,
                 'action' => $action,
             ];
         }
@@ -61,7 +62,7 @@ class RoleController extends Controller
             $role->syncPermissions($permissions);
         }
 
-        return redirect()->route('roles.index')->with('success', 'Role created.');
+        return redirect()->route('roles.index')->with('success', __('common.role_flash_created'));
     }
 
     public function edit(int $id): View
@@ -75,7 +76,7 @@ class RoleController extends Controller
     public function update(Request $request, int $id)
     {
         $role = Role::findOrFail($id);
-        $request->validate(['name' => 'sometimes|string|unique:roles,name,' . $id]);
+        $request->validate(['name' => 'sometimes|string|unique:roles,name,'.$id]);
 
         if ($request->has('name')) {
             $role->update(['name' => $request->name]);
@@ -86,29 +87,41 @@ class RoleController extends Controller
             $role->syncPermissions($permissions);
         }
 
-        return redirect()->route('roles.index')->with('success', 'Role updated.');
+        return redirect()->route('roles.index')->with('success', __('common.role_flash_updated'));
     }
 
     public function destroy(int $id)
     {
         Role::findOrFail($id)->delete();
 
-        return redirect()->route('roles.index')->with('success', 'Role deleted.');
+        return redirect()->route('roles.index')->with('success', __('common.role_flash_deleted'));
     }
 
     private function groupedPermissions(): array
     {
         $grouped = [];
-        foreach (Permission::orderBy('name')->get() as $perm) {
-            $parts = explode('.', $perm->name);
-            $module = $parts[0] ?? 'other';
+        foreach (Permission::query()->orderBy('module')->orderBy('name')->get() as $perm) {
+            $module = $this->moduleKeyForPermission($perm);
+            $parts = explode('.', $perm->name, 2);
             $action = $parts[1] ?? $perm->name;
             $grouped[$module][] = [
-                'id'     => $perm->id,
-                'name'   => $perm->name,
+                'id' => $perm->id,
+                'name' => $perm->name,
                 'action' => $action,
             ];
         }
+
         return $grouped;
+    }
+
+    private function moduleKeyForPermission(Permission $permission): string
+    {
+        if (filled($permission->module)) {
+            return (string) $permission->module;
+        }
+
+        $parts = explode('.', $permission->name, 2);
+
+        return $parts[0] ?? 'other';
     }
 }

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
@@ -14,12 +14,13 @@ class RoleController extends Controller
     {
         $roles = Role::withCount('permissions')->get()->map(function ($role) {
             $role->users_count = $role->users()->count();
+
             return $role;
         });
 
         return response()->json([
             'success' => true,
-            'data'    => $roles,
+            'data' => $roles,
         ]);
     }
 
@@ -34,24 +35,24 @@ class RoleController extends Controller
             $module = $parts[0] ?? 'other';
             $action = $parts[1] ?? $perm->name;
             $permissionsByModule[$module][] = [
-                'id'     => $perm->id,
-                'name'   => $perm->name,
+                'id' => $perm->id,
+                'name' => $perm->name,
                 'action' => $action,
             ];
         }
 
         return response()->json([
             'success' => true,
-            'data'    => [
-                'id'                    => $role->id,
-                'name'                  => $role->name,
-                'guard_name'            => $role->guard_name,
-                'permissions_count'     => $role->permissions->count(),
-                'users_count'           => $role->users_count,
-                'permissions'           => $role->permissions,
+            'data' => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'guard_name' => $role->guard_name,
+                'permissions_count' => $role->permissions->count(),
+                'users_count' => $role->users_count,
+                'permissions' => $role->permissions,
                 'permissions_by_module' => $permissionsByModule,
-                'created_at'            => $role->created_at,
-                'updated_at'            => $role->updated_at,
+                'created_at' => $role->created_at,
+                'updated_at' => $role->updated_at,
             ],
         ]);
     }
@@ -59,7 +60,7 @@ class RoleController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'name'        => 'required|string|unique:roles,name',
+            'name' => 'required|string|unique:roles,name',
             'permissions' => 'array',
         ]);
 
@@ -75,8 +76,8 @@ class RoleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Role created.',
-            'data'    => $role,
+            'message' => __('common.role_flash_created'),
+            'data' => $role,
         ], 201);
     }
 
@@ -85,7 +86,7 @@ class RoleController extends Controller
         $role = Role::findOrFail($id);
 
         $request->validate([
-            'name'        => 'sometimes|string|unique:roles,name,' . $id,
+            'name' => 'sometimes|string|unique:roles,name,'.$id,
             'permissions' => 'array',
         ]);
 
@@ -103,8 +104,8 @@ class RoleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Role updated.',
-            'data'    => $role,
+            'message' => __('common.role_flash_updated'),
+            'data' => $role,
         ]);
     }
 
@@ -115,7 +116,7 @@ class RoleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Role deleted.',
+            'message' => __('common.role_flash_deleted'),
         ]);
     }
 }

@@ -2,392 +2,150 @@
 
 namespace Database\Seeders;
 
-use App\Models\Department;
+use App\Models\ApprovalWorkflow;
 use App\Models\DocumentForm;
+use App\Models\DocumentFormWorkflowPolicy;
+use App\Models\DocumentType;
 use Illuminate\Database\Seeder;
 
+/**
+ * Demo forms: full field-type showcase in 2- and 3-column layouts.
+ *
+ * Requires school document types (DocumentTypeSeeder). For approval routing on /forms,
+ * run IndustryTemplateSeeder first so workflows exist — policies attach when possible.
+ */
 class DocumentFormSeeder extends Seeder
 {
     public function run(): void
     {
-        $deptIds = Department::whereIn('code', ['MAINT', 'PROD', 'WH'])
-            ->pluck('id', 'code');
+        foreach (['school_leave_request', 'school_procurement'] as $code) {
+            if (! DocumentType::query()->where('code', $code)->exists()) {
+                $this->command?->warn("DocumentFormSeeder: document type {$code} missing; run DocumentTypeSeeder (and IndustryTemplateSeeder for workflows).");
 
-        $maintId = $deptIds['MAINT'] ?? null;
-        $prodId  = $deptIds['PROD']  ?? null;
-        $whId    = $deptIds['WH']    ?? null;
+                return;
+            }
+        }
 
-        // ─── Repair Request Form ────────────────────────────────
+        $fields = $this->demoFieldsDefinition();
 
-        $form = DocumentForm::updateOrCreate(
-            ['form_key' => 'repair_request_default'],
+        $this->syncDemoForm(
+            'demo_all_field_types_2col',
+            'สาธิตทุกประเภทฟิลด์ — 2 คอลัมน์',
+            'school_leave_request',
+            'ตัวอย่างเลย์เอาต์ 2 คอลัมน์ ครบทุกประเภทฟิลด์ (text, ตัวเลือก, lookup, ตาราง ฯลฯ)',
+            2,
+            $fields
+        );
+
+        $this->syncDemoForm(
+            'demo_all_field_types_3col',
+            'สาธิตทุกประเภทฟิลด์ — 3 คอลัมน์',
+            'school_procurement',
+            'ตัวอย่างเลย์เอาต์ 3 คอลัมน์ ครบทุกประเภทฟิลด์ (text, ตัวเลือก, lookup, ตาราง ฯลฯ)',
+            3,
+            $fields
+        );
+
+        $this->command?->info('DocumentFormSeeder: demo_all_field_types_2col + demo_all_field_types_3col.');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $fields
+     */
+    private function syncDemoForm(string $formKey, string $name, string $documentType, string $description, int $layoutColumns, array $fields): void
+    {
+        $form = DocumentForm::query()->updateOrCreate(
+            ['form_key' => $formKey],
             [
-                'name' => 'ฟอร์มแจ้งซ่อม (ค่าเริ่มต้น)',
-                'document_type' => 'repair_request',
-                'description' => 'ฟอร์มมาตรฐานสำหรับแจ้งซ่อม — ปรับได้ที่ ตั้งค่า → ฟอร์มเอกสาร',
+                'name' => $name,
+                'document_type' => $documentType,
+                'description' => $description,
                 'is_active' => true,
+                'layout_columns' => $layoutColumns,
             ]
         );
 
-        // Feature 1A: เห็นได้เฉพาะ MAINT + PROD
-        $form->departments()->sync(array_values(array_filter([$maintId, $prodId])));
+        $form->fields()->delete();
 
-        $fields = [
-            [
-                'field_key' => 'title',
-                'label' => 'หัวข้อ / อุปกรณ์',
-                'field_type' => 'text',
-                'is_required' => true,
-                'sort_order' => 1,
-                'placeholder' => 'ระบุหัวข้อหรือชื่ออุปกรณ์',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'detail',
-                'label' => 'รายละเอียดปัญหา',
-                'field_type' => 'textarea',
-                'is_required' => true,
-                'sort_order' => 2,
-                'placeholder' => 'อาการ สถานที่ ความเร่งด่วน',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'urgent_level',
-                'label' => 'ระดับความเร่งด่วน',
-                'field_type' => 'select',
-                'is_required' => false,
-                'sort_order' => 3,
-                'placeholder' => null,
-                'options' => ['ต่ำ', 'ปานกลาง', 'สูง'],
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'amount',
-                'label' => 'ประมาณการค่าใช้จ่าย (บาท)',
-                'field_type' => 'number',
-                'is_required' => false,
-                'sort_order' => 4,
-                'placeholder' => '0.00',
-                'options' => null,
-                'editable_by' => ['requester', 'step_1'],
-                'visible_to_departments' => null,
-            ],
-            [
-                // Feature 1B: เห็นเฉพาะ MAINT; Feature 2: step_1 เท่านั้น
-                'field_key' => 'technician_note',
-                'label' => 'บันทึกช่าง',
-                'field_type' => 'textarea',
-                'is_required' => false,
-                'sort_order' => 5,
-                'placeholder' => 'ข้อมูลเพิ่มเติมจากช่างซ่อม',
-                'options' => null,
-                'editable_by' => ['step_1'],
-                'visible_to_departments' => $maintId ? [$maintId] : null,
-            ],
-            [
-                // Feature 2: step_1 กรอกสาเหตุหลังตรวจสอบ
-                'field_key' => 'root_cause',
-                'label' => 'สาเหตุที่แท้จริง',
-                'field_type' => 'textarea',
-                'is_required' => false,
-                'sort_order' => 6,
-                'placeholder' => 'ระบุสาเหตุที่วิเคราะห์ได้',
-                'options' => null,
-                'editable_by' => ['step_1'],
-                'visible_to_departments' => null,
-            ],
-            [
-                // Feature 2: step_1 กรอกวิธีแก้ไข
-                'field_key' => 'solution',
-                'label' => 'วิธีแก้ไข',
-                'field_type' => 'textarea',
-                'is_required' => false,
-                'sort_order' => 7,
-                'placeholder' => 'ระบุขั้นตอนหรือวิธีการแก้ไข',
-                'options' => null,
-                'editable_by' => ['step_1'],
-                'visible_to_departments' => null,
-            ],
+        foreach ($fields as $i => $f) {
+            $form->fields()->create([
+                'field_key' => $f['field_key'],
+                'label' => $f['label'],
+                'field_type' => $f['field_type'],
+                'is_required' => (bool) ($f['is_required'] ?? false),
+                'sort_order' => $i + 1,
+                'col_span' => (int) ($f['col_span'] ?? 0),
+                'placeholder' => $f['placeholder'] ?? null,
+                'options' => $f['options'] ?? null,
+            ]);
+        }
+
+        $workflow = ApprovalWorkflow::query()
+            ->where('document_type', $documentType)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->first();
+
+        if ($workflow) {
+            DocumentFormWorkflowPolicy::query()->updateOrCreate(
+                [
+                    'form_id' => $form->id,
+                    'department_id' => null,
+                ],
+                [
+                    'use_amount_condition' => false,
+                    'workflow_id' => $workflow->id,
+                ]
+            );
+        }
+
+        // DatabaseSeeder uses WithoutModelEvents — the observer won't fire from
+        // here, so we call the sync helper directly. It respects admin customizations
+        // on existing rows (won't overwrite label/icon/parent/sort).
+        \App\Models\NavigationMenu::withoutEvents(fn () => DocumentForm::syncNavigationMenu($form));
+    }
+
+    /**
+     * One instance of each supported field_type (plus section headers).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function demoFieldsDefinition(): array
+    {
+        return [
+            ['field_key' => 'section_basic', 'label' => 'ข้อความและตัวเลข', 'field_type' => 'section', 'is_required' => false],
+            ['field_key' => 'demo_text', 'label' => 'ข้อความ (text)', 'field_type' => 'text', 'is_required' => true, 'placeholder' => 'ข้อความสั้นๆ'],
+            ['field_key' => 'demo_textarea', 'label' => 'ข้อความยาว (textarea)', 'field_type' => 'textarea', 'is_required' => false, 'placeholder' => 'รายละเอียด'],
+            ['field_key' => 'demo_number', 'label' => 'ตัวเลข (number)', 'field_type' => 'number', 'is_required' => false, 'placeholder' => '0'],
+            ['field_key' => 'demo_currency', 'label' => 'จำนวนเงิน (currency)', 'field_type' => 'currency', 'is_required' => false, 'placeholder' => '0.00'],
+
+            ['field_key' => 'section_datetime', 'label' => 'วันและเวลา', 'field_type' => 'section', 'is_required' => false],
+            ['field_key' => 'demo_date', 'label' => 'วันที่ (date)', 'field_type' => 'date', 'is_required' => false],
+            ['field_key' => 'demo_time', 'label' => 'เวลา (time)', 'field_type' => 'time', 'is_required' => false],
+            ['field_key' => 'demo_datetime', 'label' => 'วันเวลา (datetime)', 'field_type' => 'datetime', 'is_required' => false],
+
+            ['field_key' => 'section_contact', 'label' => 'การติดต่อ', 'field_type' => 'section', 'is_required' => false],
+            ['field_key' => 'demo_email', 'label' => 'อีเมล (email)', 'field_type' => 'email', 'is_required' => false, 'placeholder' => 'name@school.ac.th'],
+            ['field_key' => 'demo_phone', 'label' => 'โทรศัพท์ (phone)', 'field_type' => 'phone', 'is_required' => false, 'placeholder' => '081-234-5678'],
+
+            ['field_key' => 'section_choice', 'label' => 'ตัวเลือก', 'field_type' => 'section', 'is_required' => false],
+            ['field_key' => 'demo_select', 'label' => 'รายการแบบเลือก (select)', 'field_type' => 'select', 'is_required' => false, 'options' => ['ตัวเลือก A', 'ตัวเลือก B', 'ตัวเลือก C']],
+            ['field_key' => 'demo_radio', 'label' => 'ปุ่มเลือก (radio)', 'field_type' => 'radio', 'is_required' => false, 'options' => ['ใช่', 'ไม่', 'ไม่แน่ใจ']],
+            ['field_key' => 'demo_checkbox', 'label' => 'ช่องทำเครื่องหมาย (checkbox)', 'field_type' => 'checkbox', 'is_required' => false, 'options' => ['อ่านแล้ว', 'ยอมรับเงื่อนไข', 'แจ้งผู้บริหาร']],
+
+            ['field_key' => 'section_media', 'label' => 'ไฟล์และลายเซ็น', 'field_type' => 'section', 'is_required' => false],
+            ['field_key' => 'demo_file', 'label' => 'แนบไฟล์ (file)', 'field_type' => 'file', 'is_required' => false],
+            ['field_key' => 'demo_signature', 'label' => 'ลายเซ็น (signature)', 'field_type' => 'signature', 'is_required' => false],
+
+            ['field_key' => 'section_lookup_table', 'label' => 'ค้นหาและตาราง', 'field_type' => 'section', 'is_required' => false],
+            ['field_key' => 'demo_lookup_user', 'label' => 'ค้นหาผู้ใช้ (lookup)', 'field_type' => 'lookup', 'is_required' => false, 'options' => ['source' => 'user']],
+            ['field_key' => 'demo_table', 'label' => 'ตาราง (table)', 'field_type' => 'table', 'is_required' => false, 'options' => [
+                'columns' => [
+                    ['key' => 'item', 'label' => 'รายการ', 'type' => 'text'],
+                    ['key' => 'qty', 'label' => 'จำนวน', 'type' => 'number'],
+                    ['key' => 'done', 'label' => 'ทำแล้ว', 'type' => 'checkbox'],
+                ],
+            ]],
         ];
-
-        foreach ($fields as $field) {
-            $form->fields()->updateOrCreate(['field_key' => $field['field_key']], $field);
-        }
-
-        // ─── PM/AM Plan Form ────────────────────────────────────
-
-        $pmForm = DocumentForm::updateOrCreate(
-            ['form_key' => 'pm_am_plan_default'],
-            [
-                'name' => 'ฟอร์มแผนงาน PM/AM (ค่าเริ่มต้น)',
-                'document_type' => 'pm_am_plan',
-                'description' => 'ฟอร์มมาตรฐานสำหรับแผนงานบำรุงรักษาเชิงป้องกัน',
-                'is_active' => true,
-            ]
-        );
-
-        // Feature 1A: เห็นได้เฉพาะ MAINT
-        $pmForm->departments()->sync(array_values(array_filter([$maintId])));
-
-        $pmFields = [
-            [
-                'field_key' => 'title',
-                'label' => 'หัวข้อแผนงาน',
-                'field_type' => 'text',
-                'is_required' => true,
-                'sort_order' => 1,
-                'placeholder' => 'ระบุหัวข้อแผนงาน PM/AM',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'equipment_id',
-                'label' => 'อุปกรณ์/เครื่องจักร',
-                'field_type' => 'select',
-                'is_required' => true,
-                'sort_order' => 2,
-                'placeholder' => 'เลือกอุปกรณ์',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'plan_type',
-                'label' => 'ประเภทงาน',
-                'field_type' => 'select',
-                'is_required' => true,
-                'sort_order' => 3,
-                'placeholder' => null,
-                'options' => ['PM - Preventive Maintenance', 'AM - Autonomous Maintenance'],
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'scheduled_date',
-                'label' => 'วันที่กำหนดทำ',
-                'field_type' => 'date',
-                'is_required' => true,
-                'sort_order' => 4,
-                'placeholder' => null,
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'detail',
-                'label' => 'รายละเอียดงาน/ขั้นตอน',
-                'field_type' => 'textarea',
-                'is_required' => true,
-                'sort_order' => 5,
-                'placeholder' => 'รายละเอียดงานที่ต้องทำ',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'estimated_hours',
-                'label' => 'ชั่วโมงที่คาดว่าจะใช้',
-                'field_type' => 'number',
-                'is_required' => false,
-                'sort_order' => 6,
-                'placeholder' => '0',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'amount',
-                'label' => 'ประมาณการค่าใช้จ่าย (บาท)',
-                'field_type' => 'number',
-                'is_required' => false,
-                'sort_order' => 7,
-                'placeholder' => '0.00',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                // Feature 2: step_1 บันทึกวันที่ทำงานจริง
-                'field_key' => 'completion_date',
-                'label' => 'วันที่ดำเนินการแล้วเสร็จ',
-                'field_type' => 'date',
-                'is_required' => false,
-                'sort_order' => 8,
-                'placeholder' => null,
-                'options' => null,
-                'editable_by' => ['step_1'],
-                'visible_to_departments' => null,
-            ],
-            [
-                // Feature 2: step_1 บันทึกผลการดำเนินงาน
-                'field_key' => 'completion_note',
-                'label' => 'ผลการดำเนินงาน',
-                'field_type' => 'textarea',
-                'is_required' => false,
-                'sort_order' => 9,
-                'placeholder' => 'สรุปผลงานที่ทำ ปัญหาที่พบ และข้อเสนอแนะ',
-                'options' => null,
-                'editable_by' => ['step_1'],
-                'visible_to_departments' => null,
-            ],
-        ];
-
-        foreach ($pmFields as $field) {
-            $pmForm->fields()->updateOrCreate(['field_key' => $field['field_key']], $field);
-        }
-
-        // ─── Spare Parts Requisition Form ──────────────────────
-
-        $spForm = DocumentForm::updateOrCreate(
-            ['form_key' => 'spare_parts_requisition_default'],
-            [
-                'name' => 'ฟอร์มเบิกอะไหล่ (ค่าเริ่มต้น)',
-                'document_type' => 'spare_parts_requisition',
-                'description' => 'ฟอร์มมาตรฐานสำหรับเบิกอะไหล่',
-                'is_active' => true,
-            ]
-        );
-
-        // Feature 1A: เห็นได้เฉพาะ MAINT + PROD + WH
-        $spForm->departments()->sync(array_values(array_filter([$maintId, $prodId, $whId])));
-
-        $spFields = [
-            [
-                'field_key' => 'title',
-                'label' => 'หัวข้อ/เหตุผลเบิก',
-                'field_type' => 'text',
-                'is_required' => true,
-                'sort_order' => 1,
-                'placeholder' => 'ระบุเหตุผลในการเบิกอะไหล่',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'purpose',
-                'label' => 'วัตถุประสงค์',
-                'field_type' => 'select',
-                'is_required' => true,
-                'sort_order' => 2,
-                'placeholder' => null,
-                'options' => ['ซ่อมแซม', 'บำรุงรักษา PM/AM', 'สำรองคลัง', 'อื่นๆ'],
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'parent_reference',
-                'label' => 'อ้างอิงใบงาน (ถ้ามี)',
-                'field_type' => 'text',
-                'is_required' => false,
-                'sort_order' => 3,
-                'placeholder' => 'เลขที่ใบแจ้งซ่อม/แผน PM',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'detail',
-                'label' => 'รายละเอียดเพิ่มเติม',
-                'field_type' => 'textarea',
-                'is_required' => false,
-                'sort_order' => 4,
-                'placeholder' => 'รายละเอียดเพิ่มเติม',
-                'options' => null,
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'urgent_level',
-                'label' => 'ระดับความเร่งด่วน',
-                'field_type' => 'select',
-                'is_required' => false,
-                'sort_order' => 5,
-                'placeholder' => null,
-                'options' => ['ต่ำ', 'ปานกลาง', 'สูง'],
-                'editable_by' => ['requester'],
-                'visible_to_departments' => null,
-            ],
-            [
-                'field_key' => 'amount',
-                'label' => 'มูลค่ารวมประมาณ (บาท)',
-                'field_type' => 'number',
-                'is_required' => false,
-                'sort_order' => 6,
-                'placeholder' => '0.00',
-                'options' => null,
-                'editable_by' => ['requester', 'step_1'],
-                'visible_to_departments' => null,
-            ],
-            [
-                // Feature 2: step_1 บันทึกหมายเหตุ
-                'field_key' => 'approver_remark',
-                'label' => 'หมายเหตุผู้อนุมัติ',
-                'field_type' => 'textarea',
-                'is_required' => false,
-                'sort_order' => 7,
-                'placeholder' => 'เงื่อนไขหรือข้อกำหนดเพิ่มเติมจากผู้อนุมัติ',
-                'options' => null,
-                'editable_by' => ['step_1'],
-                'visible_to_departments' => null,
-            ],
-        ];
-
-        foreach ($spFields as $field) {
-            $spForm->fields()->updateOrCreate(['field_key' => $field['field_key']], $field);
-        }
-
-        // ─── Purchase Request Form ──────────────────────────────
-        $prForm = DocumentForm::updateOrCreate(
-            ['form_key' => 'purchase_request_default'],
-            [
-                'name'          => 'ฟอร์มใบขอซื้อ (ค่าเริ่มต้น)',
-                'document_type' => 'purchase_request',
-                'description'   => 'ฟอร์มมาตรฐานสำหรับใบขอซื้อ',
-                'is_active'     => true,
-            ]
-        );
-        $prForm->departments()->sync([]);
-
-        foreach ([
-            ['field_key' => 'title',          'label' => 'หัวข้อ',              'field_type' => 'text',     'is_required' => true,  'sort_order' => 1, 'placeholder' => 'ระบุหัวข้อใบขอซื้อ',    'options' => null, 'editable_by' => ['requester']],
-            ['field_key' => 'vendor_name',    'label' => 'ชื่อผู้ขาย',          'field_type' => 'text',     'is_required' => false, 'sort_order' => 2, 'placeholder' => 'ชื่อบริษัท/ร้านค้า',     'options' => null, 'editable_by' => ['requester']],
-            ['field_key' => 'required_date',  'label' => 'วันที่ต้องการสินค้า', 'field_type' => 'date',     'is_required' => true,  'sort_order' => 3, 'placeholder' => null,                    'options' => null, 'editable_by' => ['requester']],
-            ['field_key' => 'budget_code',    'label' => 'รหัสงบประมาณ',       'field_type' => 'text',     'is_required' => false, 'sort_order' => 4, 'placeholder' => 'รหัสงบประมาณ (ถ้ามี)', 'options' => null, 'editable_by' => ['requester']],
-            ['field_key' => 'reason',         'label' => 'เหตุผลการขอซื้อ',    'field_type' => 'textarea', 'is_required' => true,  'sort_order' => 5, 'placeholder' => 'ระบุเหตุผลและความจำเป็น', 'options' => null, 'editable_by' => ['requester']],
-            ['field_key' => 'amount',         'label' => 'มูลค่ารวม (บาท)',     'field_type' => 'number',   'is_required' => true,  'sort_order' => 6, 'placeholder' => '0.00',                 'options' => null, 'editable_by' => ['requester']],
-            ['field_key' => 'approver_note',  'label' => 'หมายเหตุผู้อนุมัติ', 'field_type' => 'textarea', 'is_required' => false, 'sort_order' => 7, 'placeholder' => null,                    'options' => null, 'editable_by' => ['step_1']],
-        ] as $field) {
-            $prForm->fields()->updateOrCreate(['field_key' => $field['field_key']], array_merge($field, ['visible_to_departments' => null]));
-        }
-
-        // ─── Purchase Order Form ────────────────────────────────
-        $poForm = DocumentForm::updateOrCreate(
-            ['form_key' => 'purchase_order_default'],
-            [
-                'name'          => 'ฟอร์มใบสั่งซื้อ (ค่าเริ่มต้น)',
-                'document_type' => 'purchase_order',
-                'description'   => 'ฟอร์มมาตรฐานสำหรับใบสั่งซื้อ',
-                'is_active'     => true,
-            ]
-        );
-        $poForm->departments()->sync([]);
-
-        foreach ([
-            ['field_key' => 'title',          'label' => 'หัวข้อ',              'field_type' => 'text',     'is_required' => true,  'sort_order' => 1, 'placeholder' => 'ระบุหัวข้อใบสั่งซื้อ', 'options' => null,                          'editable_by' => ['requester']],
-            ['field_key' => 'vendor_name',    'label' => 'ชื่อผู้ขาย',          'field_type' => 'text',     'is_required' => true,  'sort_order' => 2, 'placeholder' => 'ชื่อบริษัท/ร้านค้า',   'options' => null,                          'editable_by' => ['requester']],
-            ['field_key' => 'vendor_address', 'label' => 'ที่อยู่ผู้ขาย',       'field_type' => 'textarea', 'is_required' => false, 'sort_order' => 3, 'placeholder' => 'ที่อยู่สำหรับออกใบสั่งซื้อ', 'options' => null,                   'editable_by' => ['requester']],
-            ['field_key' => 'delivery_date',  'label' => 'วันที่ต้องการส่งของ', 'field_type' => 'date',     'is_required' => true,  'sort_order' => 4, 'placeholder' => null,                  'options' => null,                          'editable_by' => ['requester']],
-            ['field_key' => 'payment_terms',  'label' => 'เงื่อนไขการชำระเงิน', 'field_type' => 'select',   'is_required' => true,  'sort_order' => 5, 'placeholder' => null,                  'options' => ['cash','net_30','net_60'],     'editable_by' => ['requester']],
-            ['field_key' => 'amount',         'label' => 'มูลค่ารวม (บาท)',     'field_type' => 'number',   'is_required' => true,  'sort_order' => 6, 'placeholder' => '0.00',               'options' => null,                          'editable_by' => ['requester']],
-            ['field_key' => 'approver_note',  'label' => 'หมายเหตุผู้อนุมัติ', 'field_type' => 'textarea', 'is_required' => false, 'sort_order' => 7, 'placeholder' => null,                  'options' => null,                          'editable_by' => ['step_1']],
-        ] as $field) {
-            $poForm->fields()->updateOrCreate(['field_key' => $field['field_key']], array_merge($field, ['visible_to_departments' => null]));
-        }
     }
 }

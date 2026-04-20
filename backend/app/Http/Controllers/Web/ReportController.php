@@ -16,13 +16,13 @@ class ReportController extends Controller
 
         $dashboards = ReportDashboard::withCount('widgets')
             ->where('is_active', true)
-            ->when(!$isSuperAdmin, function ($query) use ($user) {
+            ->when(! $isSuperAdmin, function ($query) use ($user) {
                 $query->where(function ($q) use ($user) {
                     $q->where('visibility', 'all')
-                      ->orWhere(function ($q2) use ($user) {
-                          $q2->where('visibility', 'permission')
-                             ->whereIn('required_permission', $user?->getAllPermissions()->pluck('name') ?? []);
-                      });
+                        ->orWhere(function ($q2) use ($user) {
+                            $q2->where('visibility', 'permission')
+                                ->whereIn('required_permission', $user?->getAllPermissions()->pluck('name') ?? []);
+                        });
                 });
             })
             ->orderBy('created_at')
@@ -31,31 +31,21 @@ class ReportController extends Controller
         return view('reports.index', compact('dashboards'));
     }
 
-    public function repairHistory(): View
-    {
-        return view('reports.repair-history');
-    }
-
-    public function pmAmHistory(): View
-    {
-        return view('reports.pm-am-history');
-    }
-
     public function showDashboard(ReportDashboard $dashboard, Request $request): View|\Illuminate\Http\RedirectResponse
     {
-        if (!$dashboard->is_active) {
+        if (! $dashboard->is_active) {
             abort(404);
         }
 
         // Permission check: if visibility=permission, user must have required_permission
         if ($dashboard->visibility === 'permission' && $dashboard->required_permission) {
             $user = $request->user();
-            if (!$user) {
+            if (! $user) {
                 return redirect()->route('login');
             }
 
             $isSuperAdmin = $user->is_super_admin ?? false;
-            if (!$isSuperAdmin && !$user->hasPermissionTo($dashboard->required_permission)) {
+            if (! $isSuperAdmin && ! $user->hasPermissionTo($dashboard->required_permission)) {
                 abort(403);
             }
         }

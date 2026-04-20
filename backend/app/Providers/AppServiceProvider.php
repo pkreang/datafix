@@ -6,13 +6,17 @@ use App\Events\Approval\WorkflowCompleted;
 use App\Events\Approval\WorkflowPartialApproval;
 use App\Events\Approval\WorkflowStarted;
 use App\Events\Approval\WorkflowStepAdvanced;
+use App\Events\SparePartStockLow;
 use App\Listeners\Approval\SendApprovalPendingNotification;
 use App\Listeners\Approval\SendPartialApprovalNotification;
 use App\Listeners\Approval\SendWorkflowOutcomeNotification;
+use App\Listeners\SendStockLowNotification;
 use App\Models\Setting;
 use App\Policies\RolePolicy;
 use App\Services\Auth\PasswordCapabilityService;
+use App\Services\Mail\ApplyDatabaseMailConfig;
 use App\Services\NavigationService;
+use App\Support\OrganizationTranslations;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -30,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        ApplyDatabaseMailConfig::apply();
+
+        OrganizationTranslations::registerLoaderPath();
+
         Gate::policy(Role::class, RolePolicy::class);
 
         ResetPassword::createUrlUsing(function ($notifiable, $token) {
@@ -40,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(WorkflowStepAdvanced::class, SendApprovalPendingNotification::class);
         Event::listen(WorkflowCompleted::class, SendWorkflowOutcomeNotification::class);
         Event::listen(WorkflowPartialApproval::class, SendPartialApprovalNotification::class);
+        Event::listen(SparePartStockLow::class, SendStockLowNotification::class);
 
         Gate::before(function ($user, $ability) {
             if ($user?->is_super_admin ?? false) {
@@ -51,10 +60,15 @@ class AppServiceProvider extends ServiceProvider
             if (session('api_token')) {
                 $perms = session('user_permissions', []);
                 $isSuperAdmin = session('user.is_super_admin', false);
-                $menus = app(NavigationService::class)->getMenus($perms, $isSuperAdmin);
+                $userDeptId = session('user.department_id');
+                $userId = (int) (session('user.id') ?? 0);
+                $navService = app(NavigationService::class);
+                $menus = $navService->getMenus($perms, $isSuperAdmin, $userDeptId);
                 $view->with('navigationMenus', $menus);
+                $view->with('pinnedMenus', $userId > 0 ? $navService->getPinnedMenus($userId, $menus) : collect());
             } else {
                 $view->with('navigationMenus', collect());
+                $view->with('pinnedMenus', collect());
             }
 
             $layoutUser = session('user', []);

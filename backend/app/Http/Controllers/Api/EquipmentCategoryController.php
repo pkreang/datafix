@@ -26,7 +26,7 @@ class EquipmentCategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $categories,
-            'message' => 'Equipment categories retrieved successfully.',
+            'message' => __('api.equipment_categories_retrieved'),
         ]);
     }
 
@@ -35,7 +35,7 @@ class EquipmentCategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $equipmentCategory,
-            'message' => 'Equipment category retrieved successfully.',
+            'message' => __('api.equipment_category_retrieved'),
         ]);
     }
 
@@ -55,7 +55,7 @@ class EquipmentCategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $category,
-            'message' => 'Equipment category created successfully.',
+            'message' => __('api.equipment_category_created'),
         ], 201);
     }
 
@@ -80,7 +80,7 @@ class EquipmentCategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $equipmentCategory,
-            'message' => 'Equipment category updated successfully.',
+            'message' => __('api.equipment_category_updated'),
         ]);
     }
 
@@ -89,7 +89,7 @@ class EquipmentCategoryController extends Controller
         if ($equipmentCategory->equipment()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete category that has associated equipment.',
+                'message' => __('api.equipment_category_has_equipment'),
             ], 422);
         }
 
@@ -98,7 +98,7 @@ class EquipmentCategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => null,
-            'message' => 'Equipment category deleted successfully.',
+            'message' => __('api.equipment_category_deleted'),
         ]);
     }
 }

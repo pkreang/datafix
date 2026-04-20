@@ -14,11 +14,11 @@ class PurchaseWorkflowSeeder extends Seeder
 {
     public function run(): void
     {
-        $deptMgr  = Position::where('code', 'DEPT_MGR')->first();
+        $deptMgr = Position::where('code', 'DEPT_MGR')->first();
         $plantMgr = Position::where('code', 'PLANT_MGR')->first();
 
         if (! $deptMgr || ! $plantMgr) {
-            $this->command?->warn('PurchaseWorkflowSeeder: positions missing; run PositionDemoSeeder first.');
+            $this->command?->warn('PurchaseWorkflowSeeder: positions missing; run FactoryPositionSeeder first.');
 
             return;
         }
@@ -59,13 +59,13 @@ class PurchaseWorkflowSeeder extends Seeder
 
         foreach ($stages as $stage) {
             ApprovalWorkflowStage::create([
-                'workflow_id'   => $workflow->id,
-                'step_no'       => $stage['step_no'],
-                'name'          => $stage['name'],
+                'workflow_id' => $workflow->id,
+                'step_no' => $stage['step_no'],
+                'name' => $stage['name'],
                 'approver_type' => $stage['approver_type'],
-                'approver_ref'  => (string) $stage['approver_ref'],
+                'approver_ref' => (string) $stage['approver_ref'],
                 'min_approvals' => 1,
-                'is_active'     => true,
+                'is_active' => true,
             ]);
         }
 
@@ -90,11 +90,11 @@ class PurchaseWorkflowSeeder extends Seeder
 
         foreach ($ranges as $i => $range) {
             DocumentFormWorkflowRange::create([
-                'policy_id'   => $policy->id,
-                'min_amount'  => $range['min'],
-                'max_amount'  => $range['max'],
+                'policy_id' => $policy->id,
+                'min_amount' => $range['min'],
+                'max_amount' => $range['max'],
                 'workflow_id' => $range['workflow']->id,
-                'sort_order'  => $i + 1,
+                'sort_order' => $i + 1,
             ]);
         }
     }

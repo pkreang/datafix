@@ -1,0 +1,17 @@
+# AI tool workspaces (per-IDE/agent state, not project code)
+.agent/
+.claude/
+.codebuddy/
+.codex/
+.continue/
+.cursor/
+.gemini/
+.kiro/
+.opencode/
+.qoder/
+.roo/
+.trae/
+.windsurf/
+
+# OS / editor artifacts
+.DS_Store

@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Events\SparePartStockLow;
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalInstance;
-use App\Models\ApprovalInstanceStep;
 use App\Models\Department;
 use App\Models\DocumentForm;
 use App\Models\SparePart;
@@ -12,39 +13,53 @@ use App\Models\SparePartRequisitionItem;
 use App\Models\SparePartTransaction;
 use App\Models\User;
 use App\Services\ApprovalFlowService;
+use App\Services\BranchScopeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use RuntimeException;
 
 class SparePartsController extends Controller
 {
+    use HasPerPage;
+
+    public function __construct(
+        protected ApprovalFlowService $approvalFlow,
+    ) {}
+
     // ─── Inventory ──────────────────────────────────────────
 
     public function stock(Request $request): View
     {
         $search = $request->query('search');
 
-        $parts = SparePart::query()
+        $partsQuery = SparePart::query()
             ->with('category')
             ->where('is_active', true)
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
-            ->orderBy('code')
-            ->paginate(20)
+            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+        BranchScopeService::constrainSparePartQuery($partsQuery, Auth::user());
+        $perPage = $this->resolvePerPage($request, 'spare_parts_stock_per_page');
+        $parts = $partsQuery->orderBy('code')
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('spare-parts.stock', compact('parts', 'search'));
+        return view('spare-parts.stock', compact('parts', 'search', 'perPage'));
     }
 
     public function withdrawalHistory(Request $request): View
     {
-        $transactions = SparePartTransaction::query()
+        $transactionsQuery = SparePartTransaction::query()
             ->with(['sparePart', 'performedBy'])
             ->where('transaction_type', 'issue')
-            ->latest()
-            ->paginate(20);
+            ->whereHas('sparePart', function ($q) {
+                BranchScopeService::constrainSparePartQuery($q, Auth::user());
+            })
+            ->latest();
+        $perPage = $this->resolvePerPage($request, 'spare_parts_withdrawal_per_page');
+        $transactions = $transactionsQuery->paginate($perPage);
 
-        return view('spare-parts.withdrawal-history', compact('transactions'));
+        return view('spare-parts.withdrawal-history', compact('transactions', 'perPage'));
     }
 
     // ─── Requisition Flow ───────────────────────────────────
@@ -57,33 +72,38 @@ class SparePartsController extends Controller
             $status = null;
         }
 
+        $perPage = $this->resolvePerPage($request, 'spare_parts_requisition_per_page');
         $myInstances = ApprovalInstance::query()
             ->where('document_type', 'spare_parts_requisition')
             ->where('requester_user_id', $userId)
             ->when($status, fn ($q) => $q->where('status', $status))
             ->with(['department'])
             ->latest()
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('spare-parts.requisition-index', compact('myInstances', 'status'));
+        return view('spare-parts.requisition-index', compact('myInstances', 'status', 'perPage'));
     }
 
     public function requisitionCreate(Request $request): View
     {
+        $userId = (int) (session('user.id') ?? 0);
+        $userDeptId = session('user.department_id') ?? User::find($userId)?->department_id;
         $departments = Department::query()->where('is_active', true)->orderBy('name')->get();
         $form = DocumentForm::query()
             ->with('fields')
             ->where('document_type', 'spare_parts_requisition')
             ->where('is_active', true)
+            ->visibleToUser($userDeptId)
             ->orderBy('id')
             ->first();
-        $spareParts = SparePart::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'unit', 'unit_cost', 'current_stock']);
+        $sparePartsQuery = SparePart::query()->where('is_active', true);
+        BranchScopeService::constrainSparePartQuery($sparePartsQuery, Auth::user());
+        $spareParts = $sparePartsQuery->orderBy('name')->get(['id', 'code', 'name', 'unit', 'unit_cost', 'current_stock']);
 
         $parentType = $request->query('parent_type');
         $parentId = $request->query('parent_id');
 
-        $userId = (int) (session('user.id') ?? 0);
         $userModel = $userId > 0 ? User::with(['company', 'branch'])->find($userId) : null;
         $company = $userModel?->company;
         $branch = null;
@@ -92,7 +112,7 @@ class SparePartsController extends Controller
             $branch = $userModel->branch;
         }
 
-        return view('spare-parts.requisition-create', compact('departments', 'form', 'spareParts', 'parentType', 'parentId', 'company', 'branch'));
+        return view('spare-parts.requisition-create', compact('departments', 'form', 'spareParts', 'parentType', 'parentId', 'company', 'branch', 'userDeptId'));
     }
 
     public function requisitionSubmit(Request $request, ApprovalFlowService $approvalFlowService): RedirectResponse
@@ -108,6 +128,16 @@ class SparePartsController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.note' => 'nullable|string|max:500',
         ]);
+
+        $user = Auth::user();
+        foreach ($validated['items'] as $item) {
+            $part = SparePart::find($item['spare_part_id']);
+            if (! $part || ! BranchScopeService::userCanAccessSparePart($user, $part)) {
+                return back()
+                    ->withErrors(['items' => __('common.branch_scoping_invalid_spare_part')])
+                    ->withInput();
+            }
+        }
 
         $payload = $validated['form_payload'] ?? [];
 
@@ -167,6 +197,7 @@ class SparePartsController extends Controller
         $this->authorizeViewInstance($instance);
 
         $instance->load(['steps.actor', 'workflow', 'requester.company', 'requester.branch', 'department']);
+        $userId = (int) (session('user.id') ?? 0);
 
         $lineItems = SparePartRequisitionItem::query()
             ->where('approval_instance_id', $instance->id)
@@ -179,16 +210,16 @@ class SparePartsController extends Controller
             ->where('is_active', true)
             ->orderBy('id')
             ->first();
-        $fieldLabels = $formForLabels
-            ? $formForLabels->fields->mapWithKeys(fn ($f) => [$f->field_key => $f->label])
-            : collect();
+        $formFields = $formForLabels?->fields ?? collect();
+
+        $userDeptId = session('user.department_id') ?? User::find($userId)?->department_id;
+        $editorRole = $this->resolveEditorRole($instance, $userId);
 
         $canAct = false;
         if ($instance->status === 'pending' && in_array('approval.approve', session('user_permissions', []), true)) {
-            $userId = (int) (session('user.id') ?? 0);
             $currentStep = $instance->steps->firstWhere('step_no', $instance->current_step_no);
             if ($currentStep && $currentStep->action === 'pending') {
-                $canAct = $this->userCanActStep($currentStep, $userId);
+                $canAct = $this->approvalFlow->canUserActOnStep($instance, $currentStep, $userId);
             }
         }
 
@@ -204,7 +235,7 @@ class SparePartsController extends Controller
             $branch = $requester->branch;
         }
 
-        return view('spare-parts.requisition-show', compact('instance', 'lineItems', 'canAct', 'canIssue', 'fieldLabels', 'company', 'branch'));
+        return view('spare-parts.requisition-show', compact('instance', 'lineItems', 'canAct', 'canIssue', 'formFields', 'formForLabels', 'userDeptId', 'editorRole', 'company', 'branch'));
     }
 
     public function issueItems(Request $request, ApprovalInstance $instance): RedirectResponse
@@ -226,6 +257,13 @@ class SparePartsController extends Controller
                 continue;
             }
 
+            $sparePartForScope = $item->sparePart()->first();
+            if (! $sparePartForScope || ! BranchScopeService::userCanAccessSparePart(Auth::user(), $sparePartForScope)) {
+                return redirect()
+                    ->route('spare-parts.requisition.show', $instance)
+                    ->withErrors(['issue' => __('common.branch_scoping_invalid_spare_part')]);
+            }
+
             $qtyToIssue = min((float) $row['quantity'], $item->quantity_requested - $item->quantity_issued);
             if ($qtyToIssue <= 0) {
                 continue;
@@ -235,6 +273,12 @@ class SparePartsController extends Controller
 
             // Decrement stock
             $item->sparePart()->decrement('current_stock', $qtyToIssue);
+
+            // Fire low-stock alert if stock fell at or below minimum threshold
+            $sparePart = $item->sparePart()->first();
+            if ($sparePart && $sparePart->min_stock > 0 && $sparePart->current_stock <= $sparePart->min_stock) {
+                event(new SparePartStockLow($sparePart));
+            }
 
             // Record transaction
             SparePartTransaction::create([
@@ -256,6 +300,19 @@ class SparePartsController extends Controller
 
     // ─── Shared helpers ─────────────────────────────────────
 
+    private function resolveEditorRole(ApprovalInstance $instance, int $userId): string
+    {
+        if ($instance->status !== 'pending') {
+            return 'view_only';
+        }
+        $currentStep = $instance->steps->firstWhere('step_no', $instance->current_step_no);
+        if ($currentStep && $currentStep->action === 'pending' && $this->approvalFlow->canUserActOnStep($instance, $currentStep, $userId)) {
+            return 'step_'.$instance->current_step_no;
+        }
+
+        return 'view_only';
+    }
+
     private function authorizeViewInstance(ApprovalInstance $instance): void
     {
         if (session('user.is_super_admin', false)) {
@@ -269,23 +326,6 @@ class SparePartsController extends Controller
             return;
         }
         abort(403);
-    }
-
-    private function userCanActStep(ApprovalInstanceStep $step, int $userId): bool
-    {
-        $user = User::find($userId);
-        if (! $user) {
-            return false;
-        }
-        if ($step->approver_type === 'user') {
-            return (string) $step->approver_ref === (string) $userId;
-        }
-        if ($step->approver_type === 'position') {
-            return $user->position_id
-                && (string) $step->approver_ref === (string) $user->position_id;
-        }
-
-        return $user->hasRole($step->approver_ref);
     }
 
     private function workflowErrorMessage(RuntimeException $e): string

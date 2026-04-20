@@ -65,6 +65,8 @@ class DirectoryUserProvisioner
             'first_name' => $firstName !== null && $firstName !== '' ? $firstName : $local,
             'last_name' => $lastName ?? '',
             'password' => Str::password(32),
+            'password_changed_at' => now(),
+            'password_must_change' => false,
             'company_id' => $companyId,
             'is_active' => true,
             'is_super_admin' => false,

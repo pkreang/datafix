@@ -39,7 +39,7 @@ class PermissionSeeder extends Seeder
         }
 
         $exactPermissions = [
-            ['name' => 'manage companies', 'module' => 'company', 'action' => 'manage'],
+            ['name' => 'manage profile', 'module' => 'company', 'action' => 'manage'],
             ['name' => 'manage_settings', 'module' => 'settings', 'action' => 'manage'],
             ['name' => 'approval.approve', 'module' => 'approval', 'action' => 'approve'],
             ['name' => 'manage equipment', 'module' => 'equipment', 'action' => 'manage'],

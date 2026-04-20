@@ -30,14 +30,14 @@ class HomeDashboardKpiTest extends TestCase
         }
     }
 
-    public function test_kpi_endpoint_returns_value_for_repair_pending(): void
+    public function test_kpi_endpoint_returns_value_for_school_pending_approvals(): void
     {
         $this->seed(RolePermissionSeeder::class);
         $user = User::where('email', 'admin@example.com')->first();
         $token = $user->createToken('test')->plainTextToken;
 
         $response = $this->withToken($token)
-            ->getJson('/api/v1/dashboard/kpi/repair_pending');
+            ->getJson('/api/v1/dashboard/kpi/school_pending_approvals');
 
         $response->assertOk()->assertJsonStructure(['value']);
     }
@@ -62,33 +62,33 @@ class HomeDashboardKpiTest extends TestCase
 
         $response = $this->withToken($token)
             ->postJson('/api/v1/dashboard/kpi-config', [
-                'cards' => ['repair_pending', 'spare_low_stock'],
+                'cards' => ['school_pending_approvals', 'school_draft_forms'],
             ]);
 
         $response->assertOk();
         $user->refresh();
-        $this->assertEquals(['repair_pending', 'spare_low_stock'], $user->dashboard_config['cards']);
+        $this->assertEquals(['school_pending_approvals', 'school_draft_forms'], $user->dashboard_config['cards']);
     }
 
-    public function test_dashboard_seeder_creates_three_dashboards(): void
+    public function test_dashboard_seeder_creates_school_overview(): void
     {
         $this->seed(\Database\Seeders\RolePermissionSeeder::class);
         $this->seed(\Database\Seeders\DashboardSeeder::class);
 
-        $this->assertDatabaseCount('report_dashboards', 3);
-
-        $this->assertDatabaseHas('report_dashboards', ['name' => 'CMMS Overview']);
-        $this->assertDatabaseHas('report_dashboards', ['name' => 'Maintenance Dashboard']);
-        $this->assertDatabaseHas('report_dashboards', ['name' => 'Inventory Dashboard']);
+        $this->assertDatabaseCount('report_dashboards', 1);
+        $this->assertDatabaseHas('report_dashboards', ['name' => 'School eForm Overview']);
     }
 
-    public function test_cmms_overview_dashboard_has_five_widgets(): void
+    public function test_school_overview_dashboard_widgets(): void
     {
         $this->seed(\Database\Seeders\RolePermissionSeeder::class);
         $this->seed(\Database\Seeders\DashboardSeeder::class);
 
-        $dashboard = \App\Models\ReportDashboard::where('name', 'CMMS Overview')->first();
+        $dashboard = \App\Models\ReportDashboard::where('name', 'School eForm Overview')->first();
         $this->assertNotNull($dashboard);
-        $this->assertCount(5, $dashboard->widgets);
+        $dashboard->load('widgets');
+        $this->assertCount(2, $dashboard->widgets);
+        $sources = $dashboard->widgets->pluck('data_source')->sort()->values()->all();
+        $this->assertSame(['school_eforms', 'school_eforms_pending'], $sources);
     }
 }

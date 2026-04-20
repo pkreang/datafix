@@ -51,6 +51,26 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "demo:reset": [
+            "@php artisan migrate:fresh --force",
+            "@php artisan db:seed --force",
+            "@php artisan db:seed --class=IndustryTemplateSeeder --force",
+            "@php artisan db:seed --class=NteqPolymerDemoSeeder --force",
+            "@php artisan db:seed --class=BodindechaDemoSeeder --force"
+        ],
+        "switch:factory": [
+            "@php artisan migrate:fresh --force",
+            "@php artisan db:seed --force",
+            "@php artisan db:seed --class=NteqPolymerDemoSeeder --force",
+            "@php artisan org:switch factory"
+        ],
+        "switch:school": [
+            "@php artisan migrate:fresh --force",
+            "@php artisan db:seed --force",
+            "@php artisan db:seed --class=IndustryTemplateSeeder --force",
+            "@php artisan db:seed --class=BodindechaDemoSeeder --force",
+            "@php artisan org:switch school"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
@@ -64,7 +84,6 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi",
-            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
         "pre-package-uninstall": [

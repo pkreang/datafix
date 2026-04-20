@@ -12,7 +12,7 @@ class NavigationMenu extends Model
 {
     protected $fillable = [
         'parent_id', 'label', 'label_en', 'label_th', 'icon', 'route',
-        'permission', 'sort_order', 'is_active',
+        'permission', 'document_form_id', 'sort_order', 'is_active',
     ];
 
     /** Map standard labels to common.* translation keys */
@@ -25,6 +25,7 @@ class NavigationMenu extends Model
         'Password Policy' => 'password_policy',
         'Menu Manager' => 'menu_manager',
         'Companies' => 'companies',
+        'Organizations' => 'companies',
         'Branding' => 'branding',
         'Maintenance' => 'maintenance',
         'Reports' => 'reports',
@@ -55,6 +56,7 @@ class NavigationMenu extends Model
         'Equipment Locations' => 'equipment_locations',
         'Activity History' => 'activity_history',
         'Authentication & SSO' => 'authentication_sso',
+        'Branch scoping' => 'branch_scoping_title',
     ];
 
     public function getTranslatedLabelAttribute(): string
@@ -108,6 +110,11 @@ class NavigationMenu extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function documentForm(): BelongsTo
+    {
+        return $this->belongsTo(DocumentForm::class, 'document_form_id');
     }
 
     // ── Scopes ────────────────────────────────────────────

@@ -12,7 +12,8 @@ use Spatie\Permission\Models\Role;
 
 /**
  * Seeds a minimal repair-request approval chain for fresh installs / sales demos.
- * Logins: approver@example.com / password (can approve), requester@example.com / password (submit only).
+ * Logins: approver@example.com / password (approver role = UI permission approval.approve),
+ * requester@example.com / password (submit only). Workflow step targets this user, not the approver role.
  */
 class RepairApprovalDemoSeeder extends Seeder
 {
@@ -20,41 +21,10 @@ class RepairApprovalDemoSeeder extends Seeder
     {
         $form = DocumentForm::query()->where('form_key', 'repair_request_default')->first();
         if (! $form) {
-            $this->command?->warn('RepairApprovalDemoSeeder: repair_request_default form missing; run DocumentFormSeeder first.');
+            $this->command?->warn('RepairApprovalDemoSeeder: repair_request_default form missing; run php artisan db:seed --class=FactoryCmmsTemplateSeeder (or IndustryTemplateSeeder).');
 
             return;
         }
-
-        $workflow = ApprovalWorkflow::query()->updateOrCreate(
-            ['name' => 'Default Repair Approval'],
-            [
-                'document_type' => 'repair_request',
-                'description' => 'Demo: single-step approval by Approver role.',
-                'is_active' => true,
-            ]
-        );
-
-        $workflow->stages()->delete();
-        ApprovalWorkflowStage::query()->create([
-            'workflow_id' => $workflow->id,
-            'step_no' => 1,
-            'name' => 'Approver review',
-            'approver_type' => 'role',
-            'approver_ref' => 'approver',
-            'min_approvals' => 1,
-            'is_active' => true,
-        ]);
-
-        DocumentFormWorkflowPolicy::query()->updateOrCreate(
-            [
-                'form_id' => $form->id,
-                'department_id' => null,
-            ],
-            [
-                'use_amount_condition' => false,
-                'workflow_id' => $workflow->id,
-            ]
-        );
 
         $approverRole = Role::query()->where('name', 'approver')->where('guard_name', 'web')->first();
         $viewerRole = Role::query()->where('name', 'viewer')->where('guard_name', 'web')->first();
@@ -99,6 +69,37 @@ class RepairApprovalDemoSeeder extends Seeder
                 }
             }
         }
+
+        $workflow = ApprovalWorkflow::query()->updateOrCreate(
+            ['name' => 'Default Repair Approval'],
+            [
+                'document_type' => 'repair_request',
+                'description' => 'Demo: single-step approval assigned to approver@example.com (role approver grants approval UI only).',
+                'is_active' => true,
+            ]
+        );
+
+        $workflow->stages()->delete();
+        ApprovalWorkflowStage::query()->create([
+            'workflow_id' => $workflow->id,
+            'step_no' => 1,
+            'name' => 'Approver review',
+            'approver_type' => 'user',
+            'approver_ref' => (string) $approver->id,
+            'min_approvals' => 1,
+            'is_active' => true,
+        ]);
+
+        DocumentFormWorkflowPolicy::query()->updateOrCreate(
+            [
+                'form_id' => $form->id,
+                'department_id' => null,
+            ],
+            [
+                'use_amount_condition' => false,
+                'workflow_id' => $workflow->id,
+            ]
+        );
 
         $this->command?->info('RepairApprovalDemoSeeder: workflow + policy + approver@ / requester@ users ready.');
     }

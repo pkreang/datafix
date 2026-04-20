@@ -35,13 +35,16 @@ class WorkflowController extends Controller
                 'id' => $u->id,
                 'label' => trim($u->first_name.' '.$u->last_name).' ('.$u->email.')',
             ]);
+        $usersByPosition = $this->usersByPosition();
         $positions = Position::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code'])
             ->map(fn (Position $p) => [
                 'id' => $p->id,
+                'code' => $p->code,
                 'label' => $p->name.' ('.$p->code.')',
+                'users' => $usersByPosition[$p->id] ?? [],
             ]);
 
         return view('settings.workflow.create', compact('roles', 'users', 'positions'));
@@ -67,6 +70,7 @@ class WorkflowController extends Controller
             ->values()
             ->all();
 
+        $usersByPosition = $this->usersByPosition();
         $positions = Position::query()
             ->where(function ($q) use ($usedPositionIds) {
                 $q->where('is_active', true);
@@ -78,10 +82,27 @@ class WorkflowController extends Controller
             ->get(['id', 'name', 'code'])
             ->map(fn (Position $p) => [
                 'id' => $p->id,
+                'code' => $p->code,
                 'label' => $p->name.' ('.$p->code.')',
+                'users' => $usersByPosition[$p->id] ?? [],
             ]);
 
         return view('settings.workflow.edit', compact('workflow', 'roles', 'users', 'positions'));
+    }
+
+    /**
+     * @return array<int, list<string>>
+     */
+    private function usersByPosition(): array
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereNotNull('position_id')
+            ->orderBy('first_name')
+            ->get(['position_id', 'first_name', 'last_name'])
+            ->groupBy('position_id')
+            ->map(fn ($group) => $group->map(fn ($u) => trim($u->first_name.' '.$u->last_name))->values()->all())
+            ->all();
     }
 
     public function store(Request $request): RedirectResponse
@@ -91,6 +112,7 @@ class WorkflowController extends Controller
             'document_type' => 'required|string|max:50',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
+            'allow_requester_as_approver' => 'nullable|in:0,1',
             'stages' => 'required|array|min:1',
             'stages.*.step_no' => 'required|integer|min:1',
             'stages.*.name' => 'required|string|max:255',
@@ -108,6 +130,7 @@ class WorkflowController extends Controller
                 'document_type' => $validated['document_type'],
                 'description' => $validated['description'] ?? null,
                 'is_active' => (bool) ($validated['is_active'] ?? true),
+                'allow_requester_as_approver' => (bool) (int) ($validated['allow_requester_as_approver'] ?? 1),
             ]);
 
             foreach ($validated['stages'] as $stage) {
@@ -133,6 +156,7 @@ class WorkflowController extends Controller
             'document_type' => 'required|string|max:50',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
+            'allow_requester_as_approver' => 'nullable|in:0,1',
             'stages' => 'required|array|min:1',
             'stages.*.step_no' => 'required|integer|min:1',
             'stages.*.name' => 'required|string|max:255',
@@ -150,6 +174,7 @@ class WorkflowController extends Controller
                 'document_type' => $validated['document_type'],
                 'description' => $validated['description'] ?? null,
                 'is_active' => (bool) ($validated['is_active'] ?? true),
+                'allow_requester_as_approver' => (bool) (int) ($validated['allow_requester_as_approver'] ?? 1),
             ]);
 
             $workflow->stages()->delete();

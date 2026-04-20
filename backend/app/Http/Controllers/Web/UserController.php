@@ -2,21 +2,30 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\Auth\LdapUserCreateValidation;
+use App\Services\Auth\LdapUserDirectoryLookup;
+use App\Services\Auth\PasswordCapabilityService;
+use App\Support\CompliantPasswordGenerator;
+use App\Support\PermissionDisplay;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    use HasPerPage;
+
     public function index(Request $request): View
     {
-        $query = User::with('roles');
+        $query = User::with(['roles', 'jobPosition']);
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -27,10 +36,12 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->orderBy('created_at', 'desc')->get();
+        $perPage = $this->resolvePerPage($request, 'users_per_page');
+
+        $users = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
         $totalUsers = User::count();
 
-        return view('users.index', compact('users', 'totalUsers'));
+        return view('users.index', compact('users', 'totalUsers', 'perPage'));
     }
 
     public function importForm(): View
@@ -46,6 +57,13 @@ class UserController extends Controller
             'file.required' => __('users.import_file_required'),
             'file.mimes' => __('users.import_file_mimes'),
         ]);
+
+        if (LdapUserDirectoryLookup::userCreateValidationRequired()
+            && ! LdapUserDirectoryLookup::isReadyForLookup()) {
+            return redirect()
+                ->route('users.import')
+                ->withErrors(['file' => __('users.import_ldap_validation_unavailable')]);
+        }
 
         $file = $request->file('file');
         $path = $file->getRealPath();
@@ -78,15 +96,36 @@ class UserController extends Controller
             if (empty($firstName) && empty($lastName)) {
                 $firstName = explode('@', $email)[0];
             }
+            if (LdapUserDirectoryLookup::userCreateValidationRequired()) {
+                $ldapResult = LdapUserDirectoryLookup::searchByEmail($email);
+                if ($ldapResult['type'] === LdapUserDirectoryLookup::TYPE_ERROR) {
+                    $skipped++;
+                    $errors[] = __('users.import_ldap_lookup_failed', ['email' => $email]);
+
+                    continue;
+                }
+                if ($ldapResult['type'] === LdapUserDirectoryLookup::TYPE_NOT_FOUND) {
+                    $skipped++;
+                    $errors[] = __('users.import_email_not_in_ldap', ['email' => $email]);
+
+                    continue;
+                }
+            }
             try {
+                $deptName = trim($data['department'] ?? $data['แผนก'] ?? '');
+                $positionName = trim($data['position'] ?? $data['ตำแหน่ง'] ?? '');
+                $deptId = $deptName !== '' ? Department::where('name', $deptName)->value('id') : null;
+                $posId = $positionName !== '' ? Position::where('name', $positionName)->value('id') : null;
+
                 User::create([
                     'first_name' => $firstName ?: '-',
                     'last_name' => $lastName ?: '-',
                     'email' => $email,
-                    'password' => Str::random(12),
-                    'department_id' => ($dept = Department::where('name', trim($data['department'] ?? $data['แผนก'] ?? ''))->first()) ? $dept->id : null,
-                    'department' => trim($data['department'] ?? $data['แผนก'] ?? '') ?: null,
-                    'position' => trim($data['position'] ?? $data['ตำแหน่ง'] ?? '') ?: null,
+                    'password' => CompliantPasswordGenerator::generate(),
+                    'password_changed_at' => now(),
+                    'password_must_change' => Setting::getBool('password_force_change_first_login'),
+                    'department_id' => $deptId,
+                    'position_id' => $posId,
                     'phone' => trim($data['phone'] ?? $data['เบอร์โทร'] ?? '') ?: null,
                     'remark' => trim($data['remark'] ?? $data['หมายเหตุ'] ?? '') ?: null,
                     'is_active' => true,
@@ -110,11 +149,18 @@ class UserController extends Controller
     public function create(): View
     {
         $roles = Role::orderBy('name')->get();
-        $permissionMatrix = $this->buildPermissionMatrix();
+        $permGrid = $this->buildPermissionMatrix();
         $positions = Position::query()->where('is_active', true)->orderBy('name')->get();
         $departments = Department::query()->where('is_active', true)->orderBy('name')->get();
 
-        return view('users.create', compact('roles', 'permissionMatrix', 'positions', 'departments'));
+        return view('users.create', [
+            'roles' => $roles,
+            'permissionMatrix' => $permGrid['matrix'],
+            'permissionActions' => $permGrid['actions'],
+            'permissionActionLabels' => $permGrid['action_labels'],
+            'positions' => $positions,
+            'departments' => $departments,
+        ]);
     }
 
     public function store(Request $request)
@@ -123,8 +169,8 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'department_id' => 'nullable|exists:departments,id',
-            'position_id' => 'nullable|exists:positions,id',
+            'department_id' => 'required|exists:departments,id',
+            'position_id' => 'required|exists:positions,id',
             'phone' => 'nullable|string|max:50',
             'remark' => 'nullable|string|max:1000',
             'role_id' => 'required_if:role_type,default',
@@ -136,17 +182,19 @@ class UserController extends Controller
             'permissions.required_if' => __('users.validation_permissions_required'),
         ]);
 
+        LdapUserCreateValidation::assertEmailAllowedForLocalUserCreate($request->email);
+
         $position = Position::labelsForUser($request->input('position_id'));
 
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
-            'password' => Str::random(12),
+            'password' => CompliantPasswordGenerator::generate(),
+            'password_changed_at' => now(),
+            'password_must_change' => Setting::getBool('password_force_change_first_login'),
             'department_id' => $request->department_id,
-            'department' => $request->department_id ? Department::find($request->department_id)?->name : null,
             'position_id' => $position['id'],
-            'position' => $position['name'],
             'phone' => $request->phone,
             'remark' => $request->remark,
             'is_active' => $request->boolean('is_active', true),
@@ -181,7 +229,7 @@ class UserController extends Controller
     {
         $user = User::with('roles', 'permissions')->findOrFail($id);
         $roles = Role::orderBy('name')->get();
-        $permissionMatrix = $this->buildPermissionMatrix();
+        $permGrid = $this->buildPermissionMatrix();
         $positions = Position::query()
             ->where(function ($q) use ($user) {
                 $q->where('is_active', true);
@@ -201,7 +249,18 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('users.edit', compact('user', 'roles', 'permissionMatrix', 'positions', 'departments'));
+        $canEditEmail = PasswordCapabilityService::canEditEmailInApp($user);
+
+        return view('users.edit', [
+            'user' => $user,
+            'roles' => $roles,
+            'permissionMatrix' => $permGrid['matrix'],
+            'permissionActions' => $permGrid['actions'],
+            'permissionActionLabels' => $permGrid['action_labels'],
+            'positions' => $positions,
+            'departments' => $departments,
+            'canEditEmail' => $canEditEmail,
+        ]);
     }
 
     public function update(Request $request, int $id)
@@ -215,28 +274,44 @@ class UserController extends Controller
             return redirect()->route('users.index')->with('success', __("users.user_{$status}"));
         }
 
-        $request->validate([
+        $canEditEmail = PasswordCapabilityService::canEditEmailInApp($user);
+
+        $rules = [
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'department_id' => 'nullable|exists:departments,id',
-            'position_id' => 'nullable|exists:positions,id',
+            'department_id' => 'required|exists:departments,id',
+            'position_id' => 'required|exists:positions,id',
             'phone' => 'nullable|string|max:50',
             'remark' => 'nullable|string|max:1000',
-        ]);
+        ];
+        if ($canEditEmail) {
+            $rules['email'] = ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)];
+        }
+        $request->validate($rules);
 
-        $position = Position::labelsForUser($request->input('position_id'));
-
-        $user->update([
+        $payload = [
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'department_id' => $request->department_id,
-            'department' => $request->department_id ? Department::find($request->department_id)?->name : null,
-            'position_id' => $position['id'],
-            'position' => $position['name'],
+            'position_id' => $request->position_id,
             'phone' => $request->phone,
             'remark' => $request->remark,
             'is_active' => $request->boolean('is_active', true),
-        ]);
+        ];
+        if ($canEditEmail) {
+            $payload['email'] = $request->email;
+        }
+        $user->update($payload);
+
+        if ((int) (session('user')['id'] ?? 0) === (int) $user->id) {
+            $user->refresh();
+            $sessionUser = session('user', []);
+            $sessionUser['first_name'] = $user->first_name;
+            $sessionUser['last_name'] = $user->last_name;
+            $sessionUser['name'] = $user->full_name;
+            $sessionUser['email'] = $user->email;
+            session(['user' => $sessionUser]);
+        }
 
         $roleType = $request->input('role_type', 'default');
         if ($roleType === 'default' && $request->filled('role_id')) {
@@ -271,37 +346,71 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('success', __('users.user_deleted'));
     }
 
+    /**
+     * @return array{matrix: array<int, array{module: string, label: string, actions: array<string, int|null>}>, actions: array<int, string>, action_labels: array<string, string>}
+     */
     private function buildPermissionMatrix(): array
     {
-        $allPerms = Permission::orderBy('name')->get();
-        $actions = ['create', 'read', 'update', 'delete', 'export'];
+        $allPerms = Permission::query()->orderBy('module')->orderBy('name')->get();
+
+        $uniqueActions = $allPerms
+            ->map(function (Permission $perm) {
+                if (filled($perm->action)) {
+                    return (string) $perm->action;
+                }
+                $parts = explode('.', $perm->name, 2);
+
+                return $parts[1] ?? '';
+            })
+            ->filter(fn (string $a) => $a !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $preferred = ['create', 'read', 'update', 'delete', 'export', 'manage', 'approve', 'requisition', 'manage_own'];
+        $orderedActions = [];
+        foreach ($preferred as $p) {
+            if (in_array($p, $uniqueActions, true)) {
+                $orderedActions[] = $p;
+            }
+        }
+        $rest = array_values(array_diff($uniqueActions, $orderedActions));
+        sort($rest);
+        $orderedActions = array_merge($orderedActions, $rest);
 
         $grouped = [];
         foreach ($allPerms as $perm) {
-            $module = $perm->module ?? explode('.', $perm->name)[0];
-            $action = $perm->action ?? (explode('.', $perm->name)[1] ?? '');
+            $module = filled($perm->module) ? (string) $perm->module : (explode('.', $perm->name, 2)[0] ?? 'other');
+            $action = filled($perm->action) ? (string) $perm->action : (explode('.', $perm->name, 2)[1] ?? '');
+            if ($action === '') {
+                continue;
+            }
             $grouped[$module][$action] = $perm->id;
         }
+        ksort($grouped);
 
         $matrix = [];
         foreach ($grouped as $module => $moduleActions) {
-            $translationKey = "users.module_{$module}";
-            $translated = __($translationKey);
-            $label = $translated !== $translationKey ? $translated : ucfirst(str_replace('_', ' ', $module));
-
             $row = [
                 'module' => $module,
-                'label' => $label,
+                'label' => PermissionDisplay::module($module),
                 'actions' => [],
             ];
-
-            foreach ($actions as $action) {
+            foreach ($orderedActions as $action) {
                 $row['actions'][$action] = $moduleActions[$action] ?? null;
             }
-
             $matrix[] = $row;
         }
 
-        return $matrix;
+        $actionLabels = [];
+        foreach ($orderedActions as $action) {
+            $actionLabels[$action] = PermissionDisplay::action($action);
+        }
+
+        return [
+            'matrix' => $matrix,
+            'actions' => $orderedActions,
+            'action_labels' => $actionLabels,
+        ];
     }
 }

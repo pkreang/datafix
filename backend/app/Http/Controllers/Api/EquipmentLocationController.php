@@ -27,7 +27,7 @@ class EquipmentLocationController extends Controller
         return response()->json([
             'success' => true,
             'data' => $locations,
-            'message' => 'Equipment locations retrieved successfully.',
+            'message' => __('api.equipment_locations_retrieved'),
         ]);
     }
 
@@ -36,7 +36,7 @@ class EquipmentLocationController extends Controller
         return response()->json([
             'success' => true,
             'data' => $equipmentLocation,
-            'message' => 'Equipment location retrieved successfully.',
+            'message' => __('api.equipment_location_retrieved'),
         ]);
     }
 
@@ -59,7 +59,7 @@ class EquipmentLocationController extends Controller
         return response()->json([
             'success' => true,
             'data' => $location,
-            'message' => 'Equipment location created successfully.',
+            'message' => __('api.equipment_location_created'),
         ], 201);
     }
 
@@ -87,7 +87,7 @@ class EquipmentLocationController extends Controller
         return response()->json([
             'success' => true,
             'data' => $equipmentLocation,
-            'message' => 'Equipment location updated successfully.',
+            'message' => __('api.equipment_location_updated'),
         ]);
     }
 
@@ -96,7 +96,7 @@ class EquipmentLocationController extends Controller
         if ($equipmentLocation->equipment()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete location that has associated equipment.',
+                'message' => __('api.equipment_location_has_equipment'),
             ], 422);
         }
 
@@ -105,7 +105,7 @@ class EquipmentLocationController extends Controller
         return response()->json([
             'success' => true,
             'data' => null,
-            'message' => 'Equipment location deleted successfully.',
+            'message' => __('api.equipment_location_deleted'),
         ]);
     }
 }

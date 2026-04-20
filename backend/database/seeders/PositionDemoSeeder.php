@@ -4,17 +4,21 @@ namespace Database\Seeders;
 
 use App\Models\Position;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class PositionDemoSeeder extends Seeder
 {
+    /** @var list<string> */
+    private const FACTORY_CODES = ['MAINT_SUP', 'DEPT_MGR', 'PLANT_MGR', 'WH_KEEPER', 'TECH'];
+
     public function run(): void
     {
         $positions = [
-            ['code' => 'MAINT_SUP', 'name' => 'หัวหน้าช่างซ่อมบำรุง', 'description' => 'Maintenance Supervisor — first-level approver for repair/PM/spare parts'],
-            ['code' => 'DEPT_MGR', 'name' => 'ผู้จัดการแผนก', 'description' => 'Department Manager — mid-level approver'],
-            ['code' => 'PLANT_MGR', 'name' => 'ผู้จัดการโรงงาน', 'description' => 'Plant Manager — top-level approver for high-value items'],
-            ['code' => 'WH_KEEPER', 'name' => 'หัวหน้าคลังอะไหล่', 'description' => 'Spare Parts Warehouse Keeper — confirms stock issuance'],
-            ['code' => 'TECH', 'name' => 'ช่างซ่อมบำรุง', 'description' => 'Maintenance Technician'],
+            ['code' => 'SCH_TEACHER', 'name' => 'ครู / บุคลากรวิชาการ', 'description' => 'Teacher or academic staff — typical form submitter'],
+            ['code' => 'SCH_ACAD_HEAD', 'name' => 'หัวหน้าฝ่ายวิชาการ', 'description' => 'Head of academic affairs — first-line academic approval'],
+            ['code' => 'SCH_VICE_PRINCIPAL', 'name' => 'รองผู้อำนวยการ', 'description' => 'Vice principal — school-wide approval level'],
+            ['code' => 'SCH_ADMIN_OFFICER', 'name' => 'นักวิชาการธุรการ', 'description' => 'Administrative officer — procurement / general affairs'],
+            ['code' => 'SCH_FIN_OFFICER', 'name' => 'นักการเงินและบัญชี', 'description' => 'Finance officer — budget and payment-related steps'],
         ];
 
         foreach ($positions as $pos) {
@@ -23,5 +27,28 @@ class PositionDemoSeeder extends Seeder
                 ['name' => $pos['name'], 'description' => $pos['description'], 'is_active' => true]
             );
         }
+
+        // Drop legacy CMMS rows when no user and no workflow stage references the position id.
+        $positionIdsUsedInStages = DB::table('approval_workflow_stages')
+            ->where('approver_type', 'position')
+            ->whereNotNull('approver_ref')
+            ->where('approver_ref', '!=', '')
+            ->pluck('approver_ref')
+            ->map(fn (mixed $ref) => (int) $ref)
+            ->unique()
+            ->values()
+            ->all();
+
+        $q = Position::query()
+            ->whereIn('code', self::FACTORY_CODES)
+            ->whereDoesntHave('users');
+
+        if ($positionIdsUsedInStages !== []) {
+            $q->whereNotIn('id', $positionIdsUsedInStages);
+        }
+
+        $q->delete();
+
+        $this->command?->info('PositionDemoSeeder: '.count($positions).' school positions.');
     }
 }

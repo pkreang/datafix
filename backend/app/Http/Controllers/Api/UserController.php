@@ -4,7 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Position;
+use App\Models\Setting;
 use App\Models\User;
+use App\Rules\PasswordNotReused;
+use App\Rules\PasswordPolicy;
+use App\Services\Auth\LdapUserCreateValidation;
+use App\Services\Auth\PasswordLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -64,33 +69,28 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:6',
+            'password' => ['required', 'string', new PasswordPolicy],
             'company_id' => 'nullable|exists:companies,id',
             'branch_id' => 'nullable|exists:branches,id',
-            'department' => 'nullable|string|max:255',
-            'position_id' => 'nullable|exists:positions,id',
-            'position' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
+            'position_id' => 'required|exists:positions,id',
             'phone' => 'nullable|string|max:255',
             'roles' => 'array',
         ]);
 
-        $pos = ['id' => null, 'name' => null];
-        if ($request->filled('position_id')) {
-            $pos = Position::labelsForUser($request->input('position_id'));
-        } elseif ($request->filled('position')) {
-            $pos = ['id' => null, 'name' => $request->position];
-        }
+        LdapUserCreateValidation::assertEmailAllowedForLocalUserCreate($request->email);
 
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
-            'password' => bcrypt($request->password),
+            'password' => $request->password,
+            'password_changed_at' => now(),
+            'password_must_change' => Setting::getBool('password_force_change_first_login'),
             'company_id' => $request->company_id,
             'branch_id' => $request->branch_id,
-            'department' => $request->department,
-            'position_id' => $pos['id'],
-            'position' => $pos['name'],
+            'department_id' => $request->department_id,
+            'position_id' => $request->position_id,
             'phone' => $request->phone,
         ]);
 
@@ -100,7 +100,7 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'User created.',
+            'message' => __('users.user_created'),
             'data' => $user->load(['roles', 'company', 'branch']),
         ], 201);
     }
@@ -109,42 +109,34 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $request->validate([
+        $rules = [
             'first_name' => 'sometimes|string|max:255',
             'last_name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,'.$id,
             'company_id' => 'sometimes|nullable|exists:companies,id',
             'branch_id' => 'sometimes|nullable|exists:branches,id',
-            'department' => 'sometimes|nullable|string|max:255',
+            'department_id' => 'sometimes|nullable|exists:departments,id',
             'position_id' => 'sometimes|nullable|exists:positions,id',
-            'position' => 'sometimes|nullable|string|max:255',
             'phone' => 'sometimes|nullable|string|max:255',
             'is_active' => 'sometimes|boolean',
             'roles' => 'array',
-        ]);
+        ];
+        if ($request->filled('password')) {
+            $rules['password'] = ['string', new PasswordPolicy, new PasswordNotReused($user)];
+        }
+        $request->validate($rules);
 
         $data = $request->only([
             'first_name', 'last_name', 'email',
             'company_id', 'branch_id',
-            'department', 'phone',
+            'department_id', 'position_id', 'phone',
             'is_active',
         ]);
 
-        if ($request->has('position_id')) {
-            $p = Position::labelsForUser($request->input('position_id'));
-            $data['position_id'] = $p['id'];
-            $data['position'] = $p['name'];
-        } elseif ($request->has('position')) {
-            $data['position'] = $request->position;
-            if ($request->input('position') === null || $request->input('position') === '') {
-                $data['position_id'] = null;
-            }
-        }
-
         $user->update($data);
 
-        if ($request->has('password') && $request->password) {
-            $user->update(['password' => bcrypt($request->password)]);
+        if ($request->filled('password')) {
+            PasswordLifecycleService::applyAdminPasswordAssignment($user, $request->password);
         }
 
         if ($request->has('roles')) {
@@ -153,7 +145,7 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'User updated.',
+            'message' => __('users.user_updated'),
             'data' => $user->load(['roles', 'company', 'branch']),
         ]);
     }
@@ -165,7 +157,7 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'User deleted.',
+            'message' => __('users.user_deleted'),
         ]);
     }
 }

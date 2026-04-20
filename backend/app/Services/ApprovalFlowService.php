@@ -216,7 +216,7 @@ class ApprovalFlowService
         }
 
         return DB::transaction(function () use ($instanceId, $actorUserId, $action, $comment) {
-            $instance = ApprovalInstance::query()->with('steps')->lockForUpdate()->findOrFail($instanceId);
+            $instance = ApprovalInstance::query()->with(['steps', 'workflow'])->lockForUpdate()->findOrFail($instanceId);
 
             if ($instance->status !== 'pending') {
                 throw new RuntimeException('Approval instance is already closed');
@@ -228,7 +228,7 @@ class ApprovalFlowService
                 throw new RuntimeException('Approval step not found');
             }
 
-            if (! $this->canAct($step, $actorUserId)) {
+            if (! $this->canUserActOnStep($instance, $step, $actorUserId)) {
                 throw new RuntimeException('You are not allowed to approve this step');
             }
 
@@ -289,8 +289,22 @@ class ApprovalFlowService
         });
     }
 
-    private function canAct(ApprovalInstanceStep $step, int $actorUserId): bool
+    /**
+     * Whether the user may approve/reject the current pending step (UI + act()).
+     */
+    public function canUserActOnStep(ApprovalInstance $instance, ApprovalInstanceStep $step, int $actorUserId): bool
     {
+        if ($step->action !== 'pending') {
+            return false;
+        }
+
+        $instance->loadMissing('workflow');
+        $workflow = $instance->workflow;
+        if ($workflow && ! $workflow->allow_requester_as_approver
+            && (int) $instance->requester_user_id === $actorUserId) {
+            return false;
+        }
+
         // Already approved by this user
         $approvedBy = $step->approved_by ?? [];
         if (collect($approvedBy)->contains('user_id', $actorUserId)) {

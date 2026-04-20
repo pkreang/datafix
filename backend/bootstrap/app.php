@@ -14,8 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(prepend: [\App\Http\Middleware\ForceRequestUrl::class]);
         $middleware->web(append: [\App\Http\Middleware\SetLocale::class]);
+        $middleware->api(prepend: [\App\Http\Middleware\SetApiLocale::class]);
         $middleware->alias([
             'auth.web' => \App\Http\Middleware\AuthenticateWeb::class,
+            'password.enforced' => \App\Http\Middleware\EnforcePasswordChange::class,
+            'sanctum.password' => \App\Http\Middleware\EnforcePasswordChangeForSanctum::class,
             'super-admin' => \App\Http\Middleware\SuperAdminOnly::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\PasswordNotReused;
+use App\Rules\PasswordPolicy;
 use App\Services\Auth\AuthModeService;
+use App\Services\Auth\PasswordLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -59,7 +62,7 @@ class AuthController extends Controller
         if (! $user->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'Account is deactivated.',
+                'message' => __('auth.account_deactivated'),
             ], 403);
         }
 
@@ -74,7 +77,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Login successful',
+            'message' => __('auth.login_successful'),
             'data' => [
                 'token' => $token,
                 'token_type' => 'Bearer',
@@ -90,7 +93,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Logged out successfully.',
+            'message' => __('auth.logout_successful'),
         ]);
     }
 
@@ -99,6 +102,31 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->formatUser($request->user()),
+        ]);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => ['required', 'string', 'confirmed', new PasswordPolicy, new PasswordNotReused($user)],
+        ]);
+
+        if (! Hash::check($request->current_password, $user->getRawOriginal('password'))) {
+            return response()->json([
+                'success' => false,
+                'message' => __('auth.password'),
+            ], 422);
+        }
+
+        PasswordLifecycleService::applySelfServicePasswordChange($user, $request->password);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('common.password_changed'),
+            'data' => $this->formatUser($user->fresh()),
         ]);
     }
 
@@ -111,13 +139,17 @@ class AuthController extends Controller
             'full_name' => $user->full_name,
             'email' => $user->email,
             'avatar' => $user->avatar,
-            'department' => $user->department,
-            'position' => $user->position,
+            'department' => $user->department?->name,
+            'department_id' => $user->department_id,
+            'position' => $user->position?->name,
+            'position_id' => $user->position_id,
             'is_active' => $user->is_active,
             'last_active_at' => $user->last_active_at?->toIso8601String(),
             'roles' => $user->getRoleNames()->toArray(),
             'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
             'auth_provider' => $user->auth_provider,
+            'is_super_admin' => (bool) $user->is_super_admin,
+            'must_change_password' => PasswordLifecycleService::requiresPasswordChange($user),
         ];
     }
 }

@@ -47,4 +47,12 @@ class ApprovalInstance extends Model
     {
         return $this->belongsTo(Department::class);
     }
+
+    /**
+     * When this instance was started from /forms (generic eForm submission).
+     */
+    public function formSubmission()
+    {
+        return $this->hasOne(DocumentFormSubmission::class, 'approval_instance_id');
+    }
 }

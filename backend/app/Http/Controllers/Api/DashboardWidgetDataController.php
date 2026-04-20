@@ -9,88 +9,299 @@ use App\Support\DataSourceRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 class DashboardWidgetDataController extends Controller
 {
     public function show(Request $request, ReportDashboard $dashboard, ReportDashboardWidget $widget): JsonResponse
     {
-        // 1. Verify widget belongs to dashboard
-        if ($widget->dashboard_id !== $dashboard->id) {
-            abort(404);
+        $ctx = $this->prepareContext($request, $dashboard, $widget);
+        if ($ctx instanceof JsonResponse) {
+            return $ctx;
+        }
+        [$query, $config, $source] = $ctx;
+
+        return match ($widget->widget_type) {
+            'metric' => $this->metricData($query, $config, $source),
+            'chart' => $this->chartData($query, $config, $source),
+            'table' => $this->tableData($query, $config, $source, $request),
+            default => response()->json(['error' => __('api.unknown_widget_type')], 422),
+        };
+    }
+
+    public function exportWidget(Request $request, ReportDashboard $dashboard, ReportDashboardWidget $widget): StreamedResponse|JsonResponse
+    {
+        $ctx = $this->prepareContext($request, $dashboard, $widget);
+        if ($ctx instanceof JsonResponse) {
+            return $ctx;
+        }
+        [$query, $config, $source] = $ctx;
+
+        if (! in_array($widget->widget_type, ['table', 'chart'], true)) {
+            return response()->json(['error' => __('api.widget_type_not_exportable')], 422);
         }
 
-        // 2. Permission check
+        $csv = $this->buildWidgetCsv($query, $config, $source, $widget);
+        $filename = $this->csvFilename($dashboard, $widget);
+
+        return response()->streamDownload(function () use ($csv) {
+            echo "\xEF\xBB\xBF"; // UTF-8 BOM so Excel opens Thai correctly
+            echo $csv;
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportDashboard(Request $request, ReportDashboard $dashboard): StreamedResponse|JsonResponse
+    {
+        // Permission check once (widget-level check is redundant inside the same dashboard)
         if ($dashboard->visibility === 'permission' && $dashboard->required_permission) {
             $user = $request->user();
-            if (!$user) abort(401);
-            // Super admin check: look at users.is_super_admin column OR hasRole('super-admin')
+            if (! $user) {
+                abort(401);
+            }
             $isSuperAdmin = $user->is_super_admin ?? false;
-            if (!$isSuperAdmin && !$user->hasPermissionTo($dashboard->required_permission)) {
+            if (! $isSuperAdmin && ! $user->hasPermissionTo($dashboard->required_permission)) {
                 abort(403);
             }
         }
 
-        // 3. Validate and get global filters from request
+        $exportable = $dashboard->widgets()
+            ->whereIn('widget_type', ['table', 'chart'])
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($exportable->isEmpty()) {
+            return response()->json(['error' => __('api.no_exportable_widgets')], 422);
+        }
+
+        $tmpZip = tempnam(sys_get_temp_dir(), 'dash-export-');
+        $zip = new ZipArchive();
+        if ($zip->open($tmpZip, ZipArchive::OVERWRITE) !== true) {
+            return response()->json(['error' => 'zip-create-failed'], 500);
+        }
+
+        foreach ($exportable as $w) {
+            $ctx = $this->prepareContext($request, $dashboard, $w);
+            if ($ctx instanceof JsonResponse) {
+                continue; // skip invalid data sources silently inside zip
+            }
+            [$query, $config, $source] = $ctx;
+            $csv = "\xEF\xBB\xBF".$this->buildWidgetCsv($query, $config, $source, $w);
+            $zip->addFromString($this->csvFilename($dashboard, $w), $csv);
+        }
+        $zip->close();
+
+        $zipName = Str::slug($dashboard->name ?: 'dashboard').'-'.now()->format('Ymd-His').'.zip';
+
+        return response()->streamDownload(function () use ($tmpZip) {
+            readfile($tmpZip);
+            @unlink($tmpZip);
+        }, $zipName, ['Content-Type' => 'application/zip']);
+    }
+
+    /**
+     * Shared setup for both data and export: verify ownership, permission, build query.
+     *
+     * @return array{0: \Illuminate\Database\Eloquent\Builder, 1: array, 2: array}|JsonResponse
+     */
+    private function prepareContext(Request $request, ReportDashboard $dashboard, ReportDashboardWidget $widget)
+    {
+        if ($widget->dashboard_id !== $dashboard->id) {
+            abort(404);
+        }
+
+        if ($dashboard->visibility === 'permission' && $dashboard->required_permission) {
+            $user = $request->user();
+            if (! $user) {
+                abort(401);
+            }
+            $isSuperAdmin = $user->is_super_admin ?? false;
+            if (! $isSuperAdmin && ! $user->hasPermissionTo($dashboard->required_permission)) {
+                abort(403);
+            }
+        }
+
         $request->validate([
-            'date_from'     => 'nullable|date',
-            'date_to'       => 'nullable|date',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
             'department_id' => 'nullable|integer',
         ]);
 
-        $dateFrom     = $request->query('date_from');     // Y-m-d string or null
-        $dateTo       = $request->query('date_to');       // Y-m-d string or null
-        $departmentId = $request->query('department_id'); // int or null
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+        $departmentId = $request->query('department_id');
 
-        // 4. Build query
         $config = $widget->config ?? [];
         $source = DataSourceRegistry::get($widget->data_source);
-        if (!$source) {
-            return response()->json(['error' => 'Unknown data source'], 422);
+        if (! $source) {
+            return response()->json(['error' => __('api.unknown_data_source')], 422);
         }
 
         try {
             $query = DataSourceRegistry::query($widget->data_source);
         } catch (\InvalidArgumentException $e) {
-            return response()->json(['error' => 'Unknown data source'], 422);
+            return response()->json(['error' => __('api.unknown_data_source')], 422);
         }
 
-        // Apply global date filter (if source has date_fields and date_from/to set)
         $dateField = $config['date_field'] ?? null;
         if ($dateField && isset($source['date_fields'][$dateField])) {
-            if ($dateFrom) $query->whereDate($dateField, '>=', $dateFrom);
-            if ($dateTo)   $query->whereDate($dateField, '<=', $dateTo);
+            if ($dateFrom) {
+                $query->whereDate($dateField, '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate($dateField, '<=', $dateTo);
+            }
         }
 
-        // Apply global department filter (only for sources that have department_id)
         if ($departmentId && isset($source['filter_fields']['department_id'])) {
             $query->where('department_id', $departmentId);
         }
 
-        // 5. Build response based on widget_type
-        return match ($widget->widget_type) {
-            'metric' => $this->metricData($query, $config, $source),
-            'chart'  => $this->chartData($query, $config, $source),
-            'table'  => $this->tableData($query, $config, $source, $request),
-            default  => response()->json(['error' => 'Unknown widget type'], 422),
+        return [$query, $config, $source];
+    }
+
+    private function buildWidgetCsv($query, array $config, array $source, ReportDashboardWidget $widget): string
+    {
+        return $widget->widget_type === 'table'
+            ? $this->buildTableCsv($query, $config, $source)
+            : $this->buildChartCsv($query, $config, $source);
+    }
+
+    private function buildTableCsv($query, array $config, array $source): string
+    {
+        $columns = $config['columns'] ?? array_keys($source['display_columns'] ?? []);
+        $allowedColumns = array_keys($source['display_columns'] ?? []);
+        $selectColumns = count($columns) ? array_values(array_intersect($columns, $allowedColumns)) : $allowedColumns;
+        if (empty($selectColumns)) {
+            $selectColumns = ['id'];
+        }
+        if (! in_array('id', $selectColumns, true)) {
+            array_unshift($selectColumns, 'id');
+        }
+
+        // Export all rows (no pagination). Cap defensively to avoid runaway exports.
+        $rows = (clone $query)
+            ->select($selectColumns)
+            ->orderByDesc('id')
+            ->limit(10000)
+            ->get();
+
+        $labels = array_map(
+            fn ($col) => (string) ($source['display_columns'][$col] ?? $col),
+            $selectColumns
+        );
+
+        $fh = fopen('php://temp', 'r+');
+        fputcsv($fh, $labels);
+        foreach ($rows as $row) {
+            fputcsv($fh, array_map(
+                fn ($col) => $this->csvCell($row->{$col} ?? null),
+                $selectColumns
+            ));
+        }
+        rewind($fh);
+        $out = stream_get_contents($fh);
+        fclose($fh);
+
+        return $out;
+    }
+
+    private function buildChartCsv($query, array $config, array $source): string
+    {
+        $groupBy = $config['group_by'] ?? null;
+        $aggregation = $config['aggregation'] ?? 'count';
+        $field = $config['field'] ?? 'id';
+
+        $allowedFields = array_keys($source['aggregate_fields'] ?? []);
+        if (! in_array($field, $allowedFields, true)) {
+            $field = 'id';
+        }
+        $allowedGroupBy = array_keys($source['group_by_fields'] ?? []);
+        if (! $groupBy || ! in_array($groupBy, $allowedGroupBy, true)) {
+            // No valid group_by → export headers only
+            $fh = fopen('php://temp', 'r+');
+            fputcsv($fh, ['Label', 'Value']);
+            rewind($fh);
+            $out = stream_get_contents($fh);
+            fclose($fh);
+
+            return $out;
+        }
+
+        $results = $query
+            ->select($groupBy, DB::raw(match ($aggregation) {
+                'sum' => "SUM({$field}) as agg_value",
+                'avg' => "AVG({$field}) as agg_value",
+                default => 'COUNT(*) as agg_value',
+            }))
+            ->groupBy($groupBy)
+            ->orderByDesc('agg_value')
+            ->limit(1000)
+            ->get();
+
+        $labelHeader = (string) ($source['group_by_fields'][$groupBy] ?? $groupBy);
+        $valueHeader = match ($aggregation) {
+            'sum' => 'Sum',
+            'avg' => 'Avg',
+            default => 'Count',
         };
+
+        $fh = fopen('php://temp', 'r+');
+        fputcsv($fh, [$labelHeader, $valueHeader]);
+        foreach ($results as $row) {
+            fputcsv($fh, [
+                $this->csvCell($row->{$groupBy} ?? 'N/A'),
+                (float) $row->agg_value,
+            ]);
+        }
+        rewind($fh);
+        $out = stream_get_contents($fh);
+        fclose($fh);
+
+        return $out;
+    }
+
+    private function csvCell($value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return '';
+    }
+
+    private function csvFilename(ReportDashboard $dashboard, ReportDashboardWidget $widget): string
+    {
+        $dashSlug = Str::slug($dashboard->name ?: 'dashboard');
+        $widgetSlug = Str::slug($widget->title ?: ('widget-'.$widget->id));
+        $date = now()->format('Ymd-His');
+
+        return "{$dashSlug}-{$widgetSlug}-{$date}.csv";
     }
 
     private function metricData($query, array $config, array $source): JsonResponse
     {
         $aggregation = $config['aggregation'] ?? 'count';
-        $field       = $config['field'] ?? 'id';
+        $field = $config['field'] ?? 'id';
 
         // Whitelist field against source's aggregate_fields
         $allowedFields = array_keys($source['aggregate_fields'] ?? []);
-        if (!in_array($field, $allowedFields, true)) {
-            $field       = 'id';
+        if (! in_array($field, $allowedFields, true)) {
+            $field = 'id';
             $aggregation = 'count';
         }
 
         $value = match ($aggregation) {
             'count' => $query->count(),
-            'sum'   => $query->sum($field),
-            'avg'   => round((float) $query->avg($field), 2),
+            'sum' => $query->sum($field),
+            'avg' => round((float) $query->avg($field), 2),
             default => $query->count(),
         };
 
@@ -99,29 +310,29 @@ class DashboardWidgetDataController extends Controller
 
     private function chartData($query, array $config, array $source): JsonResponse
     {
-        $groupBy     = $config['group_by'] ?? null;
+        $groupBy = $config['group_by'] ?? null;
         $aggregation = $config['aggregation'] ?? 'count';
-        $field       = $config['field'] ?? 'id';
+        $field = $config['field'] ?? 'id';
 
         // Whitelist field and groupBy against source definition
         $allowedFields = array_keys($source['aggregate_fields'] ?? []);
-        if (!in_array($field, $allowedFields, true)) {
+        if (! in_array($field, $allowedFields, true)) {
             $field = 'id';
         }
 
         $allowedGroupBy = array_keys($source['group_by_fields'] ?? []);
-        if ($groupBy && !in_array($groupBy, $allowedGroupBy, true)) {
+        if ($groupBy && ! in_array($groupBy, $allowedGroupBy, true)) {
             return response()->json(['labels' => [], 'datasets' => [['data' => []]]]);
         }
 
-        if (!$groupBy) {
+        if (! $groupBy) {
             return response()->json(['labels' => [], 'datasets' => [['data' => []]]]);
         }
 
         $results = $query
             ->select($groupBy, DB::raw(match ($aggregation) {
-                'sum'   => "SUM({$field}) as agg_value",
-                'avg'   => "AVG({$field}) as agg_value",
+                'sum' => "SUM({$field}) as agg_value",
+                'avg' => "AVG({$field}) as agg_value",
                 default => 'COUNT(*) as agg_value',
             }))
             ->groupBy($groupBy)
@@ -130,10 +341,10 @@ class DashboardWidgetDataController extends Controller
             ->get();
 
         $labels = $results->pluck($groupBy)->map(fn ($v) => (string) ($v ?? 'N/A'))->toArray();
-        $data   = $results->pluck('agg_value')->map(fn ($v) => (float) $v)->toArray();
+        $data = $results->pluck('agg_value')->map(fn ($v) => (float) $v)->toArray();
 
         return response()->json([
-            'labels'   => $labels,
+            'labels' => $labels,
             'datasets' => [['data' => $data]],
         ]);
     }
@@ -142,11 +353,11 @@ class DashboardWidgetDataController extends Controller
     {
         $columns = $config['columns'] ?? array_keys($source['display_columns'] ?? []);
         $perPage = min(max(1, (int) ($config['per_page'] ?? 10)), 100);
-        $page    = max(1, (int) ($request->query('page', 1)));
+        $page = max(1, (int) ($request->query('page', 1)));
 
         // Select only configured columns (whitelist via source display_columns)
         $allowedColumns = array_keys($source['display_columns'] ?? []);
-        $selectColumns  = count($columns)
+        $selectColumns = count($columns)
             ? array_intersect($columns, $allowedColumns)
             : $allowedColumns;
 
@@ -155,12 +366,12 @@ class DashboardWidgetDataController extends Controller
         }
 
         // Add primary key if not present (needed for pagination)
-        if (!in_array('id', $selectColumns)) {
+        if (! in_array('id', $selectColumns)) {
             array_unshift($selectColumns, 'id');
         }
 
         $total = $query->count();
-        $rows  = (clone $query)
+        $rows = (clone $query)
             ->select($selectColumns)
             ->orderByDesc('id')
             ->offset(($page - 1) * $perPage)
@@ -170,17 +381,17 @@ class DashboardWidgetDataController extends Controller
             ->toArray();
 
         return response()->json([
-            'columns'       => $selectColumns,
+            'columns' => $selectColumns,
             'column_labels' => array_map(
                 fn ($col) => $source['display_columns'][$col] ?? $col,
                 $selectColumns
             ),
-            'rows'          => $rows,
-            'pagination'    => [
-                'total'        => $total,
-                'per_page'     => $perPage,
+            'rows' => $rows,
+            'pagination' => [
+                'total' => $total,
+                'per_page' => $perPage,
                 'current_page' => $page,
-                'last_page'    => (int) ceil($total / max($perPage, 1)),
+                'last_page' => (int) ceil($total / max($perPage, 1)),
             ],
         ]);
     }

@@ -3,6 +3,10 @@
 .env
 .env.backup
 .env.production
+/database/*.sqlite
+/database/*.sqlite-journal
+/database.sqlite
+/database.sqlite-journal
 .phpactor.json
 .phpunit.result.cache
 /.fleet

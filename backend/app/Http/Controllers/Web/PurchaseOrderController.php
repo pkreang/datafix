@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalInstance;
-use App\Models\ApprovalInstanceStep;
 use App\Models\DocumentForm;
 use App\Models\PurchaseOrderItem;
 use App\Models\PurchaseRequestItem;
@@ -17,6 +17,12 @@ use RuntimeException;
 
 class PurchaseOrderController extends Controller
 {
+    use HasPerPage;
+
+    public function __construct(
+        protected ApprovalFlowService $approvalFlow,
+    ) {}
+
     public function index(Request $request): View
     {
         $userId = (int) (session('user.id') ?? 0);
@@ -25,20 +31,21 @@ class PurchaseOrderController extends Controller
             $status = null;
         }
 
+        $perPage = $this->resolvePerPage($request, 'purchase_orders_per_page');
         $myInstances = ApprovalInstance::query()
             ->where('document_type', 'purchase_order')
             ->where('requester_user_id', $userId)
             ->when($status, fn ($q) => $q->where('status', $status))
             ->latest()
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('purchase-orders.index', compact('myInstances', 'status'));
+        return view('purchase-orders.index', compact('myInstances', 'status', 'perPage'));
     }
 
     public function create(Request $request): View
     {
-        $prInstance  = null;
+        $prInstance = null;
         $prLineItems = collect();
 
         if ($fromPrId = $request->query('from_pr')) {
@@ -67,10 +74,10 @@ class PurchaseOrderController extends Controller
             ->orderBy('id')
             ->first();
 
-        $userId    = (int) (session('user.id') ?? 0);
+        $userId = (int) (session('user.id') ?? 0);
         $userModel = $userId > 0 ? User::with(['company', 'branch'])->find($userId) : null;
-        $company   = $userModel?->company;
-        $branch    = null;
+        $company = $userModel?->company;
+        $branch = null;
         if ($userModel && $userModel->branch && $userModel->branch->is_active
             && (int) $userModel->branch->company_id === (int) $userModel->company_id) {
             $branch = $userModel->branch;
@@ -82,16 +89,16 @@ class PurchaseOrderController extends Controller
     public function store(Request $request, ApprovalFlowService $approvalFlowService): RedirectResponse
     {
         $validated = $request->validate([
-            'form_key'              => 'nullable|string|max:100',
-            'form_payload'          => 'nullable|array',
-            'purchase_request_id'   => 'nullable|integer|exists:approval_instances,id',
-            'items'                 => 'required|array|min:1',
-            'items.*.item_name'     => 'required|string|max:255',
-            'items.*.qty'           => 'required|numeric|min:0.01',
-            'items.*.unit'          => 'required|string|max:50',
-            'items.*.unit_price'    => 'required|numeric|min:0',
-            'items.*.total_price'   => 'required|numeric|min:0',
-            'items.*.notes'         => 'nullable|string|max:500',
+            'form_key' => 'nullable|string|max:100',
+            'form_payload' => 'nullable|array',
+            'purchase_request_id' => 'nullable|integer|exists:approval_instances,id',
+            'items' => 'required|array|min:1',
+            'items.*.item_name' => 'required|string|max:255',
+            'items.*.qty' => 'required|numeric|min:0.01',
+            'items.*.unit' => 'required|string|max:50',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+            'items.*.notes' => 'nullable|string|max:500',
         ]);
 
         // Guard: check PR is approved and no duplicate PO
@@ -108,12 +115,12 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        $payload     = $validated['form_payload'] ?? [];
+        $payload = $validated['form_payload'] ?? [];
         $totalAmount = array_sum(array_column($validated['items'], 'total_price'));
 
         if ($prId && isset($pr)) {
             $payload['purchase_request_id'] = $pr->id;
-            $payload['parent_reference']    = $pr->reference_no ?? 'PR#'.$pr->id;
+            $payload['parent_reference'] = $pr->reference_no ?? 'PR#'.$pr->id;
         }
 
         try {
@@ -133,12 +140,12 @@ class PurchaseOrderController extends Controller
         foreach ($validated['items'] as $item) {
             PurchaseOrderItem::create([
                 'approval_instance_id' => $instance->id,
-                'item_name'   => $item['item_name'],
-                'qty'         => $item['qty'],
-                'unit'        => $item['unit'],
-                'unit_price'  => $item['unit_price'],
+                'item_name' => $item['item_name'],
+                'qty' => $item['qty'],
+                'unit' => $item['unit'],
+                'unit_price' => $item['unit_price'],
                 'total_price' => $item['total_price'],
-                'notes'       => $item['notes'] ?? null,
+                'notes' => $item['notes'] ?? null,
             ]);
         }
 
@@ -165,7 +172,7 @@ class PurchaseOrderController extends Controller
         if ($instance->status === 'pending' && in_array('approval.approve', session('user_permissions', []), true)) {
             $currentStep = $instance->steps->firstWhere('step_no', $instance->current_step_no);
             if ($currentStep && $currentStep->action === 'pending') {
-                $canAct = $this->userCanActStep($currentStep, $userId);
+                $canAct = $this->approvalFlow->canUserActOnStep($instance, $currentStep, $userId);
             }
         }
 
@@ -176,8 +183,8 @@ class PurchaseOrderController extends Controller
         }
 
         $requester = $instance->requester;
-        $company   = $requester?->company;
-        $branch    = null;
+        $company = $requester?->company;
+        $branch = null;
         if ($requester && $requester->branch && $requester->branch->is_active
             && (int) $requester->branch->company_id === (int) $requester->company_id) {
             $branch = $requester->branch;
@@ -195,7 +202,7 @@ class PurchaseOrderController extends Controller
             return 'view_only';
         }
         $currentStep = $instance->steps->firstWhere('step_no', $instance->current_step_no);
-        if ($currentStep && $currentStep->action === 'pending' && $this->userCanActStep($currentStep, $userId)) {
+        if ($currentStep && $currentStep->action === 'pending' && $this->approvalFlow->canUserActOnStep($instance, $currentStep, $userId)) {
             return 'step_'.$instance->current_step_no;
         }
 
@@ -217,34 +224,17 @@ class PurchaseOrderController extends Controller
         abort(403);
     }
 
-    private function userCanActStep(ApprovalInstanceStep $step, int $userId): bool
-    {
-        $user = User::find($userId);
-        if (! $user) {
-            return false;
-        }
-        if ($step->approver_type === 'user') {
-            return (string) $step->approver_ref === (string) $userId;
-        }
-        if ($step->approver_type === 'position') {
-            return $user->position_id
-                && (string) $step->approver_ref === (string) $user->position_id;
-        }
-
-        return $user->hasRole($step->approver_ref);
-    }
-
     private function workflowErrorMessage(RuntimeException $e): string
     {
         $msg = $e->getMessage();
 
         return match (true) {
-            str_contains($msg, 'Amount is required for amount-based')    => __('common.workflow_error_amount_required'),
-            str_contains($msg, 'No matching amount range')               => __('common.workflow_error_no_amount_range'),
-            str_contains($msg, 'Department is required')                 => __('common.workflow_error_department_required'),
-            str_contains($msg, 'No workflow binding found')              => __('common.workflow_error_no_binding'),
-            str_contains($msg, 'Workflow is not configured')             => __('common.workflow_error_not_configured'),
-            default                                                      => __('common.workflow_error_generic'),
+            str_contains($msg, 'Amount is required for amount-based') => __('common.workflow_error_amount_required'),
+            str_contains($msg, 'No matching amount range') => __('common.workflow_error_no_amount_range'),
+            str_contains($msg, 'Department is required') => __('common.workflow_error_department_required'),
+            str_contains($msg, 'No workflow binding found') => __('common.workflow_error_no_binding'),
+            str_contains($msg, 'Workflow is not configured') => __('common.workflow_error_not_configured'),
+            default => __('common.workflow_error_generic'),
         };
     }
 }

@@ -14,12 +14,14 @@ class ApprovalWorkflow extends Model
         'document_type',
         'description',
         'is_active',
+        'allow_requester_as_approver',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'allow_requester_as_approver' => 'boolean',
         ];
     }
 

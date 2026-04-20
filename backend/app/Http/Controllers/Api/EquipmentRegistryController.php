@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Equipment;
+use App\Services\BranchScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -38,24 +39,28 @@ class EquipmentRegistryController extends Controller
             $query->where('company_id', $companyId);
         }
 
+        BranchScopeService::constrainEquipmentQuery($query, $request->user());
+
         $perPage = $request->input('per_page', 15);
         $equipment = $query->orderBy('name')->paginate($perPage);
 
         return response()->json([
             'success' => true,
             'data' => $equipment,
-            'message' => 'Equipment list retrieved successfully.',
+            'message' => __('api.equipment_list_retrieved'),
         ]);
     }
 
-    public function show(Equipment $equipment): JsonResponse
+    public function show(Request $request, Equipment $equipment): JsonResponse
     {
+        abort_unless(BranchScopeService::userCanAccessEquipment($request->user(), $equipment), 403);
+
         $equipment->load(['category', 'location', 'company', 'branch']);
 
         return response()->json([
             'success' => true,
             'data' => $equipment,
-            'message' => 'Equipment retrieved successfully.',
+            'message' => __('api.equipment_retrieved'),
         ]);
     }
 
@@ -83,18 +88,31 @@ class EquipmentRegistryController extends Controller
             $validated['specifications'] = json_decode($validated['specifications'], true);
         }
 
+        $user = $request->user();
+        if (! BranchScopeService::submittedBranchIdValid($user, BranchScopeService::MODULE_EQUIPMENT, $validated['branch_id'] ?? null)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('api.equipment_invalid_branch'),
+            ], 422);
+        }
+        if (($validated['branch_id'] ?? null) === null) {
+            $validated['branch_id'] = BranchScopeService::defaultBranchIdForUser($user, BranchScopeService::MODULE_EQUIPMENT);
+        }
+
         $equipment = Equipment::create($validated);
         $equipment->load(['category', 'location', 'company', 'branch']);
 
         return response()->json([
             'success' => true,
             'data' => $equipment,
-            'message' => 'Equipment created successfully.',
+            'message' => __('api.equipment_created'),
         ], 201);
     }
 
     public function update(Request $request, Equipment $equipment): JsonResponse
     {
+        abort_unless(BranchScopeService::userCanAccessEquipment($request->user(), $equipment), 403);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => [
@@ -122,24 +140,37 @@ class EquipmentRegistryController extends Controller
             $validated['specifications'] = json_decode($validated['specifications'], true);
         }
 
+        $user = $request->user();
+        if (! BranchScopeService::submittedBranchIdValid($user, BranchScopeService::MODULE_EQUIPMENT, $validated['branch_id'] ?? null)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('api.equipment_invalid_branch'),
+            ], 422);
+        }
+        if (($validated['branch_id'] ?? null) === null) {
+            $validated['branch_id'] = BranchScopeService::defaultBranchIdForUser($user, BranchScopeService::MODULE_EQUIPMENT);
+        }
+
         $equipment->update($validated);
         $equipment->load(['category', 'location', 'company', 'branch']);
 
         return response()->json([
             'success' => true,
             'data' => $equipment,
-            'message' => 'Equipment updated successfully.',
+            'message' => __('api.equipment_updated'),
         ]);
     }
 
-    public function destroy(Equipment $equipment): JsonResponse
+    public function destroy(Request $request, Equipment $equipment): JsonResponse
     {
+        abort_unless(BranchScopeService::userCanAccessEquipment($request->user(), $equipment), 403);
+
         $equipment->delete();
 
         return response()->json([
             'success' => true,
             'data' => null,
-            'message' => 'Equipment deleted successfully.',
+            'message' => __('api.equipment_deleted'),
         ]);
     }
 }

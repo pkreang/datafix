@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentType;
 use App\Models\Setting;
-use App\Services\ApprovalFlowService;
 use App\Services\Auth\AuthModeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +27,7 @@ class SettingController extends Controller
         $loginBackground = Setting::get('login_background');
         $loginBackgroundColor = Setting::get('login_background_color', '#2563eb');
         $loginIllustration = Setting::get('login_illustration');
+
         return view('settings.branding', compact('systemLogo', 'loginBackground', 'loginBackgroundColor', 'loginIllustration'));
     }
 
@@ -158,7 +158,7 @@ class SettingController extends Controller
         }
 
         return redirect()->route('settings.password-policy')
-            ->with('success', 'Password policy updated successfully');
+            ->with('success', __('password_policy.saved'));
     }
 
     /**
@@ -203,6 +203,7 @@ class SettingController extends Controller
         'ldap_bind_dn',
         'ldap_user_filter',
         'ldap_use_tls',
+        'ldap_user_create_validation',
         'auth_password_help_url',
         'auth_directory_group_role_map',
     ];
@@ -244,6 +245,7 @@ class SettingController extends Controller
             ],
             'ldap_port' => 'required|integer|min:1|max:65535',
             'ldap_user_filter' => 'nullable|string|max:512',
+            'ldap_user_create_validation' => 'required|in:disabled,required',
             'entra_tenant_id' => 'nullable|string|max:128',
             'entra_client_id' => 'nullable|string|max:128',
             'ldap_host' => 'nullable|string|max:255',
@@ -310,6 +312,25 @@ class SettingController extends Controller
             ],
         ]);
 
+        if ($request->input('ldap_user_create_validation', 'disabled') === 'required') {
+            if (! $request->boolean('auth_ldap_enabled') || ! extension_loaded('ldap')) {
+                return redirect()
+                    ->route('settings.auth')
+                    ->withErrors(['auth' => __('auth.settings_ldap_validation_requires_ldap')])
+                    ->withInput();
+            }
+            $ldapHost = trim((string) $request->input('ldap_host', ''));
+            $ldapBase = trim((string) $request->input('ldap_base_dn', ''));
+            $ldapBind = trim((string) $request->input('ldap_bind_dn', ''));
+            $ldapSecret = (string) config('services.ldap.bind_password', '');
+            if ($ldapHost === '' || $ldapBase === '' || $ldapBind === '' || $ldapSecret === '') {
+                return redirect()
+                    ->route('settings.auth')
+                    ->withErrors(['auth' => __('auth.settings_ldap_validation_requires_ldap')])
+                    ->withInput();
+            }
+        }
+
         $boolKeys = [
             'auth_local_enabled',
             'auth_entra_enabled',
@@ -331,6 +352,8 @@ class SettingController extends Controller
         Setting::set('ldap_bind_dn', trim((string) $request->input('ldap_bind_dn', '')));
         $filter = trim((string) $request->input('ldap_user_filter', '(mail=%s)'));
         Setting::set('ldap_user_filter', $filter !== '' ? $filter : '(mail=%s)');
+
+        Setting::set('ldap_user_create_validation', $request->input('ldap_user_create_validation', 'disabled'));
 
         Setting::set('auth_password_help_url', trim((string) $request->input('auth_password_help_url', '')));
 

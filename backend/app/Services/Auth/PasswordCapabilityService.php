@@ -28,4 +28,13 @@ class PasswordCapabilityService
 
         return self::canChangePasswordFromAuthProvider($user->auth_provider);
     }
+
+    /**
+     * Whether the user may change the email stored in the app (admin user edit / profile).
+     * Same rule as password: directory identities (LDAP / Entra) are managed by the IdP.
+     */
+    public static function canEditEmailInApp(?User $user): bool
+    {
+        return self::canChangePasswordInApp($user);
+    }
 }

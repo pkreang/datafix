@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Equipment;
 use App\Models\EquipmentCategory;
 use App\Models\EquipmentLocation;
+use App\Services\BranchScopeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class EquipmentRegistryController extends Controller
 {
+    use HasPerPage;
+
     public function index(Request $request): View
     {
         $query = Equipment::with(['category', 'location', 'company']);
@@ -37,11 +42,14 @@ class EquipmentRegistryController extends Controller
             $query->where('status', $status);
         }
 
-        $equipment = $query->orderBy('name')->paginate(15)->withQueryString();
+        BranchScopeService::constrainEquipmentQuery($query, Auth::user());
+
+        $perPage = $this->resolvePerPage($request, 'equipment_registry_per_page');
+        $equipment = $query->orderBy('name')->paginate($perPage)->withQueryString();
         $categories = EquipmentCategory::where('is_active', true)->orderBy('name')->get();
         $locations = EquipmentLocation::where('is_active', true)->orderBy('name')->get();
 
-        return view('equipment-registry.index', compact('equipment', 'categories', 'locations'));
+        return view('equipment-registry.index', compact('equipment', 'categories', 'locations', 'perPage'));
     }
 
     public function create(): View
@@ -71,6 +79,15 @@ class EquipmentRegistryController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $user = Auth::user();
+        if (! BranchScopeService::submittedBranchIdValid($user, BranchScopeService::MODULE_EQUIPMENT, $validated['branch_id'] ?? null)) {
+            return back()->withErrors(['branch_id' => __('validation.in', ['attribute' => 'branch'])])->withInput();
+        }
+        $branchId = $validated['branch_id'] ?? null;
+        if ($branchId === null) {
+            $branchId = BranchScopeService::defaultBranchIdForUser($user, BranchScopeService::MODULE_EQUIPMENT);
+        }
+
         Equipment::create([
             'name' => $validated['name'],
             'code' => strtoupper($validated['code']),
@@ -78,7 +95,7 @@ class EquipmentRegistryController extends Controller
             'equipment_category_id' => $validated['equipment_category_id'],
             'equipment_location_id' => $validated['equipment_location_id'],
             'company_id' => $validated['company_id'] ?? null,
-            'branch_id' => $validated['branch_id'] ?? null,
+            'branch_id' => $branchId,
             'status' => $validated['status'],
             'installed_date' => $validated['installed_date'] ?? null,
             'warranty_expiry' => $validated['warranty_expiry'] ?? null,
@@ -92,6 +109,8 @@ class EquipmentRegistryController extends Controller
 
     public function edit(Equipment $equipment): View
     {
+        abort_unless(BranchScopeService::userCanAccessEquipment(Auth::user(), $equipment), 403);
+
         $categories = EquipmentCategory::where('is_active', true)->orderBy('name')->get();
         $locations = EquipmentLocation::where('is_active', true)->orderBy('name')->get();
         $companies = Company::where('is_active', true)->with('branches')->orderBy('name')->get();
@@ -101,6 +120,8 @@ class EquipmentRegistryController extends Controller
 
     public function update(Request $request, Equipment $equipment): RedirectResponse
     {
+        abort_unless(BranchScopeService::userCanAccessEquipment(Auth::user(), $equipment), 403);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => "required|string|max:100|unique:equipment,code,{$equipment->id}",
@@ -117,6 +138,15 @@ class EquipmentRegistryController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $user = Auth::user();
+        if (! BranchScopeService::submittedBranchIdValid($user, BranchScopeService::MODULE_EQUIPMENT, $validated['branch_id'] ?? null)) {
+            return back()->withErrors(['branch_id' => __('validation.in', ['attribute' => 'branch'])])->withInput();
+        }
+        $branchId = $validated['branch_id'] ?? null;
+        if ($branchId === null) {
+            $branchId = BranchScopeService::defaultBranchIdForUser($user, BranchScopeService::MODULE_EQUIPMENT);
+        }
+
         $equipment->update([
             'name' => $validated['name'],
             'code' => strtoupper($validated['code']),
@@ -124,7 +154,7 @@ class EquipmentRegistryController extends Controller
             'equipment_category_id' => $validated['equipment_category_id'],
             'equipment_location_id' => $validated['equipment_location_id'],
             'company_id' => $validated['company_id'] ?? null,
-            'branch_id' => $validated['branch_id'] ?? null,
+            'branch_id' => $branchId,
             'status' => $validated['status'],
             'installed_date' => $validated['installed_date'] ?? null,
             'warranty_expiry' => $validated['warranty_expiry'] ?? null,
@@ -138,6 +168,8 @@ class EquipmentRegistryController extends Controller
 
     public function destroy(Equipment $equipment): RedirectResponse
     {
+        abort_unless(BranchScopeService::userCanAccessEquipment(Auth::user(), $equipment), 403);
+
         $equipment->delete();
 
         return redirect()->route('equipment-registry.index')->with('success', __('common.deleted'));

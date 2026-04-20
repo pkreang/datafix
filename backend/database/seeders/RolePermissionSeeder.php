@@ -57,12 +57,12 @@ class RolePermissionSeeder extends Seeder
                 ->push('manage_own_dashboard')
         );
 
-        // Approver - can approve/reject and audit approval history
+        // Approver — grants approval UI (approval.approve); workflow steps use position/user assignment, not this role name
         $approver = Role::firstOrCreate(
             ['name' => 'approver', 'guard_name' => $guard],
             [
                 'display_name' => 'Approver',
-                'description' => 'Can approve workflow tasks',
+                'description' => 'Permission bundle for approval screens (not who is assigned per workflow step)',
                 'is_system' => false,
             ]
         );
@@ -83,6 +83,8 @@ class RolePermissionSeeder extends Seeder
                 'first_name' => 'Super',
                 'last_name' => 'Admin',
                 'password' => 'password',
+                'password_changed_at' => now(),
+                'password_must_change' => false,
                 'is_active' => true,
                 'is_super_admin' => true,
                 'auth_provider' => null,
@@ -102,10 +104,10 @@ class RolePermissionSeeder extends Seeder
             }
         }
 
-        // Assign manage companies to super-admin
-        $manageCompanies = \Spatie\Permission\Models\Permission::where('name', 'manage companies')->first();
-        if ($manageCompanies && ! $superAdmin->hasPermissionTo('manage companies')) {
-            $superAdmin->givePermissionTo('manage companies');
+        // Assign manage profile (org / companies UI) to super-admin
+        $manageProfile = \Spatie\Permission\Models\Permission::where('name', 'manage profile')->first();
+        if ($manageProfile && ! $superAdmin->hasPermissionTo('manage profile')) {
+            $superAdmin->givePermissionTo('manage profile');
         }
     }
 }

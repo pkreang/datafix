@@ -7,9 +7,11 @@ use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\BranchesSetting;
 use App\Support\StructuredAddressValidation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
@@ -72,7 +74,7 @@ class CompanyController extends Controller
         return response()->json([
             'success' => true,
             'data' => $company,
-            'message' => 'Company created successfully.',
+            'message' => __('company.company_created'),
         ], 201);
     }
 
@@ -94,32 +96,28 @@ class CompanyController extends Controller
         return response()->json([
             'success' => true,
             'data' => $company,
-            'message' => 'Company updated successfully.',
+            'message' => __('company.company_updated'),
         ]);
     }
 
     public function destroy(Company $company): JsonResponse
     {
-        $mode = Setting::get('company_mode', 'single');
-        if ($mode === 'single') {
-            return response()->json([
-                'success' => false,
-                'message' => __('company.single_mode_cannot_delete'),
-            ], 422);
-        }
-
         if ($company->branches()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete company that has branches.',
+                'message' => __('company.cannot_delete_has_branches'),
             ], 422);
+        }
+
+        if ($company->logo) {
+            Storage::disk('public')->delete($company->logo);
         }
 
         $company->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Company deleted successfully.',
+            'message' => __('company.company_deleted'),
         ]);
     }
 
@@ -137,6 +135,13 @@ class CompanyController extends Controller
 
     public function branchStore(Request $request, Company $company): JsonResponse
     {
+        if (! BranchesSetting::managementEnabled()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('company.branches_management_disabled'),
+            ], 403);
+        }
+
         $validated = $request->validate(array_merge([
             'name' => 'required|string|max:255',
             'code' => [
@@ -157,16 +162,23 @@ class CompanyController extends Controller
         return response()->json([
             'success' => true,
             'data' => $branch,
-            'message' => 'Branch created successfully.',
+            'message' => __('company.branch_created'),
         ], 201);
     }
 
     public function branchUpdate(Request $request, Company $company, Branch $branch): JsonResponse
     {
+        if (! BranchesSetting::managementEnabled()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('company.branches_management_disabled'),
+            ], 403);
+        }
+
         if ($branch->company_id !== $company->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Branch does not belong to this company.',
+                'message' => __('company.branch_not_belongs_company'),
             ], 404);
         }
 
@@ -192,23 +204,30 @@ class CompanyController extends Controller
         return response()->json([
             'success' => true,
             'data' => $branch,
-            'message' => 'Branch updated successfully.',
+            'message' => __('company.branch_updated'),
         ]);
     }
 
     public function branchDestroy(Company $company, Branch $branch): JsonResponse
     {
+        if (! BranchesSetting::managementEnabled()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('company.branches_management_disabled'),
+            ], 403);
+        }
+
         if ($branch->company_id !== $company->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Branch does not belong to this company.',
+                'message' => __('company.branch_not_belongs_company'),
             ], 404);
         }
 
         if (User::where('branch_id', $branch->id)->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete branch that has users.',
+                'message' => __('company.cannot_delete_branch_has_users'),
             ], 422);
         }
 
@@ -216,7 +235,7 @@ class CompanyController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Branch deleted successfully.',
+            'message' => __('company.branch_deleted'),
         ]);
     }
 }

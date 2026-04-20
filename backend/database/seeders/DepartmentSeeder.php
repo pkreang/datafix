@@ -3,59 +3,57 @@
 namespace Database\Seeders;
 
 use App\Models\Department;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Master departments for repair routing, filters, and org structure (demo / pilot).
+ * Removes legacy factory demo departments (MAINT, PROD, WH, …).
+ * School workflows use SCH_* departments from SchoolEFormTemplateSeeder only.
+ *
+ *   php artisan db:seed --class=DepartmentSeeder
+ *
+ * Purge also runs automatically when SchoolEFormTemplateSeeder runs (IndustryTemplateSeeder).
  */
 class DepartmentSeeder extends Seeder
 {
+    /** @var list<string> */
+    public const LEGACY_FACTORY_DEPARTMENT_CODES = [
+        'MAINT',
+        'PROD',
+        'WH',
+        'FAC',
+        'IT',
+        'GA',
+    ];
+
     public function run(): void
     {
-        $rows = [
-            [
-                'code' => 'MAINT',
-                'name' => 'แผนกซ่อมบำรุง',
-                'description' => 'งานซ่อมเชิงป้องกันและแก้ไข',
-            ],
-            [
-                'code' => 'PROD',
-                'name' => 'แผนกผลิต',
-                'description' => 'สายการผลิตและเครื่องจักรหลัก',
-            ],
-            [
-                'code' => 'WH',
-                'name' => 'แผนกคลังสินค้า',
-                'description' => 'คลัง ขนส่งภายใน',
-            ],
-            [
-                'code' => 'FAC',
-                'name' => 'แผนกอาคารสถานที่',
-                'description' => 'อาคาร สาธารณูปโภค พื้นที่',
-            ],
-            [
-                'code' => 'IT',
-                'name' => 'แผนกเทคโนโลยีสารสนเทศ',
-                'description' => 'ระบบคอมพิวเตอร์ อุปกรณ์ IT',
-            ],
-            [
-                'code' => 'GA',
-                'name' => 'สำนักงานทั่วไป',
-                'description' => 'ธุรการ บุคคล ทั่วไป',
-            ],
-        ];
+        $n = self::purgeLegacyFactoryDepartments();
+        $this->command?->info(
+            $n > 0
+                ? "DepartmentSeeder: removed {$n} legacy factory department(s)."
+                : 'DepartmentSeeder: no legacy factory departments to remove.'
+        );
+    }
 
-        foreach ($rows as $row) {
-            Department::query()->updateOrCreate(
-                ['code' => $row['code']],
-                [
-                    'name' => $row['name'],
-                    'description' => $row['description'],
-                    'is_active' => true,
-                ]
-            );
+    /**
+     * Delete factory CMMS demo departments and clear user links. Other FKs use nullOnDelete or cascade.
+     */
+    public static function purgeLegacyFactoryDepartments(): int
+    {
+        $ids = Department::query()
+            ->whereIn('code', self::LEGACY_FACTORY_DEPARTMENT_CODES)
+            ->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return 0;
         }
 
-        $this->command?->info('DepartmentSeeder: '.count($rows).' departments ready.');
+        User::query()->whereIn('department_id', $ids)->update(['department_id' => null]);
+
+        $count = $ids->count();
+        Department::query()->whereIn('id', $ids)->delete();
+
+        return $count;
     }
 }

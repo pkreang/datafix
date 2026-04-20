@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalInstance;
-use App\Models\ApprovalInstanceStep;
 use App\Models\Department;
 use App\Models\DocumentForm;
 use App\Models\User;
@@ -16,6 +16,12 @@ use RuntimeException;
 
 class RepairRequestController extends Controller
 {
+    use HasPerPage;
+
+    public function __construct(
+        protected ApprovalFlowService $approvalFlow,
+    ) {}
+
     public function index(Request $request): View
     {
         $userId = (int) (session('user.id') ?? 0);
@@ -24,20 +30,23 @@ class RepairRequestController extends Controller
             $status = null;
         }
 
+        $perPage = $this->resolvePerPage($request, 'repair_requests_per_page');
         $myInstances = ApprovalInstance::query()
             ->where('document_type', 'repair_request')
             ->where('requester_user_id', $userId)
             ->when($status, fn ($q) => $q->where('status', $status))
             ->with(['department'])
             ->latest()
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
+        $userDeptId = session('user.department_id') ?? User::find($userId)?->department_id;
         $departments = Department::query()->where('is_active', true)->orderBy('name')->get();
         $form = DocumentForm::query()
             ->with('fields')
             ->where('document_type', 'repair_request')
             ->where('is_active', true)
+            ->visibleToUser($userDeptId)
             ->orderBy('id')
             ->first();
 
@@ -51,7 +60,7 @@ class RepairRequestController extends Controller
             $branch = $userModel->branch;
         }
 
-        return view('repair-requests.index', compact('myInstances', 'departments', 'form', 'status', 'showAdminHints', 'company', 'branch'));
+        return view('repair-requests.index', compact('myInstances', 'departments', 'form', 'status', 'showAdminHints', 'company', 'branch', 'userDeptId', 'perPage'));
     }
 
     public function show(ApprovalInstance $instance): View
@@ -60,6 +69,7 @@ class RepairRequestController extends Controller
         $this->authorizeViewInstance($instance);
 
         $instance->load(['steps.actor', 'workflow', 'requester.company', 'requester.branch', 'department']);
+        $userId = (int) (session('user.id') ?? 0);
 
         $formForLabels = DocumentForm::query()
             ->with('fields')
@@ -67,16 +77,16 @@ class RepairRequestController extends Controller
             ->where('is_active', true)
             ->orderBy('id')
             ->first();
-        $fieldLabels = $formForLabels
-            ? $formForLabels->fields->mapWithKeys(fn ($f) => [$f->field_key => $f->label])
-            : collect();
+        $formFields = $formForLabels?->fields ?? collect();
+
+        $userDeptId = session('user.department_id') ?? User::find($userId)?->department_id;
+        $editorRole = $this->resolveEditorRole($instance, $userId);
 
         $canAct = false;
         if ($instance->status === 'pending' && in_array('approval.approve', session('user_permissions', []), true)) {
-            $userId = (int) (session('user.id') ?? 0);
             $currentStep = $instance->steps->firstWhere('step_no', $instance->current_step_no);
             if ($currentStep && $currentStep->action === 'pending') {
-                $canAct = $this->userCanActStep($currentStep, $userId);
+                $canAct = $this->approvalFlow->canUserActOnStep($instance, $currentStep, $userId);
             }
         }
 
@@ -88,7 +98,7 @@ class RepairRequestController extends Controller
             $branch = $requester->branch;
         }
 
-        return view('repair-requests.show', compact('instance', 'canAct', 'fieldLabels', 'company', 'branch'));
+        return view('repair-requests.show', compact('instance', 'canAct', 'formFields', 'formForLabels', 'userDeptId', 'editorRole', 'company', 'branch'));
     }
 
     public function myJobs(): View
@@ -144,6 +154,19 @@ class RepairRequestController extends Controller
             ->with('success', __('common.saved'));
     }
 
+    private function resolveEditorRole(ApprovalInstance $instance, int $userId): string
+    {
+        if ($instance->status !== 'pending') {
+            return 'view_only';
+        }
+        $currentStep = $instance->steps->firstWhere('step_no', $instance->current_step_no);
+        if ($currentStep && $currentStep->action === 'pending' && $this->approvalFlow->canUserActOnStep($instance, $currentStep, $userId)) {
+            return 'step_'.$instance->current_step_no;
+        }
+
+        return 'view_only';
+    }
+
     private function authorizeViewInstance(ApprovalInstance $instance): void
     {
         if (session('user.is_super_admin', false)) {
@@ -157,24 +180,6 @@ class RepairRequestController extends Controller
             return;
         }
         abort(403);
-    }
-
-    private function userCanActStep(ApprovalInstanceStep $step, int $userId): bool
-    {
-        $user = User::find($userId);
-        if (! $user) {
-            return false;
-        }
-        if ($step->approver_type === 'user') {
-            return (string) $step->approver_ref === (string) $userId;
-        }
-
-        if ($step->approver_type === 'position') {
-            return $user->position_id
-                && (string) $step->approver_ref === (string) $user->position_id;
-        }
-
-        return $user->hasRole($step->approver_ref);
     }
 
     private function workflowErrorMessage(RuntimeException $e): string

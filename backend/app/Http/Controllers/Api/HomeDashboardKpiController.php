@@ -3,33 +3,47 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Equipment;
-use App\Models\SparePart;
 use App\Models\ApprovalInstance;
+use App\Models\DocumentFormSubmission;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class HomeDashboardKpiController extends Controller
 {
+    private const SCHOOL_DOCUMENT_TYPES = [
+        'school_leave_request',
+        'school_procurement',
+        'school_activity',
+    ];
+
+    private const ALLOWED_CARDS = [
+        'school_pending_approvals',
+        'school_submissions_this_month',
+        'school_my_submissions_this_month',
+        'school_my_pending_requests',
+        'school_draft_forms',
+        'active_users',
+    ];
+
     /** GET /api/v1/dashboard/kpi/{card} */
     public function show(Request $request, string $card): JsonResponse
     {
         $user = $request->user();
 
         $value = match ($card) {
-            'repair_pending'      => $this->repairPending($user),
-            'repair_this_month'   => $this->repairThisMonth($user),
-            'pm_pending'          => $this->pmPending($user),
-            'pm_this_week'        => $this->pmThisWeek($user),
-            'spare_low_stock'     => $this->spareLowStock($user),
-            'equipment_active'    => $this->equipmentActive($user),
-            'my_pending_repairs'  => $this->myPendingRepairs($user),
-            default               => null,
+            'school_pending_approvals' => $this->schoolPendingApprovals($user),
+            'school_submissions_this_month' => $this->schoolSubmissionsThisMonth($user),
+            'school_my_submissions_this_month' => $this->schoolMySubmissionsThisMonth($user),
+            'school_my_pending_requests' => $this->schoolMyPendingRequests($user),
+            'school_draft_forms' => $this->schoolDraftForms($user),
+            'active_users' => $this->activeUsers($user),
+            default => null,
         };
 
         if ($value === null) {
-            return response()->json(['error' => 'Unknown KPI card'], 404);
+            return response()->json(['error' => __('api.unknown_kpi_card')], 404);
         }
 
         return response()->json($value);
@@ -38,9 +52,10 @@ class HomeDashboardKpiController extends Controller
     /** POST /api/v1/dashboard/kpi-config */
     public function saveConfig(Request $request): JsonResponse
     {
+        $allowed = implode(',', self::ALLOWED_CARDS);
         $validated = $request->validate([
-            'cards'   => 'required|array',
-            'cards.*' => 'string|in:repair_pending,repair_this_month,pm_pending,pm_this_week,spare_low_stock,equipment_active,my_pending_repairs',
+            'cards' => 'required|array',
+            'cards.*' => 'string|in:'.$allowed,
         ]);
 
         $user = $request->user();
@@ -50,77 +65,79 @@ class HomeDashboardKpiController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function repairPending($user): array
+    private function schoolPendingApprovals($user): array
     {
-        $value = ApprovalInstance::where('document_type', 'repair_request')
+        $value = ApprovalInstance::query()
+            ->whereIn('document_type', self::SCHOOL_DOCUMENT_TYPES)
             ->where('status', 'pending')
             ->count();
 
         return ['value' => $value];
     }
 
-    private function repairThisMonth($user): array
+    private function schoolSubmissionsThisMonth($user): array
     {
-        $now       = Carbon::now();
-        $thisMonth = ApprovalInstance::where('document_type', 'repair_request')
-            ->whereYear('created_at', $now->year)
-            ->whereMonth('created_at', $now->month)
+        $now = Carbon::now();
+        $thisMonth = $this->schoolSubmittedQuery()
+            ->whereYear('updated_at', $now->year)
+            ->whereMonth('updated_at', $now->month)
             ->count();
-        $lastMonth = ApprovalInstance::where('document_type', 'repair_request')
-            ->whereYear('created_at', $now->copy()->subMonth()->year)
-            ->whereMonth('created_at', $now->copy()->subMonth()->month)
+        $lastMonth = $this->schoolSubmittedQuery()
+            ->whereYear('updated_at', $now->copy()->subMonth()->year)
+            ->whereMonth('updated_at', $now->copy()->subMonth()->month)
             ->count();
 
-        $delta     = $thisMonth - $lastMonth;
+        $delta = $thisMonth - $lastMonth;
         $direction = $delta >= 0 ? 'up' : 'down';
 
         return ['value' => $thisMonth, 'delta' => abs($delta), 'delta_direction' => $direction];
     }
 
-    private function pmPending($user): array
+    private function schoolMySubmissionsThisMonth($user): array
     {
-        $value = ApprovalInstance::where('document_type', 'pm_am_plan')
-            ->where('status', 'pending')
+        $now = Carbon::now();
+        $value = $this->schoolSubmittedQuery()
+            ->where('user_id', $user->id)
+            ->whereYear('updated_at', $now->year)
+            ->whereMonth('updated_at', $now->month)
             ->count();
 
         return ['value' => $value];
     }
 
-    private function pmThisWeek($user): array
+    private function schoolMyPendingRequests($user): array
     {
-        $value = ApprovalInstance::where('document_type', 'pm_am_plan')
-            ->whereBetween('created_at', [
-                Carbon::now()->startOfWeek(),
-                Carbon::now()->endOfWeek(),
-            ])
-            ->count();
-
-        return ['value' => $value];
-    }
-
-    private function spareLowStock($user): array
-    {
-        $value = SparePart::whereColumn('current_stock', '<', 'min_stock')
-            ->where('is_active', true)
-            ->count();
-
-        return ['value' => $value];
-    }
-
-    private function equipmentActive($user): array
-    {
-        $value = Equipment::where('is_active', true)->count();
-
-        return ['value' => $value];
-    }
-
-    private function myPendingRepairs($user): array
-    {
-        $value = ApprovalInstance::where('document_type', 'repair_request')
+        $value = ApprovalInstance::query()
+            ->whereIn('document_type', self::SCHOOL_DOCUMENT_TYPES)
             ->where('status', 'pending')
             ->where('requester_user_id', $user->id)
             ->count();
 
         return ['value' => $value];
+    }
+
+    private function schoolDraftForms($user): array
+    {
+        $value = DocumentFormSubmission::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'draft')
+            ->whereHas('form', fn ($q) => $q->whereIn('document_type', self::SCHOOL_DOCUMENT_TYPES))
+            ->count();
+
+        return ['value' => $value];
+    }
+
+    private function activeUsers($user): array
+    {
+        $value = User::query()->where('is_active', true)->count();
+
+        return ['value' => $value];
+    }
+
+    private function schoolSubmittedQuery()
+    {
+        return DocumentFormSubmission::query()
+            ->where('status', 'submitted')
+            ->whereHas('form', fn ($q) => $q->whereIn('document_type', self::SCHOOL_DOCUMENT_TYPES));
     }
 }

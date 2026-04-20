@@ -10,6 +10,8 @@ use App\Services\Auth\AuthModeService;
 use App\Services\Auth\EntraOAuthService;
 use App\Services\Auth\LdapAuthService;
 use App\Services\Auth\PasswordCapabilityService;
+use App\Services\Auth\LoginHistoryRecorder;
+use App\Services\Auth\PasswordLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -64,6 +66,7 @@ class AuthController extends Controller
             'password' => $request->password,
             'device_name' => 'web-browser',
         ]);
+        $this->forwardLocaleToApiSubrequest($request, $apiRequest);
 
         $jsonResponse = app(ApiAuthController::class)->login($apiRequest);
         $data = $jsonResponse->getData(true);
@@ -74,6 +77,16 @@ class AuthController extends Controller
                 $message = $data['message'];
             }
 
+            // Record failed local login so the user + admins can spot attacks.
+            $maybeUser = User::where('email', $request->email)->first();
+            app(LoginHistoryRecorder::class)->recordFailure(
+                $request->email,
+                $maybeUser,
+                $request,
+                'local',
+                $this->classifyFailureReason($jsonResponse->getStatusCode(), $data)
+            );
+
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => $message]);
@@ -81,7 +94,48 @@ class AuthController extends Controller
 
         $userData = $data['data']['user'] ?? $data['data'] ?? [];
 
-        return $this->establishSessionFromUserArray($request, $data['data']['token'] ?? null, $userData);
+        $token = $data['data']['token'] ?? null;
+        if (isset($userData['id'])) {
+            $user = User::find($userData['id']);
+            if ($user) {
+                app(LoginHistoryRecorder::class)->recordSuccess($user, $request, 'local');
+            }
+        }
+        if ($token) {
+            $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if ($tokenModel) {
+                $this->stampTokenOrigin($tokenModel->id, $request);
+            }
+        }
+
+        return $this->establishSessionFromUserArray($request, $token, $userData);
+    }
+
+    /**
+     * Record the IP + user-agent on the token so users can later review active
+     * sessions and revoke specific devices.
+     */
+    private function stampTokenOrigin(int $tokenId, Request $request): void
+    {
+        \Laravel\Sanctum\PersonalAccessToken::query()
+            ->whereKey($tokenId)
+            ->update([
+                'ip_address' => $request->ip(),
+                'user_agent' => mb_substr((string) $request->userAgent(), 0, 512),
+            ]);
+    }
+
+    private function classifyFailureReason(int $status, array $data): string
+    {
+        if ($status === 403) {
+            return 'account_blocked';
+        }
+        $code = $data['code'] ?? null;
+        if (is_string($code)) {
+            return $code;
+        }
+
+        return 'invalid_credentials';
     }
 
     public function redirectToEntra(): RedirectResponse
@@ -97,12 +151,24 @@ class AuthController extends Controller
     {
         $result = app(EntraOAuthService::class)->handleCallback($request);
         if (! ($result['success'] ?? false)) {
+            app(LoginHistoryRecorder::class)->recordFailure(
+                $result['email'] ?? null,
+                null,
+                $request,
+                'entra',
+                $result['code'] ?? 'entra_callback_failed'
+            );
+
             return redirect()->route('login')->withErrors(['email' => $result['message'] ?? __('auth.failed')]);
         }
 
         /** @var User $user */
         $user = $result['user'];
-        $token = $user->createToken('web-browser')->plainTextToken;
+        $tokenResult = $user->createToken('web-browser');
+        $token = $tokenResult->plainTextToken;
+        $this->stampTokenOrigin($tokenResult->accessToken->id, $request);
+
+        app(LoginHistoryRecorder::class)->recordSuccess($user, $request, 'entra');
 
         return $this->establishSessionFromUserModel($request, $token, $user->fresh());
     }
@@ -132,12 +198,24 @@ class AuthController extends Controller
         );
 
         if (! $user) {
+            app(LoginHistoryRecorder::class)->recordFailure(
+                $request->input('ldap_email'),
+                null,
+                $request,
+                'ldap',
+                'invalid_credentials'
+            );
+
             return back()
                 ->withInput($request->only('ldap_email'))
                 ->withErrors(['ldap_email' => __('auth.failed')]);
         }
 
-        $token = $user->createToken('web-browser')->plainTextToken;
+        $tokenResult = $user->createToken('web-browser');
+        $token = $tokenResult->plainTextToken;
+        $this->stampTokenOrigin($tokenResult->accessToken->id, $request);
+
+        app(LoginHistoryRecorder::class)->recordSuccess($user, $request, 'ldap');
 
         return $this->establishSessionFromUserModel($request, $token, $user);
     }
@@ -163,6 +241,8 @@ class AuthController extends Controller
             'email' => $user->email,
             'avatar' => $user->avatar,
             'auth_provider' => $user->auth_provider,
+            'department_id' => $user->department_id,
+            'is_super_admin' => $user->is_super_admin,
             'roles' => $user->getRoleNames()->toArray(),
             'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
         ]);
@@ -174,7 +254,7 @@ class AuthController extends Controller
     private function establishSessionFromUserArray(Request $request, ?string $token, array $userData): RedirectResponse
     {
         $roles = $userData['roles'] ?? [];
-        $isSuperAdmin = in_array('super-admin', $roles, true) || in_array('admin', $roles, true);
+        $isSuperAdmin = (bool) ($userData['is_super_admin'] ?? false);
         $authProvider = $userData['auth_provider'] ?? null;
 
         session([
@@ -190,9 +270,28 @@ class AuthController extends Controller
                 'can_change_password' => PasswordCapabilityService::canChangePasswordFromAuthProvider($authProvider),
                 'roles' => $roles,
                 'is_super_admin' => $isSuperAdmin,
+                'department_id' => $userData['department']['id'] ?? $userData['department_id'] ?? null,
             ],
             'user_permissions' => $userData['permissions'] ?? [],
         ]);
+
+        $userId = $userData['id'] ?? null;
+        if ($userId) {
+            $freshUser = User::query()->find($userId);
+            if ($freshUser) {
+                if (is_string($freshUser->locale)
+                    && $freshUser->locale !== ''
+                    && in_array($freshUser->locale, ['th', 'en'], true)) {
+                    session(['locale' => $freshUser->locale]);
+                    app()->setLocale($freshUser->locale);
+                }
+            }
+            if ($freshUser && PasswordLifecycleService::requiresPasswordChange($freshUser)) {
+                return redirect()
+                    ->route('profile.password')
+                    ->with('warning', __('auth.password_change_required'));
+            }
+        }
 
         $intended = session()->pull('intended');
         $baseUrl = $request->getSchemeAndHttpHost();
@@ -205,5 +304,22 @@ class AuthController extends Controller
         }
 
         return redirect($baseUrl.'/dashboard');
+    }
+
+    /** Match session/UI locale so API responses use the same language as the login form. */
+    private function forwardLocaleToApiSubrequest(Request $source, Request $target): void
+    {
+        $locale = app()->getLocale();
+        if (! in_array($locale, ['th', 'en'], true)) {
+            return;
+        }
+
+        if ($source->headers->has('Accept-Language')) {
+            $target->headers->set('Accept-Language', $source->headers->get('Accept-Language'));
+        } else {
+            $target->headers->set('Accept-Language', $locale);
+        }
+
+        $target->headers->set('X-Locale', $locale);
     }
 }

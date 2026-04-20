@@ -11,8 +11,12 @@ class LookupController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $userPerms = session('user_permissions', []);
+        $isSuperAdmin = (bool) session('user.is_super_admin', false);
+        $accessibleKeys = array_keys(LookupRegistry::accessibleSources($userPerms, $isSuperAdmin));
+
         $validated = $request->validate([
-            'source' => 'required|string|in:' . implode(',', LookupRegistry::sourceKeys()),
+            'source' => 'required|string|in:' . implode(',', $accessibleKeys),
             'filters' => 'nullable|array',
             'filters.*' => 'nullable|string|max:100',
         ]);

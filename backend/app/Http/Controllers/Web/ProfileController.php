@@ -3,19 +3,38 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApprovalInstance;
+use App\Models\DocumentFormSubmission;
+use App\Models\LoginHistory;
+use App\Models\NotificationPreference;
 use App\Models\Position;
 use App\Models\Setting;
 use App\Models\User;
+use App\Rules\PasswordNotReused;
 use App\Rules\PasswordPolicy;
+use App\Services\Auth\LoginHistoryRecorder;
 use App\Services\Auth\PasswordCapabilityService;
+use App\Services\Auth\PasswordLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class ProfileController extends Controller
 {
+    /** Notification preferences matrix shown in profile. One row per event type × channel. */
+    private const NOTIFICATION_EVENTS = [
+        'approval_pending',
+        'workflow_approved',
+        'workflow_rejected',
+        'stock_low',
+    ];
+
+    private const NOTIFICATION_CHANNELS = ['mail', 'line'];
+
     protected function currentUser(): ?User
     {
         $token = session('api_token');
@@ -46,12 +65,283 @@ class ProfileController extends Controller
             ->orderBy('name')
             ->get();
 
+        $loginHistory = $this->loadLoginHistorySummary($user);
+
         return view('profile.edit', [
             'user' => $user,
             'positions' => $positions,
             'canChangePasswordInApp' => PasswordCapabilityService::canChangePasswordInApp($user),
+            'canEditEmail' => PasswordCapabilityService::canEditEmailInApp($user),
+            'isSsoUser' => $this->isSsoUser($user),
             'authPasswordHelpUrl' => trim((string) Setting::get('auth_password_help_url', '')),
+            'availableLocales' => ['th' => 'ไทย', 'en' => 'English'],
+            'notificationPreferences' => $this->loadNotificationMatrix($user),
+            'notificationEvents' => self::NOTIFICATION_EVENTS,
+            'notificationChannels' => self::NOTIFICATION_CHANNELS,
+            'quickStats' => $this->quickStatsFor($user),
+            'lastPriorLogin' => $loginHistory['last'],
+            'recentFailedLogins' => $loginHistory['recent_failures'],
         ]);
+    }
+
+    public function activeSessions(): View|RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $currentToken = session('api_token');
+        $currentTokenId = $currentToken
+            ? PersonalAccessToken::findToken($currentToken)?->id
+            : null;
+
+        $tokens = PersonalAccessToken::query()
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->id)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->orderByDesc('last_used_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('profile.active-sessions', compact('user', 'tokens', 'currentTokenId'));
+    }
+
+    public function revokeSession(Request $request, int $tokenId): RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        // Never revoke the current session through this endpoint — use logout for that.
+        $currentToken = session('api_token');
+        $currentTokenId = $currentToken ? PersonalAccessToken::findToken($currentToken)?->id : null;
+
+        $token = PersonalAccessToken::query()
+            ->where('id', $tokenId)
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->id)
+            ->first();
+        abort_unless($token, 404);
+        if ($token->id === $currentTokenId) {
+            return back()->withErrors(['session' => __('common.session_cannot_revoke_current')]);
+        }
+
+        $token->delete();
+
+        return back()->with('success', __('common.session_revoked'));
+    }
+
+    public function revokeOtherSessions(Request $request): RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $currentTokenId = PersonalAccessToken::findToken(session('api_token'))?->id;
+
+        $count = PersonalAccessToken::query()
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->id)
+            ->when($currentTokenId, fn ($q) => $q->where('id', '!=', $currentTokenId))
+            ->delete();
+
+        return back()->with('success', __('common.session_revoked_others', ['count' => $count]));
+    }
+
+    /**
+     * Personal API tokens — separate from web browser sessions. Users create, name,
+     * and revoke tokens for their own integrations. The token string is shown only
+     * once (on creation) via flash — we never store plaintext.
+     */
+    public function apiTokens(): View|RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $tokens = PersonalAccessToken::query()
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->id)
+            ->where('name', 'like', 'personal:%')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('profile.api-tokens', compact('user', 'tokens'));
+    }
+
+    public function createApiToken(Request $request): RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:64'],
+            'expires_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $expiresAt = ! empty($validated['expires_days'])
+            ? now()->addDays((int) $validated['expires_days'])
+            : null;
+
+        $result = $user->createToken('personal:'.$validated['name'], ['*'], $expiresAt);
+
+        return redirect()
+            ->route('profile.api-tokens')
+            ->with('new_api_token', $result->plainTextToken)
+            ->with('success', __('common.api_token_created'));
+    }
+
+    public function revokeApiToken(int $tokenId): RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $token = PersonalAccessToken::query()
+            ->where('id', $tokenId)
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->id)
+            ->where('name', 'like', 'personal:%')
+            ->first();
+        abort_unless($token, 404);
+
+        $token->delete();
+
+        return back()->with('success', __('common.api_token_revoked'));
+    }
+
+    public function loginHistory(): View|RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $entries = LoginHistory::query()
+            ->where('user_id', $user->id)
+            ->latest('created_at')
+            ->limit(50)
+            ->get();
+
+        return view('profile.login-history', compact('user', 'entries'));
+    }
+
+    /**
+     * Most recent successful login BEFORE the current session starts (so user sees
+     * "last time you were here"), plus failed attempts in the last 24h for alerting.
+     */
+    private function loadLoginHistorySummary(User $user): array
+    {
+        $successes = LoginHistory::query()
+            ->where('user_id', $user->id)
+            ->where('result', 'success')
+            ->latest('created_at')
+            ->limit(2)
+            ->get();
+        // If the most recent is the current session, show the one before it.
+        $lastPrior = $successes->get(1) ?? $successes->first();
+
+        $recentFailures = LoginHistory::query()
+            ->where('user_id', $user->id)
+            ->where('result', 'failed')
+            ->where('created_at', '>=', now()->subDay())
+            ->count();
+
+        return ['last' => $lastPrior, 'recent_failures' => $recentFailures];
+    }
+
+    /**
+     * Build a matrix of current preference states. Missing rows default to "on"
+     * (mirrors NotificationPreferenceService::userPreference default).
+     *
+     * @return array<string, array<string, bool>>
+     */
+    private function loadNotificationMatrix(User $user): array
+    {
+        $stored = NotificationPreference::query()
+            ->where('user_id', $user->id)
+            ->get()
+            ->keyBy(fn ($p) => $p->event_type.'|'.$p->channel);
+
+        $matrix = [];
+        foreach (self::NOTIFICATION_EVENTS as $event) {
+            foreach (self::NOTIFICATION_CHANNELS as $channel) {
+                $key = $event.'|'.$channel;
+                $matrix[$event][$channel] = isset($stored[$key]) ? (bool) $stored[$key]->enabled : true;
+            }
+        }
+
+        return $matrix;
+    }
+
+    /**
+     * Mirrors ApprovalController::myApprovals filtering so the profile card matches
+     * the actual "My Approvals" page count. Kept as a minimal query — no eager loads.
+     */
+    private function countPendingApprovalsFor(User $user): int
+    {
+        $roles = $user->roles()->pluck('name')->all();
+        $positionId = $user->position_id;
+        $userIdStr = (string) $user->id;
+
+        return ApprovalInstance::query()
+            ->where('status', 'pending')
+            ->where(function ($q) use ($user) {
+                $q->where('requester_user_id', '!=', $user->id)
+                    ->orWhereHas('workflow', fn ($w) => $w->where('allow_requester_as_approver', true));
+            })
+            ->whereHas('steps', function ($q) use ($userIdStr, $roles, $positionId) {
+                $q->where('action', 'pending')
+                    ->whereRaw('approval_instance_steps.step_no = approval_instances.current_step_no')
+                    ->where(function ($sq) use ($userIdStr, $roles, $positionId) {
+                        $sq->where(function ($uq) use ($userIdStr) {
+                            $uq->where('approver_type', 'user')->where('approver_ref', $userIdStr);
+                        });
+                        if (! empty($roles)) {
+                            $sq->orWhere(function ($rq) use ($roles) {
+                                $rq->where('approver_type', 'role')->whereIn('approver_ref', $roles);
+                            });
+                        }
+                        if ($positionId) {
+                            $sq->orWhere(function ($pq) use ($positionId) {
+                                $pq->where('approver_type', 'position')->where('approver_ref', (string) $positionId);
+                            });
+                        }
+                    });
+            })
+            ->count();
+    }
+
+    private function isSsoUser(User $user): bool
+    {
+        return ! blank($user->auth_provider);
+    }
+
+    private function quickStatsFor(User $user): array
+    {
+        $draftCount = DocumentFormSubmission::where('user_id', $user->id)
+            ->where('status', 'draft')
+            ->count();
+        $submittedCount = DocumentFormSubmission::where('user_id', $user->id)
+            ->where('status', 'submitted')
+            ->count();
+
+        $pendingApprovals = $this->countPendingApprovalsFor($user);
+
+        return [
+            'draft' => $draftCount,
+            'submitted' => $submittedCount,
+            'pending_approvals' => $pendingApprovals,
+        ];
     }
 
     public function showPasswordForm(): View|RedirectResponse
@@ -68,8 +358,9 @@ class ProfileController extends Controller
         }
 
         $passwordPolicy = $this->getPasswordPolicyRules();
+        $passwordChangeMandatory = PasswordLifecycleService::requiresPasswordChange($user);
 
-        return view('profile.password', compact('passwordPolicy'));
+        return view('profile.password', compact('passwordPolicy', 'passwordChangeMandatory'));
     }
 
     private function getPasswordPolicyRules(): array
@@ -114,32 +405,119 @@ class ProfileController extends Controller
             return redirect()->route('login');
         }
 
-        $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'department' => 'nullable|string|max:255',
-            'position_id' => 'nullable|exists:positions,id',
+        $canEditEmail = PasswordCapabilityService::canEditEmailInApp($user);
+        $isSso = $this->isSsoUser($user);
+
+        // Locked fields are dropped from input before validation so clients that
+        // bypass the UI (inspect → remove readonly → submit) still can't change them.
+        $lockedKeys = ['department_id', 'position_id'];
+        if ($isSso) {
+            // SSO users: names are managed by the identity provider.
+            $lockedKeys = array_merge($lockedKeys, ['first_name', 'last_name']);
+        }
+        $input = \Illuminate\Support\Arr::except($request->all(), $lockedKeys);
+
+        $rules = [
             'line_notify_token' => 'nullable|string|max:255',
-        ]);
+            'phone' => 'nullable|string|max:50',
+            'locale' => ['nullable', 'string', Rule::in(['th', 'en'])],
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'remove_avatar' => 'nullable|boolean',
+            'theme' => ['nullable', 'string', Rule::in(['light', 'dark', 'system'])],
+        ];
+        if (! $isSso) {
+            $rules['first_name'] = 'required|string|max:255';
+            $rules['last_name'] = 'required|string|max:255';
+        }
+        if ($canEditEmail) {
+            $rules['email'] = ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)];
+        }
+        $validator = validator($input, $rules);
+        $validator->validate();
 
-        $pos = Position::labelsForUser($request->input('position_id'));
+        $payload = [
+            'line_notify_token' => $input['line_notify_token'] ?? null ?: null,
+            'phone' => $input['phone'] ?? null ?: null,
+        ];
+        if (! $isSso) {
+            $payload['first_name'] = $input['first_name'];
+            $payload['last_name'] = $input['last_name'];
+        }
+        if ($canEditEmail) {
+            $payload['email'] = $input['email'];
+        }
+        if (! empty($input['locale'])) {
+            $payload['locale'] = $input['locale'];
+        }
+        if (! empty($input['theme'])) {
+            $payload['theme'] = $input['theme'];
+        }
 
-        $user->update([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'department' => $request->department,
-            'position_id' => $pos['id'],
-            'position' => $pos['name'],
-            'line_notify_token' => $request->line_notify_token ?: null,
-        ]);
+        // Avatar: upload new / remove existing / leave alone
+        if ($request->boolean('remove_avatar') && $user->avatar) {
+            $this->deleteAvatar($user->avatar);
+            $payload['avatar'] = null;
+        }
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar) {
+                $this->deleteAvatar($user->avatar);
+            }
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $payload['avatar'] = Storage::disk('public')->url($path);
+        }
+
+        $user->update($payload);
 
         $sessionUser = session('user', []);
         $sessionUser['first_name'] = $user->first_name;
         $sessionUser['last_name'] = $user->last_name;
         $sessionUser['name'] = $user->full_name;
+        $sessionUser['email'] = $user->email;
+        $sessionUser['avatar'] = $user->avatar;
+        $sessionUser['theme'] = $user->theme;
         session(['user' => $sessionUser]);
 
+        if ($request->filled('locale')) {
+            session(['locale' => $request->locale]);
+            app()->setLocale($request->locale);
+        }
+
         return back()->with('success', __('common.profile_updated'));
+    }
+
+    /**
+     * Replace the user's notification preference matrix with the posted state.
+     * Missing event/channel combos are treated as "off" (opt-out).
+     */
+    public function updateNotifications(Request $request): RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $posted = $request->input('notifications', []);
+        foreach (self::NOTIFICATION_EVENTS as $event) {
+            foreach (self::NOTIFICATION_CHANNELS as $channel) {
+                $enabled = (bool) ($posted[$event][$channel] ?? false);
+                NotificationPreference::updateOrCreate(
+                    ['user_id' => $user->id, 'event_type' => $event, 'channel' => $channel],
+                    ['enabled' => $enabled]
+                );
+            }
+        }
+
+        return back()->with('success', __('common.notification_prefs_saved'));
+    }
+
+    private function deleteAvatar(string $url): void
+    {
+        // url() returns absolute URL — convert back to relative disk path
+        $publicPrefix = Storage::disk('public')->url('');
+        $path = str_starts_with($url, $publicPrefix)
+            ? ltrim(substr($url, strlen($publicPrefix)), '/')
+            : $url;
+        Storage::disk('public')->delete($path);
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -157,14 +535,14 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'password' => ['required', 'confirmed', new PasswordPolicy],
+            'password' => ['required', 'confirmed', new PasswordPolicy, new PasswordNotReused($user)],
         ]);
 
-        if (! Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->getRawOriginal('password'))) {
             return back()->withErrors(['current_password' => __('common.current_password_incorrect')]);
         }
 
-        $user->update(['password' => Hash::make($request->password)]);
+        PasswordLifecycleService::applySelfServicePasswordChange($user, $request->password);
 
         return back()->with('success', __('common.password_changed'));
     }

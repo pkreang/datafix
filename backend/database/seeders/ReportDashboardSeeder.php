@@ -16,40 +16,6 @@ class ReportDashboardSeeder extends Seeder
 
         $dashboards = [
             [
-                'name' => 'Repair Overview',
-                'description' => 'Overview of repair requests — counts, status breakdown, and trend.',
-                'layout_columns' => 3,
-                'visibility' => 'all',
-                'required_permission' => null,
-                'is_active' => true,
-                'widgets' => [
-                    [
-                        'title' => 'Total Repair Requests',
-                        'widget_type' => 'metric',
-                        'data_source' => 'repair_requests',
-                        'config' => ['aggregation' => 'count', 'field' => null, 'date_field' => 'created_at', 'filters' => []],
-                        'col_span' => 1,
-                        'sort_order' => 1,
-                    ],
-                    [
-                        'title' => 'Requests by Status',
-                        'widget_type' => 'chart',
-                        'data_source' => 'repair_requests',
-                        'config' => ['chart_type' => 'pie', 'aggregation' => 'count', 'field' => null, 'group_by' => 'status', 'date_field' => 'created_at', 'filters' => []],
-                        'col_span' => 1,
-                        'sort_order' => 2,
-                    ],
-                    [
-                        'title' => 'Monthly Repair Trend',
-                        'widget_type' => 'chart',
-                        'data_source' => 'repair_requests',
-                        'config' => ['chart_type' => 'bar', 'aggregation' => 'count', 'field' => null, 'group_by' => 'month', 'date_field' => 'created_at', 'filters' => []],
-                        'col_span' => 1,
-                        'sort_order' => 3,
-                    ],
-                ],
-            ],
-            [
                 'name' => 'Equipment Status',
                 'description' => 'Summary of equipment registry — counts by status and category.',
                 'layout_columns' => 2,

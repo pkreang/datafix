@@ -10,11 +10,9 @@ class DocumentTypeSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            ['code' => 'repair_request', 'label_en' => 'Repair Request', 'label_th' => 'แจ้งซ่อม', 'icon' => 'wrench', 'sort_order' => 1, 'routing_mode' => 'hybrid'],
-            ['code' => 'pm_am_plan', 'label_en' => 'PM/AM Plan', 'label_th' => 'แผน PM/AM', 'icon' => 'clipboard-document-check', 'sort_order' => 2, 'routing_mode' => 'organization_wide'],
-            ['code' => 'spare_parts_requisition', 'label_en' => 'Spare Parts Requisition', 'label_th' => 'เบิกอะไหล่', 'icon' => 'cube', 'sort_order' => 3, 'routing_mode' => 'hybrid'],
-            ['code' => 'purchase_request', 'label_en' => 'Purchase Request', 'label_th' => 'ใบขอซื้อ',   'icon' => 'shopping-cart',   'sort_order' => 4, 'routing_mode' => 'hybrid'],
-            ['code' => 'purchase_order',   'label_en' => 'Purchase Order',   'label_th' => 'ใบสั่งซื้อ', 'icon' => 'document-check', 'sort_order' => 5, 'routing_mode' => 'organization_wide'],
+            ['code' => 'school_leave_request', 'label_en' => 'Leave / absence request', 'label_th' => 'ลา / ขออนุญาตหยุด', 'icon' => 'calendar-days', 'sort_order' => 20, 'routing_mode' => 'organization_wide'],
+            ['code' => 'school_procurement', 'label_en' => 'Small procurement request', 'label_th' => 'ขอซื้อ/จ้าง (วงเงินเล็ก)', 'icon' => 'shopping-bag', 'sort_order' => 21, 'routing_mode' => 'organization_wide'],
+            ['code' => 'school_activity', 'label_en' => 'Activity / event approval', 'label_th' => 'ขออนุมัติจัดกิจกรรม', 'icon' => 'academic-cap', 'sort_order' => 22, 'routing_mode' => 'organization_wide'],
         ];
 
         foreach ($types as $type) {
@@ -30,5 +28,8 @@ class DocumentTypeSeeder extends Seeder
                 ]
             );
         }
+
+        $keep = array_column($types, 'code');
+        DocumentType::query()->whereNotIn('code', $keep)->delete();
     }
 }

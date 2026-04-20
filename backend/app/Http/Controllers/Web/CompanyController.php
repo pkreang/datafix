@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\BranchesSetting;
 use App\Support\StructuredAddressValidation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +18,8 @@ use Illuminate\View\View;
 
 class CompanyController extends Controller
 {
+    use HasPerPage;
+
     public function index(Request $request): View
     {
         $query = Company::query();
@@ -27,12 +31,13 @@ class CompanyController extends Controller
             });
         }
 
-        $companies = $query->orderBy('name')->paginate(15)->withQueryString();
+        $perPage = $this->resolvePerPage($request, 'companies_per_page');
+        $companies = $query->orderBy('name')->withCount('branches')->paginate($perPage)->withQueryString();
 
         $mode = Setting::get('company_mode', 'single');
         $canCreateMore = $mode === 'multi' || Company::count() === 0;
 
-        return view('companies.index', compact('companies', 'canCreateMore'));
+        return view('companies.index', compact('companies', 'canCreateMore', 'perPage'));
     }
 
     public function create(): View|RedirectResponse
@@ -101,13 +106,19 @@ class CompanyController extends Controller
     public function edit(Company $company): View
     {
         $company->load(['branches' => fn ($q) => $q->orderBy('code')]);
+        $branchesManagementEnabled = BranchesSetting::managementEnabled();
 
-        return view('companies.edit', compact('company'));
+        return view('companies.edit', compact('company', 'branchesManagementEnabled'));
     }
 
     public function storeBranch(Request $request, Company $company): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage companies'), 403);
+        abort_unless($request->user()?->can('manage profile'), 403);
+        if (! BranchesSetting::managementEnabled()) {
+            return redirect()
+                ->route('companies.edit', $company)
+                ->with('error', __('company.branches_management_disabled'));
+        }
 
         $validated = $request->validate(array_merge([
             'branch_name' => 'required|string|max:255',
@@ -142,8 +153,13 @@ class CompanyController extends Controller
 
     public function updateBranch(Request $request, Company $company, Branch $branch): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage companies'), 403);
+        abort_unless($request->user()?->can('manage profile'), 403);
         abort_unless($branch->company_id === $company->id, 404);
+        if (! BranchesSetting::managementEnabled()) {
+            return redirect()
+                ->route('companies.edit', $company)
+                ->with('error', __('company.branches_management_disabled'));
+        }
 
         $validated = $request->validate(array_merge([
             'name' => 'required|string|max:255',
@@ -183,8 +199,13 @@ class CompanyController extends Controller
 
     public function destroyBranch(Request $request, Company $company, Branch $branch): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage companies'), 403);
+        abort_unless($request->user()?->can('manage profile'), 403);
         abort_unless($branch->company_id === $company->id, 404);
+        if (! BranchesSetting::managementEnabled()) {
+            return redirect()
+                ->route('companies.edit', $company)
+                ->with('error', __('company.branches_management_disabled'));
+        }
 
         if (User::query()->where('branch_id', $branch->id)->exists()) {
             return redirect()
@@ -245,12 +266,6 @@ class CompanyController extends Controller
 
     public function destroy(Company $company): RedirectResponse
     {
-        $mode = Setting::get('company_mode', 'single');
-        if ($mode === 'single') {
-            return redirect()->route('companies.index')
-                ->with('error', __('company.single_mode_cannot_delete'));
-        }
-
         if ($company->branches()->exists()) {
             return redirect()->route('companies.index')
                 ->with('error', __('company.cannot_delete_has_branches'));

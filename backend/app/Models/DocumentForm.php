@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class DocumentForm extends Model
 {
@@ -16,6 +18,7 @@ class DocumentForm extends Model
         'description',
         'is_active',
         'layout_columns',
+        'submission_table',
     ];
 
     protected function casts(): array
@@ -30,8 +33,83 @@ class DocumentForm extends Model
         return $this->hasMany(DocumentFormField::class, 'form_id')->orderBy('sort_order');
     }
 
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'document_form_departments', 'form_id', 'department_id');
+    }
+
+    /**
+     * Filter forms visible to a user's department.
+     * Forms with no department restrictions are visible to everyone.
+     */
+    public function scopeVisibleToUser(Builder $query, ?int $departmentId): Builder
+    {
+        return $query->where(function ($q) use ($departmentId) {
+            $q->whereDoesntHave('departments');
+            if ($departmentId !== null) {
+                $q->orWhereHas('departments', fn ($dq) => $dq->where('departments.id', $departmentId));
+            }
+        });
+    }
+
     public function workflowPolicies()
     {
         return $this->hasMany(DocumentFormWorkflowPolicy::class, 'form_id');
+    }
+
+    public function hasDedicatedTable(): bool
+    {
+        return $this->submission_table !== null;
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(function (DocumentForm $form) {
+            \App\Support\DataSourceRegistry::flushFormSourcesCache();
+            static::syncNavigationMenu($form);
+        });
+        static::deleted(function () {
+            \App\Support\DataSourceRegistry::flushFormSourcesCache();
+            // navigation_menus rows are removed automatically by the FK cascade.
+        });
+    }
+
+    /**
+     * Mirror the form into navigation_menus. Split create vs update so admins can
+     * freely rename / reorder / swap icons / move under a different parent in
+     * Menu Manager without the observer wiping their work on the next form save.
+     *
+     * Fields we always sync on update (tied to the form's identity):
+     *   route       — follows form_key; user clicking the menu must actually reach the form
+     *   is_active   — inactive form ⇒ hidden menu row (protects against dead links)
+     *
+     * Fields we only set on CREATE (admin may customize and we respect that):
+     *   label/label_en/label_th, icon, parent_id, sort_order
+     */
+    public static function syncNavigationMenu(DocumentForm $form): void
+    {
+        $nav = \App\Models\NavigationMenu::where('document_form_id', $form->id)->first();
+        $route = '/forms/'.$form->form_key.'/submissions';
+
+        if ($nav) {
+            $nav->update([
+                'route' => $route,
+                'is_active' => (bool) $form->is_active,
+            ]);
+
+            return;
+        }
+
+        \App\Models\NavigationMenu::create([
+            'document_form_id' => $form->id,
+            'parent_id' => 48,
+            'label' => $form->name,
+            'label_en' => $form->name,
+            'label_th' => $form->name,
+            'icon' => 'document-text',
+            'route' => $route,
+            'permission' => null,
+            'is_active' => (bool) $form->is_active,
+        ]);
     }
 }

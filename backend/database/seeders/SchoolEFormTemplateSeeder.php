@@ -1,0 +1,257 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\ApprovalWorkflow;
+use App\Models\ApprovalWorkflowStage;
+use App\Models\Department;
+use App\Models\DocumentForm;
+use App\Models\DocumentFormField;
+use App\Models\DocumentFormWorkflowPolicy;
+use App\Models\Position;
+use Illuminate\Database\Seeder;
+
+/**
+ * School playbook: sample departments (document types from DocumentTypeSeeder),
+ * three starter forms (leave, small procurement, activity), approval workflow by position,
+ * organization-wide routing + global policy (no amount routing).
+ * Purges legacy factory departments (MAINT, PROD, WH, …), removes non-school document forms,
+ * then seeds SCH_* ฝ่าย only.
+ * When SCH_ACAD_HEAD + SCH_VICE_PRINCIPAL positions exist (PositionDemoSeeder), workflows use two steps;
+ * otherwise falls back to a single position or admin user — not Spatie roles.
+ *
+ * Forms appear under /forms. Idempotent.
+ */
+class SchoolEFormTemplateSeeder extends Seeder
+{
+    /** Must match DocumentTypeSeeder school codes. */
+    private const SCHOOL_DOCUMENT_TYPE_CODES = [
+        'school_leave_request',
+        'school_procurement',
+        'school_activity',
+    ];
+
+    public function run(): void
+    {
+        DepartmentSeeder::purgeLegacyFactoryDepartments();
+
+        DocumentForm::query()
+            ->whereNotIn('document_type', self::SCHOOL_DOCUMENT_TYPE_CODES)
+            ->delete();
+
+        ApprovalWorkflow::query()
+            ->whereNotIn('document_type', self::SCHOOL_DOCUMENT_TYPE_CODES)
+            ->delete();
+
+        $this->seedDepartments();
+
+        $leaveForm = $this->syncForm(
+            'school_leave_default',
+            'คำขอลา (ตัวอย่าง)',
+            'school_leave_request',
+            'เทมเพลตโรงเรียน: ปรับฟิลด์และ workflow ในเมนูตั้งค่า',
+            [
+                ['field_key' => 'title', 'label' => 'หัวเรื่อง', 'field_type' => 'text', 'is_required' => true, 'sort_order' => 1],
+                ['field_key' => 'leave_type', 'label' => 'ประเภทการลา', 'field_type' => 'select', 'is_required' => true, 'sort_order' => 2, 'options' => ['ลาป่วย', 'ลากิจ', 'ลาพักผ่อน', 'อื่นๆ']],
+                ['field_key' => 'start_date', 'label' => 'วันเริ่ม', 'field_type' => 'date', 'is_required' => true, 'sort_order' => 3],
+                ['field_key' => 'end_date', 'label' => 'วันสิ้นสุด', 'field_type' => 'date', 'is_required' => true, 'sort_order' => 4],
+                ['field_key' => 'detail', 'label' => 'เหตุผล / รายละเอียด', 'field_type' => 'textarea', 'is_required' => false, 'sort_order' => 5],
+            ]
+        );
+
+        $procForm = $this->syncForm(
+            'school_procurement_default',
+            'ขอซื้อจัดหา (ตัวอย่าง)',
+            'school_procurement',
+            'เทมเพลตโรงเรียน: วงเงินประมาณสำหรับอ้างอิง (ยังไม่ผูก routing ตามวงเงิน)',
+            [
+                ['field_key' => 'title', 'label' => 'เรื่อง', 'field_type' => 'text', 'is_required' => true, 'sort_order' => 1],
+                ['field_key' => 'detail', 'label' => 'รายละเอียดสิ่งของหรืองาน', 'field_type' => 'textarea', 'is_required' => true, 'sort_order' => 2],
+                ['field_key' => 'estimated_amount', 'label' => 'งบประมาณโดยประมาณ (บาท)', 'field_type' => 'number', 'is_required' => false, 'sort_order' => 3],
+            ]
+        );
+
+        $actForm = $this->syncForm(
+            'school_activity_default',
+            'ขออนุมัติกิจกรรม (ตัวอย่าง)',
+            'school_activity',
+            'เทมเพลตโรงเรียน: กิจกรรมนอกสถานที่ / ภายในโรงเรียน',
+            [
+                ['field_key' => 'title', 'label' => 'ชื่อกิจกรรม', 'field_type' => 'text', 'is_required' => true, 'sort_order' => 1],
+                ['field_key' => 'event_date', 'label' => 'วันที่จัด', 'field_type' => 'date', 'is_required' => true, 'sort_order' => 2],
+                ['field_key' => 'venue', 'label' => 'สถานที่', 'field_type' => 'text', 'is_required' => false, 'sort_order' => 3],
+                ['field_key' => 'detail', 'label' => 'รายละเอียด', 'field_type' => 'textarea', 'is_required' => false, 'sort_order' => 4],
+            ]
+        );
+
+        $stages = $this->schoolApprovalStages();
+        $flowHint = count($stages) > 1
+            ? 'เทมเพลตโรงเรียน: หัวหน้าฝ่ายวิชาการ → รองผู้อำนวยการ'
+            : 'เทมเพลตโรงเรียน: ขั้นเดียวตามตำแหน่งหรือผู้ใช้ (ไม่ผูกกับ role approver)';
+
+        $wLeave = $this->syncWorkflow('โรงเรียน — อนุมัติการลา', 'school_leave_request', $flowHint, $stages);
+        $wProc = $this->syncWorkflow('โรงเรียน — อนุมัติขอซื้อ', 'school_procurement', $flowHint, $stages);
+        $wAct = $this->syncWorkflow('โรงเรียน — อนุมัติกิจกรรม', 'school_activity', $flowHint, $stages);
+
+        $this->syncGlobalPolicy($leaveForm, $wLeave);
+        $this->syncGlobalPolicy($procForm, $wProc);
+        $this->syncGlobalPolicy($actForm, $wAct);
+
+        $this->command?->info('SchoolEFormTemplateSeeder: school departments, forms, workflows, policies.');
+    }
+
+    /**
+     * @return array<int, array{step_no: int, name: string, approver_type: string, approver_ref: string}>
+     */
+    private function schoolApprovalStages(): array
+    {
+        $head = Position::query()->where('code', 'SCH_ACAD_HEAD')->first();
+        $vice = Position::query()->where('code', 'SCH_VICE_PRINCIPAL')->first();
+
+        if ($head && $vice) {
+            return [
+                [
+                    'step_no' => 1,
+                    'name' => 'หัวหน้าฝ่ายวิชาการอนุมัติ',
+                    'approver_type' => 'position',
+                    'approver_ref' => (string) $head->id,
+                ],
+                [
+                    'step_no' => 2,
+                    'name' => 'รองผู้อำนวยการอนุมัติ',
+                    'approver_type' => 'position',
+                    'approver_ref' => (string) $vice->id,
+                ],
+            ];
+        }
+
+        $anyPosition = Position::query()->where('is_active', true)->orderBy('id')->first();
+        if ($anyPosition) {
+            return [
+                [
+                    'step_no' => 1,
+                    'name' => 'ผู้ดำเนินการอนุมัติ',
+                    'approver_type' => 'position',
+                    'approver_ref' => (string) $anyPosition->id,
+                ],
+            ];
+        }
+
+        $admin = \App\Models\User::query()->where('email', 'admin@example.com')->first()
+            ?? \App\Models\User::query()->orderBy('id')->first();
+        if ($admin) {
+            return [
+                [
+                    'step_no' => 1,
+                    'name' => 'ผู้ดำเนินการอนุมัติ',
+                    'approver_type' => 'user',
+                    'approver_ref' => (string) $admin->id,
+                ],
+            ];
+        }
+
+        throw new \RuntimeException(
+            'SchoolEFormTemplateSeeder: no positions and no users. Run PositionDemoSeeder and RolePermissionSeeder first.'
+        );
+    }
+
+    private function seedDepartments(): void
+    {
+        $rows = [
+            ['code' => 'SCH_ACAD', 'name' => 'ฝ่ายวิชาการ', 'description' => 'การเรียนการสอน — ผู้ยื่น eForm ส่วนใหญ่'],
+            ['code' => 'SCH_ADM', 'name' => 'ฝ่ายธุรการ', 'description' => 'ประสานงาน ธุรการ'],
+            ['code' => 'SCH_FIN', 'name' => 'ฝ่ายการเงิน', 'description' => 'งบประมาณ การเงิน'],
+            ['code' => 'SCH_FAC', 'name' => 'ฝ่ายอาคารและสถานที่', 'description' => 'อาคาร สนาม สาธารณูปโภค'],
+        ];
+
+        foreach ($rows as $row) {
+            Department::query()->updateOrCreate(
+                ['code' => $row['code']],
+                [
+                    'name' => $row['name'],
+                    'description' => $row['description'],
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+
+    private function syncWorkflow(string $name, string $documentType, string $description, array $stages): ApprovalWorkflow
+    {
+        $workflow = ApprovalWorkflow::query()->updateOrCreate(
+            ['name' => $name],
+            [
+                'document_type' => $documentType,
+                'description' => $description,
+                'is_active' => true,
+            ]
+        );
+
+        $workflow->stages()->delete();
+
+        foreach ($stages as $stage) {
+            ApprovalWorkflowStage::query()->create([
+                'workflow_id' => $workflow->id,
+                'step_no' => $stage['step_no'],
+                'name' => $stage['name'],
+                'approver_type' => $stage['approver_type'],
+                'approver_ref' => (string) $stage['approver_ref'],
+                'min_approvals' => 1,
+                'is_active' => true,
+            ]);
+        }
+
+        return $workflow;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $fields
+     */
+    private function syncForm(string $formKey, string $name, string $documentType, string $description, array $fields): DocumentForm
+    {
+        $form = DocumentForm::query()->updateOrCreate(
+            ['form_key' => $formKey],
+            [
+                'name' => $name,
+                'document_type' => $documentType,
+                'description' => $description,
+                'is_active' => true,
+                'layout_columns' => 1,
+            ]
+        );
+
+        foreach ($fields as $f) {
+            DocumentFormField::query()->updateOrCreate(
+                [
+                    'form_id' => $form->id,
+                    'field_key' => $f['field_key'],
+                ],
+                [
+                    'label' => $f['label'],
+                    'field_type' => $f['field_type'],
+                    'is_required' => (bool) ($f['is_required'] ?? false),
+                    'sort_order' => $f['sort_order'],
+                    'col_span' => 0,
+                    'placeholder' => $f['placeholder'] ?? null,
+                    'options' => $f['options'] ?? null,
+                ]
+            );
+        }
+
+        return $form;
+    }
+
+    private function syncGlobalPolicy(DocumentForm $form, ApprovalWorkflow $workflow): void
+    {
+        DocumentFormWorkflowPolicy::query()->updateOrCreate(
+            [
+                'form_id' => $form->id,
+                'department_id' => null,
+            ],
+            [
+                'use_amount_condition' => false,
+                'workflow_id' => $workflow->id,
+            ]
+        );
+    }
+}

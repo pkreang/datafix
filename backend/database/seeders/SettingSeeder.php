@@ -36,11 +36,19 @@ class SettingSeeder extends Seeder
             'ldap_bind_dn' => '',
             'ldap_user_filter' => '(mail=%s)',
             'ldap_use_tls' => '0',
+            /** disabled | required — require LDAP directory match when creating local users (web/API/import) */
+            'ldap_user_create_validation' => 'disabled',
             'auth_password_help_url' => '',
             /** JSON array of {"pattern":"substring","role":"spatie_role_name"} for LDAP memberOf / Entra groups */
             'auth_directory_group_role_map' => '[]',
             /** single | multi — single hides "Add Company" button when 1 company exists */
             'company_mode' => 'single',
+            /** Allow creating/editing/deleting branches (Companies + API); independent of branch_scoping */
+            'branches.enabled' => '1',
+            /** Branch scoping: filter lists by user.branch_id (super-admin & users without branch exempt) */
+            'branch_scoping.enabled' => '0',
+            'branch_scoping.equipment' => '1',
+            'branch_scoping.spare_parts' => '1',
             /** Notification settings */
             'notifications.email_enabled' => '1',
             'notifications.approval_pending_email' => '1',
@@ -50,6 +58,9 @@ class SettingSeeder extends Seeder
             'notifications.approval_pending_line' => '1',
             'notifications.workflow_approved_line' => '1',
             'notifications.workflow_rejected_line' => '1',
+            'notifications.stock_low_line' => '1',
+            /** Stock low — email */
+            'notifications.stock_low_email' => '1',
         ];
 
         foreach ($defaults as $key => $value) {

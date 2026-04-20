@@ -50,7 +50,7 @@ class NavigationMenuController extends Controller
         NavigationMenu::create($data);
 
         return redirect()->route('settings.navigation.index')
-            ->with('success', 'Menu item created successfully');
+            ->with('success', __('common.navigation_menu_item_created'));
     }
 
     public function edit(NavigationMenu $navigation): View
@@ -89,20 +89,20 @@ class NavigationMenuController extends Controller
         $navigation->update($data);
 
         return redirect()->route('settings.navigation.index')
-            ->with('success', 'Menu item updated successfully');
+            ->with('success', __('common.navigation_menu_item_updated'));
     }
 
     public function destroy(NavigationMenu $navigation)
     {
         if ($navigation->allChildren()->exists()) {
             return redirect()->route('settings.navigation.index')
-                ->with('error', 'Cannot delete a menu that has children. Remove children first.');
+                ->with('error', __('common.navigation_menu_delete_has_children'));
         }
 
         $navigation->delete();
 
         return redirect()->route('settings.navigation.index')
-            ->with('success', 'Menu item deleted successfully');
+            ->with('success', __('common.navigation_menu_item_deleted'));
     }
 
     public function reorder(Request $request)

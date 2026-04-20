@@ -23,7 +23,7 @@ class DepartmentController extends Controller
         return response()->json([
             'success' => true,
             'data' => $query->get(),
-            'message' => 'Departments retrieved successfully.',
+            'message' => __('api.departments_retrieved'),
         ]);
     }
 
@@ -34,7 +34,7 @@ class DepartmentController extends Controller
         return response()->json([
             'success' => true,
             'data' => $department,
-            'message' => 'Department retrieved successfully.',
+            'message' => __('api.department_retrieved'),
         ]);
     }
 
@@ -57,7 +57,7 @@ class DepartmentController extends Controller
         return response()->json([
             'success' => true,
             'data' => $department,
-            'message' => 'Department created successfully.',
+            'message' => __('api.department_created'),
         ], 201);
     }
 
@@ -80,7 +80,7 @@ class DepartmentController extends Controller
         return response()->json([
             'success' => true,
             'data' => $department,
-            'message' => 'Department updated successfully.',
+            'message' => __('api.department_updated'),
         ]);
     }
 
@@ -89,7 +89,7 @@ class DepartmentController extends Controller
         if ($department->workflowBindings()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete department with active workflow bindings.',
+                'message' => __('api.department_has_workflow_bindings'),
             ], 422);
         }
 
@@ -98,7 +98,7 @@ class DepartmentController extends Controller
         return response()->json([
             'success' => true,
             'data' => null,
-            'message' => 'Department deleted successfully.',
+            'message' => __('api.department_deleted'),
         ]);
     }
 }

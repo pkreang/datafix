@@ -2,16 +2,20 @@
 
 namespace App\Services;
 
+use App\Models\DocumentForm;
 use App\Models\NavigationMenu;
+use App\Models\UserPinnedMenu;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class NavigationService
 {
     /**
-     * Build the menu tree filtered by the current user's permissions.
+     * Build the menu tree filtered by the current user's permissions + department.
+     * Form-linked menu rows (document_form_id not null) honor department visibility
+     * at render time; everything else uses static permission/super-admin rules.
      */
-    public function getMenus(array $permissions, bool $isSuperAdmin): Collection
+    public function getMenus(array $permissions, bool $isSuperAdmin, ?int $userDepartmentId = null): Collection
     {
         $tree = Cache::remember('navigation_menus_tree', 3600, function () {
             return NavigationMenu::rootMenus()->with('children')->get();
@@ -19,33 +23,116 @@ class NavigationService
 
         return $tree
             ->map(fn ($menu) => clone $menu)
-            ->filter(fn ($menu) => $this->isAccessible($menu, $permissions, $isSuperAdmin))
-            ->map(function ($menu) use ($permissions, $isSuperAdmin) {
+            ->filter(fn ($menu) => $this->isAccessible($menu, $permissions, $isSuperAdmin, $userDepartmentId))
+            ->map(function ($menu) use ($permissions, $isSuperAdmin, $userDepartmentId) {
                 if ($menu->children->isNotEmpty()) {
                     $filtered = $menu->children
                         ->map(fn ($c) => clone $c)
-                        ->filter(fn ($child) => $this->isAccessible($child, $permissions, $isSuperAdmin));
+                        ->filter(fn ($child) => $this->isAccessible($child, $permissions, $isSuperAdmin, $userDepartmentId));
                     $menu->setRelation('children', $filtered);
                 }
+
                 return $menu;
             })
             ->filter(function ($menu) {
+                // Hide group-only menus whose children were all filtered out.
                 if ($menu->route === null && $menu->children->isEmpty()) {
                     return false;
                 }
+
                 return true;
             })
             ->values();
     }
 
-    private function isAccessible(NavigationMenu $menu, array $permissions, bool $isSuperAdmin): bool
+    /**
+     * Resolve the user's pinned menu items into full menu objects the sidebar can
+     * render. Pinned menus surface above the main tree so frequently-used pages
+     * stay one click away regardless of how many children the user has.
+     */
+    public function getPinnedMenus(int $userId, Collection $allMenus): Collection
     {
+        $keys = UserPinnedMenu::keysFor($userId);
+        if (empty($keys)) {
+            return collect();
+        }
+
+        $lookup = collect();
+        $flatten = function ($menus) use (&$lookup, &$flatten) {
+            foreach ($menus as $m) {
+                if ($m->id > 0) {
+                    $lookup->put((string) $m->id, $m);
+                }
+                if ($m->children && $m->children->isNotEmpty()) {
+                    $flatten($m->children);
+                }
+            }
+        };
+        $flatten($allMenus);
+
+        return collect($keys)
+            ->map(fn ($k) => $lookup->get($k))
+            ->filter()
+            ->values();
+    }
+
+    private function isAccessible(NavigationMenu $menu, array $permissions, bool $isSuperAdmin, ?int $userDepartmentId = null): bool
+    {
+        if ($this->menuRouteRequiresInstanceSuperAdmin($menu->route)) {
+            return $isSuperAdmin;
+        }
+
+        // Form-linked menu rows respect department visibility in addition to
+        // the menu's own is_active flag. Super-admin sees every form.
+        if ($menu->document_form_id && ! $isSuperAdmin) {
+            if (! $this->menuVisibleForDocumentForm((int) $menu->document_form_id, $userDepartmentId)) {
+                return false;
+            }
+        }
+
         if ($menu->permission === null) {
             return true;
         }
         if ($isSuperAdmin) {
             return true;
         }
+
         return in_array($menu->permission, $permissions);
+    }
+
+    /**
+     * Routes under /settings/ use middleware super-admin (DB is_super_admin), except password policy.
+     */
+    private function menuRouteRequiresInstanceSuperAdmin(?string $route): bool
+    {
+        if ($route === null || $route === '') {
+            return false;
+        }
+
+        $path = '/'.ltrim($route, '/');
+        if ($path === '/settings/password-policy') {
+            return false;
+        }
+
+        return str_starts_with($path, '/settings/');
+    }
+
+    /**
+     * Cached per-request lookup: does the form's department binding admit the
+     * given user department? Keeps the sidebar snappy when a user has many
+     * form-linked rows.
+     */
+    private function menuVisibleForDocumentForm(int $formId, ?int $userDepartmentId): bool
+    {
+        static $cache = [];
+        $key = $formId.'|'.($userDepartmentId ?? 'null');
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+
+        return $cache[$key] = DocumentForm::query()
+            ->whereKey($formId)
+            ->visibleToUser($userDepartmentId)
+            ->exists();
     }
 }

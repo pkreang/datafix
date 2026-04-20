@@ -7,6 +7,8 @@ use Illuminate\Database\Seeder;
 /**
  * Optional demo / pilot dataset (not run from DatabaseSeeder).
  *
+ * Departments: SCH_* only (SchoolEFormTemplateSeeder). No CMMS equipment/spare-parts demo.
+ *
  *   php artisan db:seed --class=DevelopmentDemoSeeder
  */
 class DevelopmentDemoSeeder extends Seeder
@@ -14,15 +16,10 @@ class DevelopmentDemoSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            CompanySeeder::class,
-            DepartmentSeeder::class,
             PositionDemoSeeder::class,
-            EquipmentCategorySeeder::class,
-            EquipmentLocationSeeder::class,
-            EquipmentSeeder::class,
-            SparePartSeeder::class,
-            ApprovalWorkflowDemoSeeder::class,
+            IndustryTemplateSeeder::class,
             DashboardSeeder::class,
+            DemoPeopleSeeder::class,
         ]);
     }
 }

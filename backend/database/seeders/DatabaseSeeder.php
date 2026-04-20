@@ -10,10 +10,14 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Seed the application's database.
+     * Seed the application's database — vertical-neutral baseline.
      *
-     * Customer-style install: RBAC, settings, navigation, document types/forms only.
-     * Single login: admin@example.com (RolePermissionSeeder). No demo company, equipment, workflows, etc.
+     * Includes RBAC, settings, navigation, document types, positions, layout demo forms,
+     * and dashboards. Single login: admin@example.com (RolePermissionSeeder).
+     *
+     * Vertical-specific data (school eForm template, NTEQ CMMS) is NOT in this base —
+     * run `IndustryTemplateSeeder` for school or `FactoryCmmsTemplateSeeder` for factory
+     * explicitly. The `composer switch:school|switch:factory` scripts handle that.
      *
      * Optional demo dataset: php artisan db:seed --class=DevelopmentDemoSeeder
      */
@@ -25,9 +29,9 @@ class DatabaseSeeder extends Seeder
             SettingSeeder::class,
             NavigationMenuSeeder::class,
             DocumentTypeSeeder::class,
+            PositionDemoSeeder::class,
             DocumentFormSeeder::class,
-            DashboardSeeder::class,
-            PurchaseWorkflowSeeder::class,
+            // DashboardSeeder is vertical-specific — invoked from per-vertical demo seeders
         ]);
     }
 }
