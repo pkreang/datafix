@@ -424,6 +424,8 @@ return [
     'document_form_col_span_auto' => 'Auto',
     'document_form_table_columns' => 'Table columns',
     'document_form_table_add_column' => 'Add column',
+    'document_form_column_formula' => 'Formula (auto-compute)',
+    'document_form_column_formula_hint' => 'Use other column keys with + - * / e.g. qty * unit_price. Makes this column read-only.',
     'document_form_table_add_row' => 'Add row',
     'document_form_options_hint' => 'Options (one per line)',
     'document_form_lookup_source' => 'Lookup source',

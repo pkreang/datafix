@@ -232,9 +232,34 @@
                 let row = {};
                 this.columns.forEach(c => row[c.key] = '');
                 this.rows.push(row);
+                this.notifyChange();
             },
-            removeRow(i) { this.rows.splice(i, 1); }
-        }" x-init="if(!rows.length && !{{ $isReadOnly ? 'true' : 'false' }}) addRow()">
+            removeRow(i) { this.rows.splice(i, 1); this.notifyChange(); },
+            notifyChange() {
+                window.dispatchEvent(new CustomEvent('documentform:table-changed', {
+                    detail: { fieldKey: @js($field->field_key), rows: this.rows }
+                }));
+            },
+            /** Evaluate a simple arithmetic formula like 'qty * unit_price' against row columns.
+             *  Whitelisted tokens: column identifiers, numbers, + - * / ( ) . Fallback to 0 on error. */
+            computeFormula(formula, row) {
+                if (!formula) return 0;
+                const tokens = String(formula).match(/[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[+\-*/()%]/g) || [];
+                if (!tokens.length) return 0;
+                const expr = tokens.map(t => /^[A-Za-z_]/.test(t) ? '(' + Number(row[t] || 0) + ')' : t).join('');
+                try {
+                    const val = Function('\"use strict\"; return (' + expr + ');')();
+                    return Number.isFinite(val) ? val : 0;
+                } catch (e) { return 0; }
+            },
+            formatNumber(n) {
+                const num = Number(n) || 0;
+                return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        }" x-init="
+            if(!rows.length && !{{ $isReadOnly ? 'true' : 'false' }}) addRow();
+            $watch('rows', () => notifyChange(), { deep: true });
+        ">
             <input type="hidden" name="{{ $name }}" :value="JSON.stringify(rows)">
             <div class="mt-1 overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-lg">
                 <table class="w-full text-sm">
@@ -253,7 +278,7 @@
                                 <td class="px-3 py-2 text-gray-400 text-xs" x-text="ri + 1"></td>
                                 <template x-for="col in columns" :key="col.key">
                                     <td class="px-3 py-1">
-                                        <template x-if="col.type === 'select'">
+                                        <template x-if="!col.formula && col.type === 'select'">
                                             <select x-model="row[col.key]" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                                                 <option value=""></option>
                                                 <template x-for="opt in (col.options || '').split(',').map(o => o.trim()).filter(Boolean)" :key="opt">
@@ -261,16 +286,16 @@
                                                 </template>
                                             </select>
                                         </template>
-                                        <template x-if="col.type === 'checkbox'">
+                                        <template x-if="!col.formula && col.type === 'checkbox'">
                                             <input type="checkbox" x-model="row[col.key]" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                                         </template>
-                                        <template x-if="col.type === 'date'">
+                                        <template x-if="!col.formula && col.type === 'date'">
                                             <input type="date" x-model="row[col.key]" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                                         </template>
-                                        <template x-if="col.type === 'number'">
+                                        <template x-if="!col.formula && col.type === 'number'">
                                             <input type="number" step="0.01" x-model="row[col.key]" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                                         </template>
-                                        <template x-if="col.type === 'lookup'">
+                                        <template x-if="!col.formula && col.type === 'lookup'">
                                             <div x-data="{ items: [], loaded: false, lastFilterKey: '' }"
                                                  x-effect="
                                                     if (!col.lookup_source) return;
@@ -310,7 +335,10 @@
                                                 @endif
                                             </div>
                                         </template>
-                                        <template x-if="!col.type || col.type === 'text'">
+                                        <template x-if="col.formula" x-effect="row[col.key] = computeFormula(col.formula, row)">
+                                            <span class="inline-block w-full px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 rounded text-right font-mono" x-text="formatNumber(row[col.key])"></span>
+                                        </template>
+                                        <template x-if="!col.formula && (!col.type || col.type === 'text')">
                                             <input type="text" x-model="row[col.key]" class="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                                         </template>
                                     </td>

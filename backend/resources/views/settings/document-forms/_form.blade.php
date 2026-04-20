@@ -548,6 +548,13 @@
                                             <input x-model="col.foreign_key" placeholder="equipment_category_id" class="form-input" />
                                         </div>
                                     </div>
+                                    <div class="flex items-end gap-2 pl-2" x-show="col.type === 'number' || col.type === 'text'">
+                                        <div class="flex-1">
+                                            <label class="text-xs text-slate-400">{{ __('common.document_form_column_formula') }}</label>
+                                            <input x-model="col.formula" placeholder="qty * unit_price" class="form-input font-mono text-sm" />
+                                            <p class="text-xs text-slate-400 mt-1">{{ __('common.document_form_column_formula_hint') }}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </template>
                             <input type="hidden" :name="`fields[${idx}][table_columns]`" :value="JSON.stringify(field.table_columns)">
@@ -731,7 +738,7 @@
             },
             addTableColumn(field) {
                 if (!field.table_columns) field.table_columns = [];
-                field.table_columns.push({key: '', label: '', type: 'text', lookup_source: '', depends_on: '', foreign_key: ''});
+                field.table_columns.push({key: '', label: '', type: 'text', lookup_source: '', depends_on: '', foreign_key: '', formula: ''});
             },
             autoSuggestTableColumnForeignKey(field, col) {
                 if (!col.lookup_source || !col.depends_on) {

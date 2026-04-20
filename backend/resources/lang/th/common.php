@@ -424,6 +424,8 @@ return [
     'document_form_col_span_auto' => 'อัตโนมัติ',
     'document_form_table_columns' => 'คอลัมน์ตาราง',
     'document_form_table_add_column' => 'เพิ่มคอลัมน์',
+    'document_form_column_formula' => 'สูตรคำนวณ (อัตโนมัติ)',
+    'document_form_column_formula_hint' => 'ใส่ชื่อคอลัมน์อื่นกับ + - * / เช่น qty * unit_price — คอลัมน์นี้จะ read-only แสดงค่าที่คำนวณได้',
     'document_form_table_add_row' => 'เพิ่มแถว',
     'document_form_options_hint' => 'ตัวเลือก (บรรทัดละ 1 รายการ)',
     'document_form_lookup_source' => 'แหล่งข้อมูล',
