@@ -3,7 +3,7 @@
 @section('page-title', __('common.login'))
 
 @section('content')
-<div x-data="{ showPassword: false }">
+<div>
     <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 text-center">{{ __('common.login') }}</h2>
 
     @if (session('status'))
@@ -15,13 +15,14 @@
     @endif
 
     @if (! empty($authLocalEnabled))
-    <form method="POST" action="{{ route('login') }}" class="space-y-5" novalidate>
+    <form method="POST" action="{{ route('login') }}" class="space-y-5" novalidate data-no-submit-loading>
         @csrf
         <div>
             <label for="email" class="form-label">{{ __('auth.placeholder_email') }}</label>
             <div class="relative">
                 <input type="email" name="email" id="email" value="{{ old('email') }}"
                        placeholder="{{ __('auth.placeholder_email') }}" required autofocus
+                       autocomplete="username" inputmode="email" enterkeyhint="next"
                        class="form-input pr-10 @error('email') form-input-error @enderror"
                        aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                        @if ($errors->has('email')) aria-describedby="email-error" @endif>
@@ -39,18 +40,21 @@
         <div>
             <label for="password" class="form-label">{{ __('auth.placeholder_password') }}</label>
             <div class="relative">
-                <input :type="showPassword ? 'text' : 'password'" name="password" id="password" required
+                <input type="password" name="password" id="password" required
                        placeholder="{{ __('auth.placeholder_password') }}"
+                       autocomplete="current-password" enterkeyhint="go"
                        class="form-input pr-10 @error('password') form-input-error @enderror"
                        aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
                        @if ($errors->has('password')) aria-describedby="password-error" @endif>
-                <button type="button" @click="showPassword = !showPassword"
-                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none cursor-pointer">
-                    <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button type="button"
+                        class="js-auth-password-toggle absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none cursor-pointer"
+                        aria-pressed="false"
+                        aria-label="{{ __('auth.password_toggle') }}">
+                    <svg class="js-auth-pw-icon-show w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                     </svg>
-                    <svg x-show="showPassword" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="js-auth-pw-icon-hide w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.783-2.961m5.208 5.208A3 3 0 1112 15m-5.625-5.625A10.05 10.05 0 0112 5c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-1.783 2.961"/>
                     </svg>
                 </button>
@@ -84,7 +88,7 @@
         @if (! empty($authLdapEnabled))
             <div class="mt-2 pt-4 border-t border-slate-200 dark:border-slate-600">
                 <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">{{ __('auth.sign_in_ldap') }}</p>
-                <form method="POST" action="{{ route('auth.ldap.login') }}" class="space-y-4" novalidate>
+                <form method="POST" action="{{ route('auth.ldap.login') }}" class="space-y-4" novalidate data-no-submit-loading>
                     @csrf
                     <div>
                         <label for="ldap_email" class="form-label">{{ __('auth.ldap_email') }}</label>

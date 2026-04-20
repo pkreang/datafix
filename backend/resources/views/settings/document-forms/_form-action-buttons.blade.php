@@ -15,6 +15,17 @@
         <a href="{{ route('settings.document-forms.policy.edit', $documentForm) }}"
            class="inline-flex items-center justify-center rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-purple-700">{{ __('common.workflow_policy') }}</a>
     </div>
+    {{-- Create report: one-click dashboard with default widgets pointing to this form --}}
+    <div class="flex items-center px-2">
+        <form method="POST" action="{{ route('settings.document-forms.create-report', $documentForm) }}"
+              onsubmit="return confirm('{{ __('common.form_report_create_confirm') }}')">
+            @csrf
+            <button type="submit"
+                    class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700">
+                {{ __('common.form_report_create_button') }}
+            </button>
+        </form>
+    </div>
 @endif
 {{-- Cancel: outlined pill --}}
 <div class="flex items-center px-2">

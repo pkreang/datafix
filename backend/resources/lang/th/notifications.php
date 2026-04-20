@@ -21,6 +21,8 @@ return [
     'workflow_rejected_title' => 'เอกสารถูกปฏิเสธ',
     'workflow_rejected_body' => ':document_type :reference ของคุณถูกปฏิเสธ',
     'rejection_comment' => 'ความเห็น: ":comment"',
+    'stock_low_title' => 'สต็อกอะไหล่ต่ำกว่าขั้นต่ำ',
+    'stock_low_body' => 'อะไหล่ :name เหลือ :current :unit (ขั้นต่ำ: :min :unit)',
 
     // Document types
     'document_types' => [
@@ -40,6 +42,9 @@ return [
     'event_workflow_approved_desc' => 'ส่งอีเมลเมื่อเอกสารได้รับการอนุมัติครบทุกขั้นตอน',
     'event_workflow_rejected' => 'เอกสารถูกปฏิเสธ',
     'event_workflow_rejected_desc' => 'ส่งอีเมลเมื่อเอกสารถูกปฏิเสธ',
+    'event_stock_low' => 'สต็อกอะไหล่ต่ำกว่าขั้นต่ำ',
+    'event_stock_low_desc' => 'ส่งอีเมลเมื่อสต็อกอะไหล่ลดลงถึงหรือต่ำกว่าระดับขั้นต่ำ',
+    'event_stock_low_line_desc' => 'ส่ง LINE เมื่อสต็อกอะไหล่ลดลงถึงหรือต่ำกว่าระดับขั้นต่ำ',
     'save_settings' => 'บันทึกการตั้งค่า',
     'settings_saved' => 'บันทึกการตั้งค่าการแจ้งเตือนเรียบร้อยแล้ว',
 
@@ -53,4 +58,27 @@ return [
     'event_approval_pending_line_desc' => 'ส่ง LINE เมื่อมีเอกสารรอการอนุมัติ',
     'event_workflow_approved_line_desc' => 'ส่ง LINE เมื่อเอกสารได้รับการอนุมัติครบทุกขั้นตอน',
     'event_workflow_rejected_line_desc' => 'ส่ง LINE เมื่อเอกสารถูกปฏิเสธ',
+
+    // Outbound mail (SMTP) — Settings → Notifications
+    'mail_outbound_title' => 'การส่งอีเมลออก (SMTP)',
+    'mail_outbound_desc' => 'เซิร์ฟเวอร์จดหมายสำหรับอีเมลของระบบ (แจ้งเตือน รีเซ็ตรหัสผ่าน ฯลฯ)',
+    'mail_use_db_label' => 'ใช้การตั้งค่าด้านล่างแทนค่าใน .env / config',
+    'mail_use_db_hint' => 'เมื่อปิด ระบบใช้ MAIL_* จากสภาพแวดล้อมเท่านั้น',
+    'mail_mailer' => 'ไดรเวอร์จดหมาย',
+    'mail_mailer_log' => 'บันทึกลง log (พัฒนา)',
+    'mail_mailer_sendmail' => 'Sendmail',
+    'mail_mailer_array' => 'Array (ทิ้ง)',
+    'mail_smtp_host' => 'โฮสต์ SMTP',
+    'mail_smtp_port' => 'พอร์ต',
+    'mail_smtp_username' => 'ชื่อผู้ใช้',
+    'mail_smtp_password' => 'รหัสผ่าน',
+    'mail_smtp_password_placeholder' => 'เว้นว่างเพื่อคงค่าเดิม',
+    'mail_smtp_password_hint' => 'เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่านที่เก็บไว้',
+    'mail_password_stored' => 'มีรหัสผ่านเก็บอยู่แล้ว — พิมพ์ใหม่เพื่อแทนที่',
+    'mail_smtp_encryption' => 'การเข้ารหัส',
+    'mail_encryption_none' => 'ไม่มี (เช่น relay ภายใน)',
+    'mail_encryption_tls' => 'TLS (STARTTLS)',
+    'mail_encryption_ssl' => 'SSL (SMTPS)',
+    'mail_from_address' => 'อีเมลผู้ส่ง',
+    'mail_from_name' => 'ชื่อผู้ส่ง',
 ];

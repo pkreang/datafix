@@ -36,10 +36,19 @@
 
 body {
     font-family: 'Inter', 'Noto Sans Thai', sans-serif;
-    font-size: 14px;
+    font-size: 1rem; /* 16px — WCAG base text minimum */
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 
 /* ===== Design System Utility Classes ===== */
@@ -90,7 +99,7 @@ body {
            mb-1;
 }
 .form-input {
-    @apply w-full px-3 py-2.5 rounded-lg text-sm
+    @apply w-full px-3 py-2.5 rounded-lg text-base
            bg-white dark:bg-slate-900
            border border-slate-200 dark:border-slate-600
            text-slate-900 dark:text-slate-100
@@ -102,20 +111,20 @@ body {
     @apply border-red-500 ring-2 ring-red-500/30 focus:ring-red-500;
 }
 
-/* Badges */
+/* Badges — Tailwind v4: cannot @apply custom classes like badge-base; keep one @apply per class */
 .badge-base   { @apply text-xs font-medium px-2.5 py-0.5 rounded-full; }
-.badge-green  { @apply badge-base bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400; }
-.badge-red    { @apply badge-base bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400; }
-.badge-blue   { @apply badge-base bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400; }
-.badge-yellow { @apply badge-base bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400; }
-.badge-gray   { @apply badge-base bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400; }
+.badge-green  { @apply text-xs font-medium px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400; }
+.badge-red    { @apply text-xs font-medium px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400; }
+.badge-blue   { @apply text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400; }
+.badge-yellow { @apply text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400; }
+.badge-gray   { @apply text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400; }
 
 /* Alerts */
 .alert-base    { @apply p-4 rounded-lg border-l-4 text-sm; }
-.alert-success { @apply alert-base bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-200; }
-.alert-error   { @apply alert-base bg-red-50 border-red-500 text-red-800 dark:bg-red-900/20 dark:text-red-200; }
-.alert-warning { @apply alert-base bg-amber-50 border-amber-500 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200; }
-.alert-info    { @apply alert-base bg-blue-50 border-blue-500 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200; }
+.alert-success { @apply p-4 rounded-lg border-l-4 text-sm bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-200; }
+.alert-error   { @apply p-4 rounded-lg border-l-4 text-sm bg-red-50 border-red-500 text-red-800 dark:bg-red-900/20 dark:text-red-200; }
+.alert-warning { @apply p-4 rounded-lg border-l-4 text-sm bg-amber-50 border-amber-500 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200; }
+.alert-info    { @apply p-4 rounded-lg border-l-4 text-sm bg-blue-50 border-blue-500 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200; }
 
 /* Tables — overflow-visible so absolute action-menu dropdowns aren't clipped (CLAUDE.md gotcha #2) */
 .table-wrapper {
@@ -125,9 +134,80 @@ body {
            shadow-[var(--shadow-sm)]
            overflow-visible;
 }
-.table-header  { @apply text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider; }
-.table-primary { @apply text-sm font-medium text-slate-900 dark:text-slate-100; }
-.table-sub     { @apply text-xs text-slate-500 dark:text-slate-400; }
+/* Match body cell padding (px-4 py-3); th defaults to centered — force left for data columns */
+.table-header {
+    @apply px-4 py-3.5 text-left text-sm font-semibold text-slate-700 dark:text-slate-200;
+}
+.table-primary { @apply px-4 py-2 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100; }
+.table-sub     { @apply px-4 py-2 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400; }
+
+/* Icon-only row actions — min 44×44px touch target (WCAG) */
+.table-action-btn {
+    @apply inline-flex items-center justify-center rounded-lg
+           min-h-11 min-w-11 p-2
+           text-slate-400 dark:text-slate-400
+           hover:text-slate-600 dark:hover:text-slate-300
+           hover:bg-slate-100 dark:hover:bg-slate-700
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+           dark:focus-visible:ring-offset-slate-900;
+}
+
+/*
+ * List tables — descendant `table` (not `> table`) so layouts with a header div above the table still match.
+ * Plain CSS + border-collapse so lines render even when Vite/Tailwind had failed on @apply chains.
+ */
+.table-wrapper table {
+    border-collapse: collapse;
+}
+
+/* Clear band behind headers — dark mode was too close to row/card (slate-800) */
+.table-wrapper table thead {
+    background-color: rgb(241 245 249); /* slate-100 */
+}
+
+.dark .table-wrapper table thead {
+    background-color: rgb(15 23 42); /* slate-900 — darker than slate-800 card */
+}
+
+.table-wrapper table thead > tr > th,
+.table-wrapper table thead > tr > td {
+    border-bottom: 1px solid rgb(203 213 225); /* slate-300 */
+}
+
+.dark .table-wrapper table thead > tr > th,
+.dark .table-wrapper table thead > tr > td {
+    border-bottom-color: rgb(71 85 105); /* slate-600 */
+}
+
+.table-wrapper table tbody > tr > td,
+.table-wrapper table tbody > tr > th {
+    border-bottom: 1px solid rgb(203 213 225);
+}
+
+.dark .table-wrapper table tbody > tr > td,
+.dark .table-wrapper table tbody > tr > th {
+    border-bottom-color: rgb(71 85 105);
+}
+
+.table-wrapper table tbody > tr:last-child > td,
+.table-wrapper table tbody > tr:last-child > th {
+    border-bottom: none;
+}
+
+/* Vertical column guides */
+.table-wrapper table thead th:not(:last-child),
+.table-wrapper table thead td:not(:last-child),
+.table-wrapper table tbody td:not(:last-child),
+.table-wrapper table tbody th:not(:last-child) {
+    border-right: 1px solid rgb(203 213 225);
+}
+
+.dark .table-wrapper table thead th:not(:last-child),
+.dark .table-wrapper table thead td:not(:last-child),
+.dark .table-wrapper table tbody td:not(:last-child),
+.dark .table-wrapper table tbody th:not(:last-child) {
+    border-right-color: rgb(51 65 85); /* slate-700 */
+}
 
 /* Sidebar — explicit gradient fallback so Tailwind v4 CSS-var gradient always renders */
 .app-sidebar {
@@ -165,17 +245,17 @@ body {
     background-color: rgba(255, 255, 255, 0.5);
 }
 
-/* Document form web pages — plain max-width so layout stays narrow even if Tailwind max-w-* is not emitted */
+/* Document form web pages — full width */
 .document-form-page {
     width: 100%;
-    max-width: min(46rem, 100%);
-    margin-inline: auto;
+    max-width: 100%;
+}
+.document-form-page > .card {
+    max-width: 100%;
 }
 
 .document-form-show-page {
     width: 100%;
-    max-width: min(60rem, 100%);
-    margin-inline: auto;
 }
 
 /* Document form builder — preview modal overlay (must sit above the fixed sidebar z-30) */

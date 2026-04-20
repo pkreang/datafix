@@ -1,0 +1,25 @@
+# MySQL for local dev. Uses variables from .env in this directory (DB_*).
+# Run from backend/: docker compose up -d
+# Then: php artisan migrate
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dataflow-mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_DATABASE}"
+    volumes:
+      - dataflow_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  dataflow_mysql_data:

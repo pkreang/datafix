@@ -3,6 +3,7 @@
     $isEdit = $documentForm !== null;
     $action = $isEdit ? route('settings.document-forms.update', $documentForm) : route('settings.document-forms.store');
     $cascadingRelations = \App\Support\LookupRegistry::cascadingRelations();
+    $searchableTypes = \App\Models\DocumentFormField::SEARCHABLE_TYPES;
     $initialFields = old('fields', $isEdit ? $documentForm->fields->map(function ($f) {
         $isLookup = $f->field_type === 'lookup';
         $isOldLookup = in_array($f->field_type, ['user_lookup', 'equipment_lookup']);
@@ -12,6 +13,7 @@
             'label' => $f->label,
             'field_type' => $isOldLookup ? 'lookup' : $f->field_type,
             'is_required' => $f->is_required,
+            'is_searchable' => $f->is_searchable,
             'placeholder' => $f->placeholder,
             'options_raw' => is_array($f->options) && !isset($f->options['source']) && !isset($f->options['columns']) ? implode("\n", $f->options) : '',
             'lookup_source' => $isLookup ? ($f->options['source'] ?? '') : ($isOldLookup ? str_replace('_lookup', '', $f->field_type) : ''),
@@ -19,14 +21,16 @@
             'foreign_key' => $isLookup ? ($f->options['foreign_key'] ?? '') : '',
             'col_span' => $f->col_span ?? 0,
             'table_columns' => $isTable ? ($f->options['columns'] ?? []) : [],
+            'visibility_rules' => $f->visibility_rules ?? [],
+            'validation_rules' => (object) ($f->validation_rules ?? []),
         ];
     })->values() : [
-        ['field_key' => 'title', 'label' => __('common.document_form_default_title'), 'field_type' => 'text', 'is_required' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => []],
-        ['field_key' => 'amount', 'label' => __('common.document_form_default_amount'), 'field_type' => 'number', 'is_required' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => []],
+        ['field_key' => 'title', 'label' => __('common.document_form_default_title'), 'field_type' => 'text', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass],
+        ['field_key' => 'amount', 'label' => __('common.document_form_default_amount'), 'field_type' => 'number', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass],
     ]);
 @endphp
 
-<div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }})">
+<div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }}, {{ Js::from($searchableTypes) }})">
     {{-- Preview Modal — teleported to <body> to escape stacking context --}}
     <template x-teleport="body">
     <div x-show="showPreview" x-cloak
@@ -106,6 +110,15 @@
                         <template x-if="field.field_type === 'select'">
                             <select tabindex="-1" class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none">
                                 <option value="">{{ __('common.please_select') }}</option>
+                                <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
+                                    <option x-text="opt.trim()"></option>
+                                </template>
+                            </select>
+                        </template>
+
+                        {{-- multi_select --}}
+                        <template x-if="field.field_type === 'multi_select'">
+                            <select multiple tabindex="-1" class="mt-1.5 w-full h-24 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 pointer-events-none select-none">
                                 <template x-for="opt in (field.options_raw || '').split('\n').filter(o => o.trim())" :key="opt">
                                     <option x-text="opt.trim()"></option>
                                 </template>
@@ -198,6 +211,19 @@
                             </div>
                         </template>
 
+                        {{-- image --}}
+                        <template x-if="field.field_type === 'image'">
+                            <div class="mt-1.5 flex items-center gap-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 px-4 py-5 pointer-events-none select-none">
+                                <svg class="w-6 h-6 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ __('common.document_form_type_image') }}</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">accept="image/*"</p>
+                                </div>
+                            </div>
+                        </template>
+
                         {{-- signature --}}
                         <template x-if="field.field_type === 'signature'">
                             <div class="mt-1.5 w-full min-h-[6rem] rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 flex items-center justify-center pointer-events-none select-none">
@@ -242,6 +268,12 @@
                                 </div>
                                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{{ __('common.document_form_table_add_row_hint') }}</p>
                             </div>
+                        </template>
+
+                        {{-- auto_number --}}
+                        <template x-if="field.field_type === 'auto_number'">
+                            <input type="text" readonly tabindex="-1" placeholder="Auto Generate"
+                                   class="mt-1.5 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-400 dark:text-gray-500 italic font-mono pointer-events-none select-none placeholder:italic focus:outline-none">
                         </template>
 
                         {{-- text (default) --}}
@@ -339,7 +371,7 @@
                            class="form-input mt-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed" />
                     <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">{{ __('common.table_name_locked') }}</p>
                 @else
-                    <input name="table_name" value="{{ old('table_name', '') }}" required
+                    <input name="table_name" value="{{ old('table_name', $documentForm?->form_key ?? '') }}" required
                            placeholder="เช่น maintenance_requests"
                            pattern="[a-z][a-z0-9_]*" maxlength="64"
                            class="form-input mt-1" />
@@ -413,17 +445,20 @@
                             <option value="email">{{ __('common.document_form_type_email') }}</option>
                             <option value="phone">{{ __('common.document_form_type_phone') }}</option>
                             <option value="file">{{ __('common.document_form_type_file') }}</option>
+                            <option value="image">{{ __('common.document_form_type_image') }}</option>
                             <option value="signature">{{ __('common.document_form_type_signature') }}</option>
+                            <option value="multi_select">{{ __('common.document_form_type_multi_select') }}</option>
                             <option value="lookup">{{ __('common.document_form_type_lookup') }}</option>
                             <option value="table">{{ __('common.document_form_type_table') }}</option>
                             <option value="section">{{ __('common.document_form_type_section') }}</option>
+                            <option value="auto_number">{{ __('common.document_form_type_auto_number') }}</option>
                         </select>
                     </div>
-                    <div x-show="!['lookup','table','section'].includes(field.field_type)">
+                    <div x-show="!['lookup','table','section','image'].includes(field.field_type)">
                         <label class="text-xs text-slate-500">{{ __('common.document_form_placeholder') }}</label>
                         <input :name="`fields[${idx}][placeholder]`" x-model="field.placeholder" class="form-input mt-1" />
                     </div>
-                    <div class="md:col-span-2" x-show="['select','radio','checkbox'].includes(field.field_type)">
+                    <div class="md:col-span-2" x-show="['select','radio','checkbox','multi_select'].includes(field.field_type)">
                         <label class="text-xs text-slate-500">{{ __('common.document_form_options_hint') }}</label>
                         <textarea :name="`fields[${idx}][options_raw]`" x-model="field.options_raw" rows="2" class="form-input mt-1 resize-y"></textarea>
                     </div>
@@ -466,26 +501,53 @@
                                 <button type="button" @click="addTableColumn(field)" class="px-2 py-1 rounded bg-blue-600 text-white text-xs">+ {{ __('common.document_form_table_add_column') }}</button>
                             </div>
                             <template x-for="(col, ci) in field.table_columns" :key="ci">
-                                <div class="flex items-end gap-2">
-                                    <div class="flex-1">
-                                        <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_key') }}</label>
-                                        <input x-model="col.key" placeholder="key" class="form-input" />
+                                <div class="space-y-1">
+                                    <div class="flex items-end gap-2">
+                                        <div class="flex-1">
+                                            <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_key') }}</label>
+                                            <input x-model="col.key" placeholder="key" class="form-input" />
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_label') }}</label>
+                                            <input x-model="col.label" placeholder="{{ __('common.document_form_field_label') }}" class="form-input" />
+                                        </div>
+                                        <div class="w-32">
+                                            <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_type') }}</label>
+                                            <select x-model="col.type" class="form-input">
+                                                <option value="text">{{ __('common.document_form_type_text') }}</option>
+                                                <option value="number">{{ __('common.document_form_type_number') }}</option>
+                                                <option value="select">{{ __('common.document_form_type_select') }}</option>
+                                                <option value="checkbox">{{ __('common.document_form_type_checkbox') }}</option>
+                                                <option value="date">{{ __('common.document_form_type_date') }}</option>
+                                                <option value="lookup">{{ __('common.document_form_type_lookup') }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="w-36" x-show="col.type === 'lookup'">
+                                            <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_lookup_source') }}</label>
+                                            <select x-model="col.lookup_source" @change="autoSuggestTableColumnForeignKey(field, col)" class="form-input">
+                                                <option value="">{{ __('common.please_select') }}</option>
+                                                <template x-for="[key, src] in Object.entries(lookupSources)" :key="key">
+                                                    <option :value="key" x-text="src.label_{{ app()->getLocale() }} || src.label_en"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <button type="button" @click="field.table_columns.splice(ci, 1)" class="px-2 py-2 rounded bg-red-600 text-white text-xs shrink-0">{{ __('common.delete') }}</button>
                                     </div>
-                                    <div class="flex-1">
-                                        <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_label') }}</label>
-                                        <input x-model="col.label" placeholder="{{ __('common.document_form_field_label') }}" class="form-input" />
+                                    <div class="flex items-end gap-2 pl-2" x-show="col.type === 'lookup'">
+                                        <div class="w-48">
+                                            <label class="text-xs text-slate-400">{{ __('common.depends_on') }}</label>
+                                            <select x-model="col.depends_on" @change="autoSuggestTableColumnForeignKey(field, col)" class="form-input">
+                                                <option value="">—</option>
+                                                <template x-for="other in field.table_columns.filter(c => c !== col && c.type === 'lookup' && c.key)" :key="other.key">
+                                                    <option :value="other.key" x-text="(other.label || other.key)"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="w-56" x-show="col.depends_on">
+                                            <label class="text-xs text-slate-400">{{ __('common.foreign_key') }}</label>
+                                            <input x-model="col.foreign_key" placeholder="equipment_category_id" class="form-input" />
+                                        </div>
                                     </div>
-                                    <div class="w-32">
-                                        <label class="text-xs text-slate-400" x-show="ci === 0">{{ __('common.document_form_field_type') }}</label>
-                                        <select x-model="col.type" class="form-input">
-                                            <option value="text">{{ __('common.document_form_type_text') }}</option>
-                                            <option value="number">{{ __('common.document_form_type_number') }}</option>
-                                            <option value="select">{{ __('common.document_form_type_select') }}</option>
-                                            <option value="checkbox">{{ __('common.document_form_type_checkbox') }}</option>
-                                            <option value="date">{{ __('common.document_form_type_date') }}</option>
-                                        </select>
-                                    </div>
-                                    <button type="button" @click="field.table_columns.splice(ci, 1)" class="px-2 py-2 rounded bg-red-600 text-white text-xs shrink-0">{{ __('common.delete') }}</button>
                                 </div>
                             </template>
                             <input type="hidden" :name="`fields[${idx}][table_columns]`" :value="JSON.stringify(field.table_columns)">
@@ -497,6 +559,10 @@
                         <input type="checkbox" :name="`fields[${idx}][is_required]`" value="1" x-model="field.is_required">
                         <span class="text-xs text-slate-600 dark:text-slate-300">{{ __('common.document_form_required') }}</span>
                     </label>
+                    <label class="inline-flex items-center gap-2" x-show="isSearchableType(field.field_type)">
+                        <input type="checkbox" :name="`fields[${idx}][is_searchable]`" value="1" x-model="field.is_searchable">
+                        <span class="text-xs text-slate-600 dark:text-slate-300">{{ __('common.document_form_searchable') }}</span>
+                    </label>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">{{ __('common.document_form_col_span') }}</span>
                         <select :name="`fields[${idx}][col_span]`" x-model.number="field.col_span" class="form-input py-1 px-2 text-xs">
@@ -506,6 +572,84 @@
                             <option value="3">3</option>
                             <option value="4">4</option>
                         </select>
+                    </div>
+                </div>
+
+                {{-- Advanced: Visibility Rules + Validation Rules --}}
+                <div x-data="{ showAdvanced: false }" x-show="field.field_type !== 'section'" class="border-t border-slate-100 dark:border-slate-700 pt-2 mt-2">
+                    <button type="button" @click="showAdvanced = !showAdvanced" class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                        <svg class="w-3 h-3 transition-transform" :class="showAdvanced ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        {{ __('common.advanced_settings') ?? 'Advanced Settings' }}
+                    </button>
+
+                    <div x-show="showAdvanced" x-cloak class="mt-3 space-y-4">
+                        {{-- Visibility Rules --}}
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.visibility_rules') ?? 'Visibility Rules' }}</p>
+                            <template x-for="(rule, ri) in (field.visibility_rules || [])" :key="ri">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <select x-model="rule.field" class="form-input py-1 px-2 text-xs flex-1">
+                                        <option value="">{{ __('common.select_field') ?? 'Select field' }}</option>
+                                        <template x-for="(other, oi) in fields" :key="'vis-'+oi">
+                                            <template x-if="oi !== idx && other.field_key && other.field_type !== 'section'">
+                                                <option :value="other.field_key" x-text="other.label || other.field_key"></option>
+                                            </template>
+                                        </template>
+                                    </select>
+                                    <select x-model="rule.operator" class="form-input py-1 px-2 text-xs w-32">
+                                        <option value="equals">{{ __('common.op_equals') ?? 'Equals' }}</option>
+                                        <option value="not_equals">{{ __('common.op_not_equals') ?? 'Not equals' }}</option>
+                                        <option value="is_empty">{{ __('common.op_is_empty') ?? 'Is empty' }}</option>
+                                        <option value="is_not_empty">{{ __('common.op_is_not_empty') ?? 'Is not empty' }}</option>
+                                        <option value="greater_than">{{ __('common.op_greater_than') ?? 'Greater than' }}</option>
+                                        <option value="less_than">{{ __('common.op_less_than') ?? 'Less than' }}</option>
+                                    </select>
+                                    <input x-show="!['is_empty','is_not_empty'].includes(rule.operator)" x-model="rule.value" placeholder="{{ __('common.value') ?? 'Value' }}" class="form-input py-1 px-2 text-xs flex-1" />
+                                    <button type="button" @click="field.visibility_rules.splice(ri, 1)" class="text-red-500 hover:text-red-700 text-xs shrink-0">&times;</button>
+                                </div>
+                            </template>
+                            <button type="button" @click="if(!field.visibility_rules) field.visibility_rules = []; field.visibility_rules.push({field:'', operator:'equals', value:''})" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">+ {{ __('common.add_condition') ?? 'Add condition' }}</button>
+                            <input type="hidden" :name="`fields[${idx}][visibility_rules]`" :value="JSON.stringify(field.visibility_rules || [])">
+                        </div>
+
+                        {{-- Validation Rules --}}
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.validation_rules') ?? 'Validation Rules' }}</p>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                <div x-show="['text','textarea','email','phone'].includes(field.field_type)">
+                                    <label class="text-xs text-slate-400">{{ __('common.min_length') ?? 'Min length' }}</label>
+                                    <input type="number" min="0" x-model.number="field.validation_rules.min_length" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                                <div x-show="['text','textarea','email','phone'].includes(field.field_type)">
+                                    <label class="text-xs text-slate-400">{{ __('common.max_length') ?? 'Max length' }}</label>
+                                    <input type="number" min="0" x-model.number="field.validation_rules.max_length" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                                <div x-show="['text','email','phone'].includes(field.field_type)">
+                                    <label class="text-xs text-slate-400">{{ __('common.regex_pattern') ?? 'Regex pattern' }}</label>
+                                    <input type="text" x-model="field.validation_rules.regex" placeholder="^[A-Z].*" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                                <div x-show="['number','currency'].includes(field.field_type)">
+                                    <label class="text-xs text-slate-400">{{ __('common.min_value') ?? 'Min value' }}</label>
+                                    <input type="number" step="0.01" x-model.number="field.validation_rules.min" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                                <div x-show="['number','currency'].includes(field.field_type)">
+                                    <label class="text-xs text-slate-400">{{ __('common.max_value') ?? 'Max value' }}</label>
+                                    <input type="number" step="0.01" x-model.number="field.validation_rules.max" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                                <div x-show="field.field_type === 'date'">
+                                    <label class="text-xs text-slate-400">{{ __('common.min_date') }}</label>
+                                    <input type="text" x-model="field.validation_rules.min_date" placeholder="today / 2026-01-01" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                                <div x-show="field.field_type === 'date'">
+                                    <label class="text-xs text-slate-400">{{ __('common.max_date') }}</label>
+                                    <input type="text" x-model="field.validation_rules.max_date" placeholder="today / 2026-12-31" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
+                            </div>
+                            <p x-show="field.field_type === 'date'" class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                {{ __('common.date_expression_help') }}
+                            </p>
+                            <input type="hidden" :name="`fields[${idx}][validation_rules]`" :value="JSON.stringify(field.validation_rules || {})">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -530,11 +674,15 @@
         return f;
     }
 
-    function formBuilder(initialFields, lookupSources, cascadingRelations) {
+    function formBuilder(initialFields, lookupSources, cascadingRelations, searchableTypes) {
+        const SEARCHABLE_TYPES = searchableTypes || [];
+        const defaultSearchable = (type) => SEARCHABLE_TYPES.includes(type);
         return {
             fields: (initialFields || []).map((f) => ensureFieldRowId(f)),
             lookupSources: lookupSources || {},
             cascadingRelations: cascadingRelations || {},
+            searchableTypes: SEARCHABLE_TYPES,
+            isSearchableType(type) { return SEARCHABLE_TYPES.includes(type); },
             showPreview: false,
             showSaveConfirm: false,
             previewTitle: '',
@@ -570,7 +718,7 @@
                 return span > 1 ? `grid-column: span ${span}` : '';
             },
             addField() {
-                this.fields.push(ensureFieldRowId({field_key: '', label: '', field_type: 'text', is_required: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: []}));
+                this.fields.push(ensureFieldRowId({field_key: '', label: '', field_type: 'text', is_required: false, is_searchable: defaultSearchable('text'), placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: [], visibility_rules: [], validation_rules: {}}));
             },
             addSection() {
                 let max = 0;
@@ -579,11 +727,23 @@
                     if (m) max = Math.max(max, parseInt(m[1], 10));
                 }
                 const n = max + 1;
-                this.fields.push(ensureFieldRowId({field_key: 'section_' + n, label: '', field_type: 'section', is_required: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: []}));
+                this.fields.push(ensureFieldRowId({field_key: 'section_' + n, label: '', field_type: 'section', is_required: false, is_searchable: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: [], visibility_rules: [], validation_rules: {}}));
             },
             addTableColumn(field) {
                 if (!field.table_columns) field.table_columns = [];
-                field.table_columns.push({key: '', label: '', type: 'text'});
+                field.table_columns.push({key: '', label: '', type: 'text', lookup_source: '', depends_on: '', foreign_key: ''});
+            },
+            autoSuggestTableColumnForeignKey(field, col) {
+                if (!col.lookup_source || !col.depends_on) {
+                    col.foreign_key = '';
+                    return;
+                }
+                const parentCol = (field.table_columns || []).find(c => c.key === col.depends_on);
+                if (!parentCol || !parentCol.lookup_source) return;
+                const relations = this.cascadingRelations[col.lookup_source];
+                if (relations && relations[parentCol.lookup_source]) {
+                    col.foreign_key = relations[parentCol.lookup_source];
+                }
             },
             removeField(idx) {
                 this.fields.splice(idx, 1);

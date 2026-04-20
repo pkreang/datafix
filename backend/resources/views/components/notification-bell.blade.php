@@ -1,8 +1,7 @@
 <div x-data="notificationBell()" x-init="init()" class="relative">
     <button @click="toggle()" type="button"
-            class="relative p-1.5 rounded-lg transition-colors
-                   text-slate-500 dark:text-slate-400
-                   hover:bg-slate-100 dark:hover:bg-slate-700"
+            class="relative table-action-btn transition-colors
+                   text-slate-500 dark:text-slate-400"
             aria-label="{{ __('notifications.notifications') }}">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

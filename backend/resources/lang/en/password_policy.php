@@ -36,4 +36,5 @@ return [
     'rule_expiry' => 'Be changed every :days days',
     'rule_first_login' => 'Be changed on first login',
     'rule_reuse' => 'Not match the last :n passwords',
+    'saved' => 'Password policy saved successfully.',
 ];

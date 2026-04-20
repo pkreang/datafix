@@ -21,6 +21,8 @@ return [
     'workflow_rejected_title' => 'Document Rejected',
     'workflow_rejected_body' => 'Your :document_type :reference has been rejected.',
     'rejection_comment' => 'Comment: ":comment"',
+    'stock_low_title' => 'Spare Parts Low Stock',
+    'stock_low_body' => ':name stock is at :current :unit (minimum: :min :unit)',
 
     // Document types
     'document_types' => [
@@ -40,6 +42,9 @@ return [
     'event_workflow_approved_desc' => 'Send email when a document is fully approved.',
     'event_workflow_rejected' => 'Document Rejected',
     'event_workflow_rejected_desc' => 'Send email when a document is rejected.',
+    'event_stock_low' => 'Spare Parts Low Stock',
+    'event_stock_low_desc' => 'Send email when spare parts stock falls at or below the minimum level.',
+    'event_stock_low_line_desc' => 'Send LINE message when spare parts stock falls at or below the minimum level.',
     'save_settings' => 'Save Settings',
     'settings_saved' => 'Notification settings saved successfully.',
 
@@ -53,4 +58,27 @@ return [
     'event_approval_pending_line_desc' => 'Send LINE message when a document requires approval.',
     'event_workflow_approved_line_desc' => 'Send LINE message when a document is fully approved.',
     'event_workflow_rejected_line_desc' => 'Send LINE message when a document is rejected.',
+
+    // Outbound mail (SMTP) — Settings → Notifications
+    'mail_outbound_title' => 'Outbound email (SMTP)',
+    'mail_outbound_desc' => 'Mail server used for system emails (notifications, password reset, etc.).',
+    'mail_use_db_label' => 'Use these settings instead of .env / config',
+    'mail_use_db_hint' => 'When off, only MAIL_* from the environment applies.',
+    'mail_mailer' => 'Mail driver',
+    'mail_mailer_log' => 'Log (development)',
+    'mail_mailer_sendmail' => 'Sendmail',
+    'mail_mailer_array' => 'Array (discard)',
+    'mail_smtp_host' => 'SMTP host',
+    'mail_smtp_port' => 'Port',
+    'mail_smtp_username' => 'Username',
+    'mail_smtp_password' => 'Password',
+    'mail_smtp_password_placeholder' => 'Leave blank to keep current',
+    'mail_smtp_password_hint' => 'Leave blank if you do not want to change the stored password.',
+    'mail_password_stored' => 'A password is already stored — enter a new one to replace it.',
+    'mail_smtp_encryption' => 'Encryption',
+    'mail_encryption_none' => 'None (e.g. local relay)',
+    'mail_encryption_tls' => 'TLS (STARTTLS)',
+    'mail_encryption_ssl' => 'SSL (SMTPS)',
+    'mail_from_address' => 'From address',
+    'mail_from_name' => 'From name',
 ];
