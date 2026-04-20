@@ -93,7 +93,7 @@
                             </div>
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
-                            {{ $user->department_id ? \App\Models\Department::find($user->department_id)?->name : '—' }}
+                            {{ $user->department?->name ?? '—' }}
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
                             {{ $user->jobPosition?->name ?? '—' }}

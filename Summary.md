@@ -282,6 +282,8 @@ php artisan user:reset-bootstrap-admin                     # reset admin@example
 6. ทดสอบ login flow: ถ้า user มี `password_change_required` หรือรหัสหมดอายุ — `EnforcePasswordChange` จะ redirect ก่อนเข้าหน้าอื่น
 7. ฟอร์มเอกสาร: ตรวจ field-level permissions ใน `document_form_fields` + visibility ผ่าน `document_form_departments`
 8. **Seeder ที่ถูกลบ:** `CompanySeeder` และ `ReportDashboardSeeder` ไม่มีแล้ว — อย่าอ้างถึง
+9. **Breadcrumb:** หน้าใหม่ต้องใส่ `@section('breadcrumb') <x-breadcrumb :items="[...]" /> @endsection` ต่อหลัง `@section('title')` — component อัตโนมัติ prepend Home, ใช้ `/` separator, รองรับ dark mode. ห้ามเขียน markup เอง
+10. **Sidebar pin (★):** ปุ่ม ★ บน leaf menu toggle pin ผ่าน `POST /myprofile/pinned-menus/toggle` (`{menu_key: (string) $menu->id}`). State อยู่ที่ `Alpine.store('pinnedMenus')` — bootstrap จาก `window.__PINNED_MENU_IDS__` ที่ layout inject. Pinned section ที่ top ของ sidebar ใช้ `<x-sidebar-menu :is-pinned-section="true">` เพื่อซ่อน ★ บน mirror. Pinned list refresh บน navigation ถัดไป (ไม่ instant reactive)
 
 ---
 
@@ -292,4 +294,4 @@ php artisan user:reset-bootstrap-admin                     # reset admin@example
 
 ---
 
-*อัปเดตล่าสุด: 2026-04-16 — โครงสร้างเอกสาร: คอนเท็กซ์หลักที่ `CLAUDE.md` (ไทย); ตรวจสอบโดเมนกับ migration / `doc/erd.md` เมื่อโค้ดเปลี่ยน*
+*อัปเดตล่าสุด: 2026-04-20 — breadcrumb component + sidebar pin toggle + UI migration pass*

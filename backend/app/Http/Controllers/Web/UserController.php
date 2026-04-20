@@ -25,7 +25,7 @@ class UserController extends Controller
 
     public function index(Request $request): View
     {
-        $query = User::with(['roles', 'jobPosition']);
+        $query = User::with(['roles', 'jobPosition', 'department']);
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {

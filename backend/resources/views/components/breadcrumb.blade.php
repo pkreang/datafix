@@ -4,7 +4,10 @@
     $trail = collect($items)->filter(fn ($i) => ! empty($i['label']))->values();
 
     $homeUrl = null;
-    try { $homeUrl = route('home'); } catch (\Throwable $e) { $homeUrl = url('/'); }
+    foreach (['dashboard', 'home'] as $candidate) {
+        try { $homeUrl = route($candidate); break; } catch (\Throwable $e) { /* fall through */ }
+    }
+    $homeUrl = $homeUrl ?? url('/');
     $hasHome = $trail->isNotEmpty() && ($trail->first()['url'] ?? null) === $homeUrl;
     if (! $hasHome) {
         $trail->prepend(['label' => __('common.dashboard'), 'url' => $homeUrl]);

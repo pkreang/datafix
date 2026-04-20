@@ -105,6 +105,9 @@ php artisan test --filter ExampleTest               # ตัวอย่าง: 
 8. **ผู้ใช้:** ใช้ **`first_name` + `last_name`** — อย่าอ้าง `users.name`
 9. **`EnforcePasswordChange` middleware:** ถ้า user มี `password_change_required = true` หรือรหัสหมดอายุ จะ **redirect ไปหน้าเปลี่ยนรหัส** ก่อนเข้าหน้าอื่น — API มี `EnforcePasswordChangeForSanctum` คืน 403 JSON; ทดสอบ flow ต้องตั้งค่าฟิลด์เหล่านี้ด้วย
 10. **Seeder ที่ถูกลบ:** `CompanySeeder` และ `ReportDashboardSeeder` ไม่มีแล้ว — อย่าอ้างถึง
+11. **Breadcrumb:** ใช้ `<x-breadcrumb :items="[...]">` (ที่ `resources/views/components/breadcrumb.blade.php`) เท่านั้น — auto-prepend Home ให้แล้ว, **ห้าม** เขียน markup manual ซ้ำ. วาง block `@section('breadcrumb') ... @endsection` ต่อหลัง `@section('title')` ใน layout-extending views
+12. **Sidebar pin (★):** แต่ละ leaf menu มีปุ่ม ★ ที่ toggle pin ผ่าน `POST /myprofile/pinned-menus/toggle` (`{menu_key: (string) $menu->id}`). State อยู่ที่ Alpine.store(`pinnedMenus`) — เริ่มต้นจาก `window.__PINNED_MENU_IDS__` ที่ `layouts/app.blade.php` inject ไว้. Pinned section ที่ top ของ sidebar ใช้ component เดียวกันแต่ผ่าน `:is-pinned-section="true"` เพื่อซ่อน ★ บนตัวเอง — pinned section refresh เมื่อ navigate หน้าถัดไป (ไม่ re-render instant)
+13. **`<x-data-table>` + `<x-per-page-footer>`:** ถ้าใช้ per-page-footer แยก ให้ตั้ง `:disable-pagination="true"` บน `<x-data-table>` กัน double-render paginator links
 
 ---
 
