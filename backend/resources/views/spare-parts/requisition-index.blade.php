@@ -2,6 +2,12 @@
 
 @section('title', __('common.spare_parts_requisition'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.spare_parts_requisition')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -17,19 +23,19 @@
         </div>
     @endif
 
-    <div class="card p-5">
-        <form method="GET" action="{{ route('spare-parts.requisition.index') }}" class="mb-4 flex flex-wrap items-end gap-2">
-            <div>
-                <label class="form-label">{{ __('common.filter_by_status') }}</label>
-                <select name="status" onchange="this.form.submit()" class="form-input w-auto">
-                    <option value="">{{ __('common.status_all') }}</option>
-                    <option value="pending" @selected(($status ?? '') === 'pending')>{{ __('common.approval_status_pending') }}</option>
-                    <option value="approved" @selected(($status ?? '') === 'approved')>{{ __('common.approval_status_approved') }}</option>
-                    <option value="rejected" @selected(($status ?? '') === 'rejected')>{{ __('common.approval_status_rejected') }}</option>
-                </select>
-            </div>
-        </form>
+    <x-filter-bar :action="route('spare-parts.requisition.index')">
+        <div>
+            <label class="form-label">{{ __('common.filter_by_status') }}</label>
+            <select name="status" onchange="this.form.submit()" class="form-input w-auto">
+                <option value="">{{ __('common.status_all') }}</option>
+                <option value="pending" @selected(($status ?? '') === 'pending')>{{ __('common.approval_status_pending') }}</option>
+                <option value="approved" @selected(($status ?? '') === 'approved')>{{ __('common.approval_status_approved') }}</option>
+                <option value="rejected" @selected(($status ?? '') === 'rejected')>{{ __('common.approval_status_rejected') }}</option>
+            </select>
+        </div>
+    </x-filter-bar>
 
+    <div class="card p-5">
         <div class="space-y-2">
             @forelse($myInstances as $item)
                 <a href="{{ route('spare-parts.requisition.show', $item) }}" class="block rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900/20 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
@@ -47,8 +53,6 @@
             @endforelse
         </div>
 
-        <div class="mt-4">
-            {{ $myInstances->links() }}
-        </div>
+        <x-per-page-footer :paginator="$myInstances" :perPage="$perPage" id="spare-parts-requisition-pagination" />
     </div>
 @endsection

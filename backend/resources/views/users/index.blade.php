@@ -2,6 +2,13 @@
 
 @section('title', __('common.users'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.user_and_access')],
+        ['label' => __('common.all_users')],
+    ]" />
+@endsection
+
 @section('content')
 <div x-data="userIndex({{ json_encode(request('search', '')) }})">
     <div class="flex items-center justify-between mb-2">
@@ -21,18 +28,9 @@
         </div>
     </div>
 
-    {{-- Search --}}
+    {{-- Search (AJAX — Alpine query model + loading spinner) --}}
     <div class="mb-5">
-        <div class="relative max-w-sm">
-            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg class="w-4 h-4 text-slate-400 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            </div>
-            <input type="text" x-model="query" placeholder="{{ __('common.search_placeholder') }}"
-                   class="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-slate-900 dark:text-slate-100">
-            <div x-show="loading" class="absolute inset-y-0 right-0 flex items-center pr-3">
-                <svg class="w-4 h-4 text-slate-400 dark:text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            </div>
-        </div>
+        <x-search-bar mode="ajax" name="query" :placeholder="__('common.search_placeholder')" />
     </div>
 
     @if (session('error'))
@@ -52,15 +50,16 @@
             <thead class="bg-slate-50 dark:bg-slate-800/60">
                 <tr>
                     <th class="table-header px-6 py-3 text-left">{{ __('common.user') }}</th>
+                    <th class="table-header px-6 py-3 text-left">{{ __('common.departments') }}</th>
+                    <th class="table-header px-6 py-3 text-left">{{ __('common.positions') }}</th>
                     <th class="table-header px-6 py-3 text-left">{{ __('common.roles') }}</th>
                     <th class="table-header px-6 py-3 text-left">{{ __('common.status') }}</th>
                     <th class="table-header px-6 py-3 text-left">{{ __('common.last_active') }}</th>
-                    <th class="table-header px-6 py-3 text-left">{{ __('common.created') }}</th>
                     <th class="table-header px-6 py-3 text-left">{{ __('users.phone') }}</th>
                     <th class="table-header px-6 py-3 text-right">{{ __('common.actions') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            <tbody id="users-tbody-data" class="divide-y divide-slate-200 dark:divide-slate-700">
                 @forelse ($users as $user)
                     @php
                         $fullName = $user->full_name;
@@ -93,6 +92,12 @@
                                 </div>
                             </div>
                         </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
+                            {{ $user->department_id ? \App\Models\Department::find($user->department_id)?->name : '—' }}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
+                            {{ $user->jobPosition?->name ?? '—' }}
+                        </td>
                         <td class="px-6 py-3 whitespace-nowrap">
                             @foreach ($user->roles as $role)
                                 <span class="badge-blue mr-1">{{ $role->name }}</span>
@@ -109,15 +114,12 @@
                             {{ $lastActiveText }}
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                            {{ $user->created_at ? $user->created_at->format('M d, Y') : '-' }}
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                             {{ $user->phone ?? '-' }}
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-right">
                             <div class="relative inline-block text-left" x-data="{ open: false }">
                                 <button @click="open = !open" type="button"
-                                        class="p-1 rounded-lg text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none">
+                                        class="table-action-btn">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
                                     </svg>
@@ -169,12 +171,17 @@
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{{ __('common.no_users_found') }}</td>
-                    </tr>
+                    <x-table-empty-state :colspan="8" :message="__('common.no_users_found')"
+                        :cta-href="route('users.create')" :cta-label="__('common.add_user')" />
                 @endforelse
             </tbody>
         </table>
     </div>
+
+    <x-per-page-footer :paginator="$users" :perPage="$perPage" id="users-pagination" />
+
+    <template id="users-skeleton-source">
+        <x-skeleton-rows :rows="5" :cols="8" />
+    </template>
 </div>
 @endsection

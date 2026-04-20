@@ -2,6 +2,13 @@
 
 @section('title', __('common.create_pm_am_plan'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.maintenance'), 'url' => route('maintenance.index')],
+        ['label' => __('common.create_pm_am_plan')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <a href="{{ route('maintenance.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>

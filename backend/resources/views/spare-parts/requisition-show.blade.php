@@ -2,13 +2,27 @@
 
 @section('title', __('common.spare_parts_requisition_detail'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.spare_parts_requisition'), 'url' => route('spare-parts.requisition.index')],
+        ['label' => __('common.spare_parts_requisition_detail')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <a href="{{ route('spare-parts.requisition.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ __('common.spare_parts_requisition_detail') }}</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {{ $instance->reference_no ?: ('#' . $instance->id) }}
-            · {{ __('common.approval_status_' . $instance->status) }}
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+            <span>{{ $instance->reference_no ?: ('#' . $instance->id) }}</span>
+            @php $s = $instance->status; @endphp
+            @if($s === 'approved')
+                <span class="badge-green">{{ __('common.approval_status_' . $s) }}</span>
+            @elseif($s === 'rejected')
+                <span class="badge-red">{{ __('common.approval_status_' . $s) }}</span>
+            @else
+                <span class="badge-yellow">{{ __('common.approval_status_' . $s) }}</span>
+            @endif
         </p>
     </div>
 
@@ -206,7 +220,7 @@
                                       class="form-input mt-1"></textarea>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <button type="submit" name="action" value="approved" class="btn-primary bg-green-600 hover:bg-green-700 focus:ring-green-500">{{ __('common.approve') }}</button>
+                            <button type="submit" name="action" value="approved" class="btn-primary">{{ __('common.approve') }}</button>
                             <button type="submit" name="action" value="rejected" class="btn-danger">{{ __('common.reject') }}</button>
                         </div>
                     </form>

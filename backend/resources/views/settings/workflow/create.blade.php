@@ -2,6 +2,14 @@
 
 @section('title', __('common.add') . ' ' . __('common.workflow'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.workflow'), 'url' => route('settings.workflow.index')],
+        ['label' => __('common.add')],
+    ]" />
+@endsection
+
 @section('content')
 <div x-data="workflowBuilder({{ Js::from($roles->values()) }}, {{ Js::from($users->values()) }}, {{ Js::from($positions->values()) }}, {{ Js::from([
     'tplSuper' => __('common.workflow_template_stage_supervisor'),
@@ -12,6 +20,8 @@
     'typeRole' => __('common.workflow_approver_role'),
     'typeUser' => __('common.workflow_approver_user'),
     'typePosition' => __('common.workflow_approver_position'),
+    'people' => __('common.people_count'),
+    'noUsersInPosition' => __('common.no_users_in_position'),
 ]) }})">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.add') }} {{ __('common.workflow') }}</h2>
@@ -107,12 +117,15 @@
                                     </select>
                                 </template>
                                 <template x-if="stage.approver_type === 'position'">
-                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
-                                        <option value="">{{ __('common.workflow_placeholder_select_position') }}</option>
-                                        <template x-for="p in positions" :key="`pos-${p.id}`">
-                                            <option :value="String(p.id)" x-text="p.label"></option>
-                                        </template>
-                                    </select>
+                                    <div>
+                                        <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
+                                            <option value="">{{ __('common.workflow_placeholder_select_position') }}</option>
+                                            <template x-for="p in positions" :key="`pos-${p.id}`">
+                                                <option :value="String(p.id)" x-text="p.label"></option>
+                                            </template>
+                                        </select>
+                                        <p x-show="stage.approver_ref" x-text="positionUsersPreview(stage.approver_ref)" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
+                                    </div>
                                 </template>
                             </div>
                             <div>
@@ -267,6 +280,15 @@
                 if (t === 'user') return i.typeUser;
                 if (t === 'position') return i.typePosition;
                 return t || '—';
+            },
+            positionUsersPreview(positionId) {
+                const pos = this.positions.find(p => String(p.id) === String(positionId));
+                if (!pos) return '';
+                const users = pos.users || [];
+                if (users.length === 0) return this.i18n.noUsersInPosition || '';
+                const count = users.length + ' ' + (this.i18n.people || '');
+                const preview = users.length > 5 ? users.slice(0, 5).join(', ') + '…' : users.join(', ');
+                return count + ': ' + preview;
             },
         };
     }

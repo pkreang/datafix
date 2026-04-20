@@ -2,6 +2,13 @@
 
 @section('title', __('notifications.notification_settings'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.notifications')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('notifications.notification_settings') }}</h2>
@@ -97,7 +104,7 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="sm:col-span-2">
-                            <label for="mail_mailer" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_mailer') }}</label>
+                            <label for="mail_mailer" class="form-label">{{ __('notifications.mail_mailer') }}</label>
                             <select id="mail_mailer" name="mail_mailer" class="form-input w-full">
                                 <option value="smtp" @selected($mMailer === 'smtp')>SMTP</option>
                                 <option value="log" @selected($mMailer === 'log')>{{ __('notifications.mail_mailer_log') }}</option>
@@ -106,18 +113,18 @@
                             </select>
                         </div>
                         <div class="sm:col-span-2">
-                            <label for="mail_smtp_host" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_host') }}</label>
+                            <label for="mail_smtp_host" class="form-label">{{ __('notifications.mail_smtp_host') }}</label>
                             <input type="text" id="mail_smtp_host" name="mail_smtp_host" value="{{ $mHost }}"
                                    class="form-input w-full"
                                    autocomplete="off">
                         </div>
                         <div>
-                            <label for="mail_smtp_port" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_port') }}</label>
+                            <label for="mail_smtp_port" class="form-label">{{ __('notifications.mail_smtp_port') }}</label>
                             <input type="number" id="mail_smtp_port" name="mail_smtp_port" value="{{ $mPort }}" min="1" max="65535"
                                    class="form-input w-full">
                         </div>
                         <div>
-                            <label for="mail_smtp_encryption" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_encryption') }}</label>
+                            <label for="mail_smtp_encryption" class="form-label">{{ __('notifications.mail_smtp_encryption') }}</label>
                             <select id="mail_smtp_encryption" name="mail_smtp_encryption" class="form-input w-full">
                                 <option value="none" @selected($mEnc === 'none')>{{ __('notifications.mail_encryption_none') }}</option>
                                 <option value="tls" @selected($mEnc === 'tls')>{{ __('notifications.mail_encryption_tls') }}</option>
@@ -125,13 +132,13 @@
                             </select>
                         </div>
                         <div class="sm:col-span-2">
-                            <label for="mail_smtp_username" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_username') }}</label>
+                            <label for="mail_smtp_username" class="form-label">{{ __('notifications.mail_smtp_username') }}</label>
                             <input type="text" id="mail_smtp_username" name="mail_smtp_username" value="{{ $mUser }}"
                                    class="form-input w-full"
                                    autocomplete="off">
                         </div>
                         <div class="sm:col-span-2">
-                            <label for="mail_smtp_password" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_smtp_password') }}</label>
+                            <label for="mail_smtp_password" class="form-label">{{ __('notifications.mail_smtp_password') }}</label>
                             <input type="password" id="mail_smtp_password" name="mail_smtp_password" value=""
                                    class="form-input w-full"
                                    autocomplete="new-password" placeholder="{{ __('notifications.mail_smtp_password_placeholder') }}">
@@ -144,12 +151,12 @@
                             </p>
                         </div>
                         <div>
-                            <label for="mail_from_address" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_from_address') }}</label>
+                            <label for="mail_from_address" class="form-label">{{ __('notifications.mail_from_address') }}</label>
                             <input type="email" id="mail_from_address" name="mail_from_address" value="{{ $mFrom }}"
                                    class="form-input w-full">
                         </div>
                         <div>
-                            <label for="mail_from_name" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{{ __('notifications.mail_from_name') }}</label>
+                            <label for="mail_from_name" class="form-label">{{ __('notifications.mail_from_name') }}</label>
                             <input type="text" id="mail_from_name" name="mail_from_name" value="{{ $mFromName }}"
                                    class="form-input w-full">
                         </div>

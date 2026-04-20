@@ -2,6 +2,13 @@
 
 @section('title', __('common.auto_assign_settings'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.maintenance'), 'url' => route('maintenance.index')],
+        ['label' => __('common.auto_assign_settings')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.auto_assign_settings') }}</h2>

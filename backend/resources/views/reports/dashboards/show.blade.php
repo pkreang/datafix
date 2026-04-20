@@ -2,25 +2,23 @@
 
 @section('title', $dashboard->name)
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.reports'), 'url' => route('reports.index')],
+        ['label' => $dashboard->name],
+    ]" />
+@endsection
+
 @push('scripts')
 <meta name="api-token" content="{{ $apiToken ?? '' }}">
 @endpush
 
 @section('content')
-<div class="mb-6 flex items-center justify-between gap-4">
-    <div>
-        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ $dashboard->name }}</h2>
-        @if($dashboard->description)
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ $dashboard->description }}</p>
-        @endif
-    </div>
-    <a href="{{ route('reports.index') }}"
-       class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-        Back
-    </a>
+<div class="mb-6">
+    <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ $dashboard->name }}</h2>
+    @if($dashboard->description)
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ $dashboard->description }}</p>
+    @endif
 </div>
 
 {{-- Global filter bar --}}
@@ -49,8 +47,18 @@
     <button type="button"
             onclick="document.querySelectorAll('[data-dashboard-widget]').forEach(el => { Alpine.$data(el)?.loadData?.(); })"
             class="btn-primary py-1.5">
-        Refresh
+        {{ __('common.refresh') ?? 'Refresh' }}
     </button>
+    @php
+        $hasExportable = $dashboard->widgets->whereIn('widget_type', ['table', 'chart'])->isNotEmpty();
+    @endphp
+    @if($hasExportable)
+        <button type="button"
+                onclick="window.downloadDashboardZip({{ $dashboard->id }})"
+                class="btn-secondary py-1.5">
+            {{ __('common.action_download_all_csv') }}
+        </button>
+    @endif
 </div>
 
 {{-- Widget grid --}}
@@ -63,14 +71,38 @@
              x-init="loadData()">
 
             {{-- Widget header --}}
-            <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">{{ $widget->title }}</h3>
+            <div class="flex items-center justify-between mb-3 gap-2">
+                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ $widget->title }}</h3>
+                @if(in_array($widget->widget_type, ['table', 'chart'], true))
+                    <button type="button"
+                            @click="downloadCsv()"
+                            title="{{ __('common.action_download_csv') }}"
+                            class="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        CSV
+                    </button>
+                @endif
+            </div>
 
-            {{-- Loading state --}}
-            <div x-show="loading" class="flex items-center justify-center h-24 text-slate-400">
-                <svg class="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
+            {{-- Loading state (skeleton — avoids blank jump) --}}
+            <div x-show="loading" x-cloak>
+                <template x-if="widgetType === 'metric'">
+                    <div><x-skeleton-widget variant="metric" /></div>
+                </template>
+                <template x-if="widgetType === 'chart'">
+                    <div><x-skeleton-widget variant="chart" /></div>
+                </template>
+                <template x-if="widgetType === 'table'">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <tbody>
+                                <x-skeleton-rows :rows="4" :cols="4" />
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
             </div>
 
             {{-- Error state --}}
@@ -121,14 +153,16 @@
                      class="flex items-center justify-between mt-3 text-sm text-slate-500 dark:text-slate-400">
                     <span x-text="`Page ${data.pagination?.current_page} of ${data.pagination?.last_page}`"></span>
                     <div class="flex gap-2">
-                        <button @click="prevPage()"
+                        <button type="button"
+                                @click="prevPage()"
                                 :disabled="data.pagination?.current_page <= 1"
-                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors">
+                                class="inline-flex items-center justify-center min-h-11 min-w-11 px-3 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors text-sm font-medium">
                             Prev
                         </button>
-                        <button @click="nextPage()"
+                        <button type="button"
+                                @click="nextPage()"
                                 :disabled="data.pagination?.current_page >= data.pagination?.last_page"
-                                class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors">
+                                class="inline-flex items-center justify-center min-h-11 min-w-11 px-3 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-colors text-sm font-medium">
                             Next
                         </button>
                     </div>

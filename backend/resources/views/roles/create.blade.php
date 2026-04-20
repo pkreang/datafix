@@ -2,14 +2,16 @@
 
 @section('title', __('common.create_role'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.roles'), 'url' => route('roles.index')],
+        ['label' => __('common.create_role')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="max-w-4xl">
-        <div class="flex items-center justify-between gap-4 mb-6">
-            <nav class="text-sm text-slate-500 dark:text-slate-400">
-                <span>{{ __('common.settings') }}</span>
-                <span class="mx-1">/</span>
-                <a href="{{ route('roles.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400">{{ __('common.roles') }}</a>
-            </nav>
+        <div class="flex justify-end mb-6">
             <a href="{{ route('roles.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 shrink-0">&larr; {{ __('common.back') }}</a>
         </div>
 

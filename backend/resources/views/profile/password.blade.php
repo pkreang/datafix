@@ -2,6 +2,13 @@
 
 @section('title', __('common.change_password'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.my_profile'), 'url' => route('profile.edit')],
+        ['label' => __('common.change_password')],
+    ]" />
+@endsection
+
 @section('content')
 <div class="max-w-xl mx-auto">
 

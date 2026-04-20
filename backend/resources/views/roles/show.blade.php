@@ -2,6 +2,14 @@
 
 @section('title', 'Role: ' . ($role['name'] ?? ''))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.user_and_access'), 'url' => route('users.index')],
+        ['label' => __('common.roles'), 'url' => route('roles.index')],
+        ['label' => $role['name'] ?? ''],
+    ]" />
+@endsection
+
 @section('content')
     <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">

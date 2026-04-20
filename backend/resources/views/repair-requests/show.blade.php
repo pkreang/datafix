@@ -2,14 +2,28 @@
 
 @section('title', __('common.repair_request_detail'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.repair_request'), 'url' => route('repair-requests.index')],
+        ['label' => __('common.repair_request_detail')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <a href="{{ route('repair-requests.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>
             <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ __('common.repair_request_detail') }}</h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                {{ $instance->reference_no ?: ('#' . $instance->id) }}
-                · {{ __('common.approval_status_' . $instance->status) }}
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                <span>{{ $instance->reference_no ?: ('#' . $instance->id) }}</span>
+                @php $s = $instance->status; @endphp
+                @if($s === 'approved')
+                    <span class="badge-green">{{ __('common.approval_status_' . $s) }}</span>
+                @elseif($s === 'rejected')
+                    <span class="badge-red">{{ __('common.approval_status_' . $s) }}</span>
+                @else
+                    <span class="badge-yellow">{{ __('common.approval_status_' . $s) }}</span>
+                @endif
             </p>
         </div>
         @if($instance->status === 'approved')

@@ -2,6 +2,12 @@
 
 @section('title', __('common.repair_request'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.repair_request')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.repair_request') }}</h2>
@@ -145,9 +151,7 @@
                 @endforelse
             </div>
 
-            <div class="mt-4">
-                {{ $myInstances->links() }}
-            </div>
+            <x-per-page-footer :paginator="$myInstances" :perPage="$perPage" id="repair-requests-pagination" />
         </div>
     </div>
 @endsection

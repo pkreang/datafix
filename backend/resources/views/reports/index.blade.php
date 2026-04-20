@@ -2,6 +2,12 @@
 
 @section('title', __('common.reports'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.reports')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
     <div class="mb-6">

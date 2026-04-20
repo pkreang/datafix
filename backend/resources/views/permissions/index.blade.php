@@ -2,6 +2,13 @@
 
 @section('title', __('common.permissions'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.permissions')],
+    ]" />
+@endsection
+
 @section('content')
     @if (session('success'))
         <div class="alert-success mb-4 text-sm text-green-800 dark:text-green-200">
@@ -14,19 +21,12 @@
         </div>
     @endif
 
-    <div class="flex items-center justify-between gap-4 mb-6">
-        <nav class="text-sm text-slate-500 dark:text-slate-400" aria-label="breadcrumb">
-            <span>{{ __('common.settings') }}</span>
-            <span class="mx-1">/</span>
-            <span class="text-slate-700 dark:text-slate-300">{{ __('common.permissions') }}</span>
-        </nav>
-        <div class="flex items-center gap-4 shrink-0">
-            <span class="text-sm text-slate-500 dark:text-slate-400">{{ $total }} {{ __('common.total') }}</span>
-            <a href="{{ route('permissions.create') }}"
-               class="btn-primary inline-flex items-center gap-1">
-                + {{ __('common.create') }}
-            </a>
-        </div>
+    <div class="flex items-center justify-end gap-4 mb-6">
+        <span class="text-sm text-slate-500 dark:text-slate-400">{{ $total }} {{ __('common.total') }}</span>
+        <a href="{{ route('permissions.create') }}"
+           class="btn-primary inline-flex items-center gap-1">
+            + {{ __('common.create') }}
+        </a>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

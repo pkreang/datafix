@@ -2,6 +2,13 @@
 
 @section('title', __('common.activity_history'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.activity_history')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.activity_history') }}</h2>

@@ -2,6 +2,13 @@
 
 @section('title', __('common.assign_repair_jobs'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.repair_request'), 'url' => route('repair-requests.index')],
+        ['label' => __('common.assign_repair_jobs')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.assign_repair_jobs') }}</h2>

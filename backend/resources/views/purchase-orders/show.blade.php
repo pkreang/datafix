@@ -1,5 +1,12 @@
 @extends('layouts.app')
 @section('title', __('common.purchase_order') . ' ' . ($instance->reference_no ?? '#'.$instance->id))
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.purchasing')],
+        ['label' => __('common.purchase_orders'), 'url' => route('purchase-orders.index')],
+        ['label' => $instance->reference_no ?? '#'.$instance->id],
+    ]" />
+@endsection
 @section('content')
     <div class="mb-6 flex items-start justify-between">
         <div>

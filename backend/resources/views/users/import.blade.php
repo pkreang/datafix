@@ -2,6 +2,13 @@
 
 @section('title', __('users.import_title'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.user_and_access'), 'url' => route('users.index')],
+        ['label' => __('common.import_data')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
     <nav class="text-sm text-slate-500 dark:text-slate-400 mb-2">

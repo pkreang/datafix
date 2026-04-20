@@ -2,6 +2,13 @@
 
 @section('title', __('common.navigation_menu'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.navigation_menu')],
+    ]" />
+@endsection
+
 @section('content')
 <div class="w-full" x-data="navigationIndex()"
      data-nav-active="{{ __('common.active') }}"
@@ -73,9 +80,7 @@
                             <td class="px-6 py-3 text-right">
                                 <div x-data="{ open: false }" class="relative inline-block">
                                     <button @click="open = !open" type="button"
-                                            class="p-1.5 rounded-lg text-slate-400
-                                                   hover:text-slate-600 dark:hover:text-slate-300
-                                                   hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                            class="table-action-btn transition-colors">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                             <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                                         </svg>
@@ -150,9 +155,7 @@
                             <td class="px-6 py-3 text-right">
                                 <div x-data="{ open: false }" class="relative inline-block">
                                     <button @click="open = !open" type="button"
-                                            class="p-1.5 rounded-lg text-slate-400
-                                                   hover:text-slate-600 dark:hover:text-slate-300
-                                                   hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                            class="table-action-btn transition-colors">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                             <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                                         </svg>

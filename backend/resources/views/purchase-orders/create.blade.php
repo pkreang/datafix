@@ -1,5 +1,12 @@
 @extends('layouts.app')
 @section('title', __('common.create_purchase_order'))
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.purchasing')],
+        ['label' => __('common.purchase_orders'), 'url' => route('purchase-orders.index')],
+        ['label' => __('common.create_purchase_order')],
+    ]" />
+@endsection
 @section('content')
     <div class="mb-6">
         <a href="{{ $prInstance ? route('purchase-requests.show', $prInstance) : route('purchase-orders.index') }}"

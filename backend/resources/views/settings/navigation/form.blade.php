@@ -2,6 +2,14 @@
 
 @section('title', $menu->exists ? __('common.edit_menu_item') : __('common.add_menu_item'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.navigation_menu'), 'url' => route('settings.navigation.index')],
+        ['label' => $menu->exists ? __('common.edit') : __('common.add')],
+    ]" />
+@endsection
+
 @section('content')
 <div class="max-w-2xl" x-data="navMenuForm()">
     <div class="flex items-center justify-between mb-6">

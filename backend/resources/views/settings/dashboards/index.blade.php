@@ -2,6 +2,13 @@
 
 @section('title', 'Dashboards')
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.reports')],
+    ]" />
+@endsection
+
 @section('content')
 @php
     $totalDashboards = $dashboards->count();
@@ -106,7 +113,7 @@
                         <td class="px-6 py-3 whitespace-nowrap text-right">
                             <div class="relative inline-block text-left" x-data="{ open: false }">
                                 <button @click="open = !open" type="button"
-                                        class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none">
+                                        class="table-action-btn">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
                                     </svg>
@@ -139,9 +146,8 @@
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{{ __('common.no_data') }}</td>
-                    </tr>
+                    <x-table-empty-state :colspan="6" :message="__('common.no_data')"
+                        :cta-href="route('settings.dashboards.create')" :cta-label="__('common.add')" />
                 @endforelse
             </tbody>
         </table>

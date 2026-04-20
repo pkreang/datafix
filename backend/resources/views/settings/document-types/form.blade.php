@@ -6,6 +6,14 @@
 
 @section('title', $isEdit ? __('common.edit_document_type') : __('common.add_document_type'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.document_types'), 'url' => route('settings.document-types.index')],
+        ['label' => $isEdit ? __('common.edit') : __('common.add')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
     <nav class="text-sm text-slate-500 dark:text-slate-400 mb-2">

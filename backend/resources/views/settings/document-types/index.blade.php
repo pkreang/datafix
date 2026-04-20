@@ -2,6 +2,13 @@
 
 @section('title', __('common.document_types'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.document_types')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ __('common.document_types') }}</h2>
@@ -17,64 +24,40 @@
         <div class="alert-error mb-4">{{ session('error') }}</div>
     @endif
 
-    <div class="table-wrapper">
-        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead class="bg-slate-50 dark:bg-slate-800/60">
-                <tr>
-                    <th class="table-header">{{ __('common.code') }}</th>
-                    <th class="table-header">{{ __('common.label') }} (EN)</th>
-                    <th class="table-header">{{ __('common.label') }} (TH)</th>
-                    <th class="table-header">{{ __('common.icon') }}</th>
-                    <th class="table-header">{{ __('common.status') }}</th>
-                    <th class="table-header text-right">{{ __('common.actions') }}</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                @forelse($documentTypes as $type)
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
-                        <td class="px-4 py-3 text-sm font-mono text-slate-900 dark:text-slate-100">{{ $type->code }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">{{ $type->label_en }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">{{ $type->label_th }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">{{ $type->icon ?: '-' }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            @if ($type->is_active)
-                                <span class="badge-green">{{ __('common.active') }}</span>
-                            @else
-                                <span class="badge-gray">{{ __('common.inactive') }}</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-right">
-                            <div class="relative inline-block text-left" x-data="{ open: false }">
-                                <button @click="open = !open" type="button"
-                                        class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
-                                    </svg>
-                                </button>
-                                <div x-show="open" @click.outside="open = false" x-cloak
-                                     class="absolute right-0 bottom-full mb-2 w-44 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
-                                    <a href="{{ route('settings.document-types.edit', $type) }}"
-                                       class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-                                        {{ __('common.edit') }}
-                                    </a>
-                                    <form method="POST" action="{{ route('settings.document-types.destroy', $type) }}"
-                                          onsubmit="return confirm('{{ __('common.delete_confirm_msg', ['name' => $type->label_en]) }}')" novalidate>
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-slate-700">
-                                            {{ __('common.delete') }}
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">{{ __('common.no_data') }}</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+    <x-data-table
+        :columns="[
+            ['key' => 'code', 'label' => __('common.code')],
+            ['key' => 'label_en', 'label' => __('common.label') . ' (EN)'],
+            ['key' => 'label_th', 'label' => __('common.label') . ' (TH)'],
+            ['key' => 'icon', 'label' => __('common.icon')],
+            ['key' => 'status', 'label' => __('common.status')],
+            ['key' => 'actions', 'label' => __('common.actions'), 'class' => 'text-right'],
+        ]"
+        :rows="$documentTypes"
+        :empty-message="__('common.no_data')"
+        :empty-cta-href="route('settings.document-types.create')"
+        :empty-cta-label="__('common.add') . ' ' . __('common.document_types')"
+    >
+        @foreach ($documentTypes as $type)
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
+                <td class="px-4 py-3 text-sm font-mono text-slate-900 dark:text-slate-100">{{ $type->code }}</td>
+                <td class="table-sub">{{ $type->label_en }}</td>
+                <td class="table-sub">{{ $type->label_th }}</td>
+                <td class="table-sub">{{ $type->icon ?: '-' }}</td>
+                <td class="px-4 py-3 text-sm">
+                    @if ($type->is_active)
+                        <span class="badge-green">{{ __('common.active') }}</span>
+                    @else
+                        <span class="badge-gray">{{ __('common.inactive') }}</span>
+                    @endif
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <x-row-actions :items="[
+                        ['label' => __('common.edit'), 'href' => route('settings.document-types.edit', $type), 'icon' => 'edit'],
+                        ['label' => __('common.delete'), 'method' => 'DELETE', 'action' => route('settings.document-types.destroy', $type), 'icon' => 'delete', 'confirm' => __('common.delete_confirm_msg', ['name' => $type->label_en]), 'class' => 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'],
+                    ]" />
+                </td>
+            </tr>
+        @endforeach
+    </x-data-table>
 @endsection

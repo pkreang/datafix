@@ -2,6 +2,13 @@
 
 @section('title', __('common.roles'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.user_and_access'), 'url' => route('users.index')],
+        ['label' => __('common.all_roles')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="flex items-center justify-between mb-6">
         <h2 class="page-title">{{ __('common.all_roles') }}</h2>
@@ -17,90 +24,69 @@
         </div>
     @endif
 
-    <div class="table-wrapper overflow-visible">
-        <table class="min-w-full divide-y divide-slate-200">
-            <thead class="bg-slate-50 dark:bg-slate-800/60">
-                <tr>
-                    <th class="table-header px-6 py-3 text-left">{{ __('common.role') }}</th>
-                    <th class="table-header px-6 py-3 text-left">{{ __('common.permissions') }}</th>
-                    <th class="table-header px-6 py-3 text-left">{{ __('common.users') }}</th>
-                    <th class="table-header px-6 py-3 text-left">{{ __('common.created_at') }}</th>
-                    <th class="table-header px-6 py-3 text-right">{{ __('common.actions') }}</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                @forelse ($roles as $role)
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
-                        <td class="px-6 py-3 whitespace-nowrap">
-                            <p class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ $role['name'] ?? '' }}</p>
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{{ $role['permissions_count'] ?? 0 }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{{ $role['users_count'] ?? 0 }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                            {{ isset($role['created_at']) ? \Carbon\Carbon::parse($role['created_at'])->format('M d, Y') : '-' }}
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-right">
-                            <div x-data="{ open: false }" class="relative inline-block">
-                                <button @click="open = !open" type="button"
-                                        class="p-1.5 rounded-lg text-slate-400
-                                               hover:text-slate-600 dark:hover:text-slate-300
-                                               hover:bg-slate-100 dark:hover:bg-slate-700
-                                               transition-colors">
-                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                        <circle cx="12" cy="5" r="1.5"/>
-                                        <circle cx="12" cy="12" r="1.5"/>
-                                        <circle cx="12" cy="19" r="1.5"/>
-                                    </svg>
-                                </button>
-                                <div x-show="open" @click.outside="open = false"
-                                     x-transition:enter="transition ease-out duration-100"
-                                     x-transition:enter-start="opacity-0 scale-95"
-                                     x-transition:enter-end="opacity-100 scale-100"
-                                     x-transition:leave="transition ease-in duration-75"
-                                     x-transition:leave-end="opacity-0 scale-95"
-                                     x-cloak
-                                     class="absolute right-0 bottom-full mb-2 w-36 z-30
-                                            bg-white dark:bg-slate-800
-                                            border border-slate-200 dark:border-slate-700
-                                            rounded-xl shadow-lg py-1">
-                                    <a href="{{ route('roles.edit', $role['id']) }}"
-                                       class="flex items-center gap-2 px-3 py-2 text-sm
-                                              text-slate-700 dark:text-slate-300
-                                              hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" fill="none"
-                                             viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                        </svg>
-                                        {{ __('common.edit') }}
-                                    </a>
-                                    <div class="my-1 border-t border-slate-100 dark:border-slate-700"></div>
-                                    <button @click="open = false;
-                                                    $dispatch('open-delete-modal', {
-                                                        id: {{ $role['id'] }},
-                                                        name: {{ json_encode($role['display_name'] ?? $role['name'] ?? '') }}
-                                                    })"
-                                            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-left
-                                                   text-red-600 dark:text-red-400
-                                                   hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                        {{ __('common.delete') }}
-                                    </button>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{{ __('common.no_roles_found') }}</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+    <x-data-table
+        :columns="[
+            ['key' => 'role', 'label' => __('common.role')],
+            ['key' => 'permissions', 'label' => __('common.permissions')],
+            ['key' => 'users', 'label' => __('common.users')],
+            ['key' => 'created_at', 'label' => __('common.created_at')],
+            ['key' => 'actions', 'label' => __('common.actions'), 'class' => 'text-right'],
+        ]"
+        :rows="$roles"
+        :empty-message="__('common.no_roles_found')"
+        :empty-cta-href="route('roles.create')"
+        :empty-cta-label="__('common.add_role')"
+    >
+        @foreach ($roles as $role)
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
+                <td class="px-6 py-3 whitespace-nowrap">
+                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100">{{ $role['name'] ?? '' }}</p>
+                </td>
+                <td class="table-sub">{{ $role['permissions_count'] ?? 0 }}</td>
+                <td class="table-sub">{{ $role['users_count'] ?? 0 }}</td>
+                <td class="table-sub">
+                    {{ isset($role['created_at']) ? \Carbon\Carbon::parse($role['created_at'])->format('M d, Y') : '-' }}
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-right">
+                    <div x-data="{ open: false }" class="relative inline-block">
+                        <button @click="open = !open" type="button" class="table-action-btn transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                            </svg>
+                        </button>
+                        <div x-show="open" @click.outside="open = false"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             x-cloak
+                             class="absolute right-0 bottom-full mb-2 w-40 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-[200]">
+                            <a href="{{ route('roles.edit', $role['id']) }}"
+                               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                                <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                                {{ __('common.edit') }}
+                            </a>
+                            <div class="my-1 border-t border-slate-100 dark:border-slate-700"></div>
+                            <button @click="open = false;
+                                            $dispatch('open-delete-modal', {
+                                                id: {{ $role['id'] }},
+                                                name: {{ json_encode($role['display_name'] ?? $role['name'] ?? '') }}
+                                            })"
+                                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                {{ __('common.delete') }}
+                            </button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+    </x-data-table>
 
     {{-- Delete Confirm Modal --}}
     <div x-data="{ show: false, id: null, name: '' }"

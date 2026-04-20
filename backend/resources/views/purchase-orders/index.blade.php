@@ -1,5 +1,11 @@
 @extends('layouts.app')
 @section('title', __('common.purchase_orders'))
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.purchasing')],
+        ['label' => __('common.purchase_orders')],
+    ]" />
+@endsection
 @section('content')
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.purchase_orders') }}</h2>
@@ -21,47 +27,40 @@
         @endforeach
     </div>
 
-    <div class="table-wrapper">
-        @if($myInstances->isEmpty())
-            <p class="p-8 text-center text-slate-500 dark:text-slate-400 text-sm">{{ __('common.no_purchase_orders') }}</p>
-        @else
-            <table class="w-full text-sm">
-                <thead class="bg-slate-50 dark:bg-slate-800/60">
-                    <tr>
-                        <th class="table-header text-left">{{ __('common.reference_no') }}</th>
-                        <th class="table-header text-left">{{ __('common.pr_reference') }}</th>
-                        <th class="table-header text-left">{{ __('common.status') }}</th>
-                        <th class="table-header text-left">{{ __('common.created_at') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                    @foreach($myInstances as $instance)
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                            <td class="px-4 py-3">
-                                <a href="{{ route('purchase-orders.show', $instance) }}"
-                                   class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                                    {{ $instance->reference_no ?? '#'.$instance->id }}
-                                </a>
-                            </td>
-                            <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{{ $instance->payload['parent_reference'] ?? '—' }}</td>
-                            <td class="px-4 py-3">
-                                @php $s = $instance->status; @endphp
-                                @if($s === 'approved')
-                                    <span class="badge-green">{{ __('common.approval_status_' . $s) }}</span>
-                                @elseif($s === 'rejected')
-                                    <span class="badge-red">{{ __('common.approval_status_' . $s) }}</span>
-                                @else
-                                    <span class="badge-yellow">{{ __('common.approval_status_' . $s) }}</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ $instance->created_at->format('d/m/Y H:i') }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-            <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-700">
-                {{ $myInstances->links() }}
-            </div>
-        @endif
-    </div>
+    <x-data-table
+        :columns="[
+            ['key' => 'reference_no', 'label' => __('common.reference_no')],
+            ['key' => 'pr_reference', 'label' => __('common.pr_reference')],
+            ['key' => 'status', 'label' => __('common.status')],
+            ['key' => 'created_at', 'label' => __('common.created_at')],
+        ]"
+        :rows="$myInstances"
+        :disable-pagination="true"
+        :empty-message="__('common.no_purchase_orders')"
+    >
+        @foreach($myInstances as $instance)
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <td class="table-primary">
+                    <a href="{{ route('purchase-orders.show', $instance) }}"
+                       class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                        {{ $instance->reference_no ?? '#'.$instance->id }}
+                    </a>
+                </td>
+                <td class="table-sub">{{ $instance->payload['parent_reference'] ?? '—' }}</td>
+                <td class="px-4 py-2">
+                    @php $s = $instance->status; @endphp
+                    @if($s === 'approved')
+                        <span class="badge-green">{{ __('common.approval_status_' . $s) }}</span>
+                    @elseif($s === 'rejected')
+                        <span class="badge-red">{{ __('common.approval_status_' . $s) }}</span>
+                    @else
+                        <span class="badge-yellow">{{ __('common.approval_status_' . $s) }}</span>
+                    @endif
+                </td>
+                <td class="table-sub">{{ $instance->created_at->format('d/m/Y H:i') }}</td>
+            </tr>
+        @endforeach
+    </x-data-table>
+
+    <x-per-page-footer :paginator="$myInstances" :perPage="$perPage" id="purchase-orders-pagination" />
 @endsection

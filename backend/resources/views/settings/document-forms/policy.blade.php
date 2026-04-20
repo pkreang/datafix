@@ -2,6 +2,14 @@
 
 @section('title', __('common.workflow_policy_page_title'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.document_forms'), 'url' => route('settings.document-forms.index')],
+        ['label' => __('common.workflow_policy_page_title')],
+    ]" />
+@endsection
+
 @section('content')
     @php
         $docTypeLabel = match ($documentForm->document_type) {

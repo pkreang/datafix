@@ -2,6 +2,13 @@
 
 @section('title', __('common.pm_am_history_report'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.reports'), 'url' => route('reports.index')],
+        ['label' => __('common.pm_am_history_report')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.pm_am_history_report') }}</h2>

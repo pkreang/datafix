@@ -2,6 +2,14 @@
 
 @section('title', __('common.create_permission'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.permissions'), 'url' => route('permissions.index')],
+        ['label' => __('common.create_permission')],
+    ]" />
+@endsection
+
 @section('content')
     <div>
         <div class="flex items-center justify-between gap-4 mb-6">

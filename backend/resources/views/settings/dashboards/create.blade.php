@@ -2,6 +2,14 @@
 
 @section('title', 'Create Dashboard')
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.reports'), 'url' => route('settings.dashboards.index')],
+        ['label' => __('common.add')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Create Dashboard</h2>

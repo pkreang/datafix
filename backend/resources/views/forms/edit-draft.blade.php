@@ -2,18 +2,22 @@
 
 @section('title', $submission->form->name)
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.forms_index_title'), 'url' => route('forms.index')],
+        ['label' => __('common.my_submissions'), 'url' => route('forms.my-submissions')],
+        ['label' => __('common.edit')],
+    ]" />
+@endsection
+
 @section('content')
-<div class="document-form-page">
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <a href="{{ route('forms.my-submissions') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.my_submissions') }}</a>
-            <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ $submission->form->name }}</h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                <span class="badge-yellow">
-                    {{ __('common.draft') }}
-                </span>
-            </p>
-        </div>
+<div style="width:100%;max-width:100%">
+    <div class="mb-6">
+        <a href="{{ route('forms.my-submissions') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.my_submissions') }}</a>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ $submission->form->name }}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <span class="badge-yellow">{{ __('common.draft') }}</span>
+        </p>
     </div>
 
     @if (session('success'))
@@ -35,10 +39,18 @@
     @php $form = $submission->form; @endphp
 
     {{-- Update draft form --}}
+    @php
+        $initialPayload = collect($form->fields)
+            ->filter(fn($f) => !in_array($f->field_type, ['section', 'auto_number']))
+            ->pluck('field_key')
+            ->mapWithKeys(fn($k) => [$k => old("fields.{$k}", $submission->payload[$k] ?? '')])
+            ->all();
+    @endphp
     <form id="update-draft-form"
           method="POST"
           action="{{ route('forms.draft.update', $submission) }}"
-          enctype="multipart/form-data" novalidate>
+          enctype="multipart/form-data" novalidate
+          x-data="dynamicForm({{ json_encode($initialPayload, JSON_UNESCAPED_UNICODE) }})">
         @csrf @method('PUT')
         <div class="card p-6">
             <x-document-form-fields-grid :columns="$form->layout_columns ?? 1">
@@ -50,8 +62,37 @@
                         $fSpan  = ($field->col_span && ($form->layout_columns ?? 1) > 1)
                             ? min($field->col_span, $form->layout_columns)
                             : 1;
+                        $fVisRules = $field->visibility_rules ?? [];
+                        $xShowExpr = '';
+                        if (!empty($fVisRules)) {
+                            $parts = [];
+                            foreach ($fVisRules as $rule) {
+                                $f = $rule['field'] ?? '';
+                                $op = $rule['operator'] ?? 'equals';
+                                $v = json_encode($rule['value'] ?? '', JSON_UNESCAPED_UNICODE);
+                                $ref = "fp[" . json_encode($f) . "]";
+                                $parts[] = match($op) {
+                                    'equals' => "(Array.isArray({$ref}) ? {$ref}.includes({$v}) : {$ref} === {$v})",
+                                    'not_equals' => "(Array.isArray({$ref}) ? !{$ref}.includes({$v}) : {$ref} !== {$v})",
+                                    'is_empty' => "!{$ref} || String({$ref}).trim() === ''",
+                                    'is_not_empty' => "!!{$ref} && String({$ref}).trim() !== ''",
+                                    'greater_than' => "Number({$ref}) > Number({$v})",
+                                    'less_than' => "Number({$ref}) < Number({$v})",
+                                    'in' => "{$v}.includes(String({$ref}))",
+                                    'not_in' => "!{$v}.includes(String({$ref}))",
+                                    default => 'true',
+                                };
+                            }
+                            $xShowExpr = implode(' && ', $parts);
+                        }
                     @endphp
                     <div @if($fSpan > 1) style="grid-column: span {{ $fSpan }}" @endif>
+                      @if($xShowExpr)
+                        <div x-show="{{ $xShowExpr }}" x-cloak
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0">
+                      @endif
                         @if($field->field_type !== 'section')
                             <label class="form-label">
                                 {{ $field->label }}
@@ -64,6 +105,9 @@
                             'value'      => $fValue,
                             'editorRole' => 'requester',
                         ])
+                      @if($xShowExpr)
+                        </div>
+                      @endif
                     </div>
                 @endforeach
             </x-document-form-fields-grid>

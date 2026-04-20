@@ -2,6 +2,13 @@
 
 @section('title', __('common.edit_user'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.user_and_access'), 'url' => route('users.index')],
+        ['label' => __('common.edit_user')],
+    ]" />
+@endsection
+
 @php
     $roleType = old('role_type', $user->roles->isNotEmpty() ? 'default' : ($user->permissions->isNotEmpty() ? 'custom' : 'default'));
     $oldRoleId = old('role_id', $user->roles->first()?->id);
@@ -10,14 +17,7 @@
 
 @section('content')
 <div>
-    <div class="flex items-center justify-between gap-4 mb-6">
-        <nav class="text-sm text-slate-500 dark:text-slate-400">
-            <span>{{ __('common.settings') }}</span>
-            <span class="mx-1">/</span>
-            <a href="{{ route('users.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400">{{ __('common.user_and_access') }}</a>
-            <span class="mx-1">/</span>
-            <span class="text-slate-700 dark:text-slate-300">{{ __('common.edit_user') }}</span>
-        </nav>
+    <div class="flex justify-end mb-6">
         <a href="{{ route('users.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 shrink-0">&larr; {{ __('common.back') }}</a>
     </div>
 

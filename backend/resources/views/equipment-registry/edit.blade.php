@@ -2,11 +2,15 @@
 
 @section('title', __('common.edit_equipment'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.equipment_list'), 'url' => route('equipment-registry.index')],
+        ['label' => __('common.edit_equipment')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
-    <nav class="text-sm text-slate-500 dark:text-slate-400 mb-2">
-        <a href="{{ route('equipment-registry.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400">{{ __('common.equipment_list') }}</a>
-    </nav>
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.edit_equipment') }}</h2>
         <a href="{{ route('equipment-registry.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>

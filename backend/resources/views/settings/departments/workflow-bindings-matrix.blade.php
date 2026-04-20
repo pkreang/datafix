@@ -2,6 +2,14 @@
 
 @section('title', __('common.department_workflow_bindings'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.departments'), 'url' => route('settings.departments.index')],
+        ['label' => __('common.department_workflow_bindings')],
+    ]" />
+@endsection
+
 @section('content')
     @if (session('success'))
         <div class="alert-success mb-4">

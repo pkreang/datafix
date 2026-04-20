@@ -2,8 +2,15 @@
 
 @section('title', $form->name)
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.forms_index_title'), 'url' => route('forms.index')],
+        ['label' => __('common.fill_form')],
+    ]" />
+@endsection
+
 @section('content')
-<div class="document-form-page">
+<div style="width:100%;max-width:100%">
     <div class="mb-6">
         <a href="{{ route('forms.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ $form->name }}</h2>
@@ -22,10 +29,18 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('forms.draft.store', $form->form_key) }}" enctype="multipart/form-data" novalidate>
+    @php
+        $initialPayload = collect($form->fields)
+            ->filter(fn($f) => !in_array($f->field_type, ['section', 'auto_number']))
+            ->pluck('field_key')
+            ->mapWithKeys(fn($k) => [$k => old("fields.{$k}", '')])
+            ->all();
+    @endphp
+    <form method="POST" action="{{ route('forms.draft.store', $form->form_key) }}" enctype="multipart/form-data" novalidate class="w-full"
+          x-data="dynamicForm({{ json_encode($initialPayload, JSON_UNESCAPED_UNICODE) }})">
         @csrf
-        <div class="card p-6">
-            <x-document-form-fields-grid :columns="$form->layout_columns ?? 1">
+        <div class="card p-4 sm:p-6 lg:p-8">
+            <x-document-form-fields-grid :columns="$form->layout_columns ?? 1" class="gap-x-6 gap-y-5 lg:gap-x-10">
                 @foreach($form->fields as $field)
                     @php
                         $fKey   = $field->field_key;
@@ -34,8 +49,40 @@
                         $fSpan  = ($field->col_span && ($form->layout_columns ?? 1) > 1)
                             ? min($field->col_span, $form->layout_columns)
                             : 1;
+                        $fVisRules = $field->visibility_rules ?? [];
+                        // Build Alpine inline expression from rules
+                        // e.g. [{"field":"priority","operator":"equals","value":"ฉุกเฉิน"}]
+                        // → "fp['priority'] === 'ฉุกเฉิน'"
+                        $xShowExpr = '';
+                        if (!empty($fVisRules)) {
+                            $parts = [];
+                            foreach ($fVisRules as $rule) {
+                                $f = $rule['field'] ?? '';
+                                $op = $rule['operator'] ?? 'equals';
+                                $v = json_encode($rule['value'] ?? '', JSON_UNESCAPED_UNICODE);
+                                $ref = "fp[" . json_encode($f) . "]";
+                                $parts[] = match($op) {
+                                    'equals' => "(Array.isArray({$ref}) ? {$ref}.includes({$v}) : {$ref} === {$v})",
+                                    'not_equals' => "(Array.isArray({$ref}) ? !{$ref}.includes({$v}) : {$ref} !== {$v})",
+                                    'is_empty' => "!{$ref} || String({$ref}).trim() === ''",
+                                    'is_not_empty' => "!!{$ref} && String({$ref}).trim() !== ''",
+                                    'greater_than' => "Number({$ref}) > Number({$v})",
+                                    'less_than' => "Number({$ref}) < Number({$v})",
+                                    'in' => "{$v}.includes(String({$ref}))",
+                                    'not_in' => "!{$v}.includes(String({$ref}))",
+                                    default => 'true',
+                                };
+                            }
+                            $xShowExpr = implode(' && ', $parts);
+                        }
                     @endphp
                     <div @if($fSpan > 1) style="grid-column: span {{ $fSpan }}" @endif>
+                      @if($xShowExpr)
+                        <div x-show="{{ $xShowExpr }}" x-cloak
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0">
+                      @endif
                         @if($field->field_type !== 'section')
                             <label class="form-label">
                                 {{ $field->label }}
@@ -48,6 +95,9 @@
                             'value'      => $fValue,
                             'editorRole' => 'requester',
                         ])
+                      @if($xShowExpr)
+                        </div>
+                      @endif
                     </div>
                 @endforeach
             </x-document-form-fields-grid>

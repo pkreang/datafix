@@ -1,6 +1,18 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="min-h-full">
 <head>
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -11,47 +23,113 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- CSS only: avoid loading Alpine/Chart on auth pages. --}}
+    @vite(['resources/css/app.css'])
+
+@php
+    $loginBgPath = isset($loginBackground) ? trim((string) $loginBackground) : '';
+    $bgImage = $loginBgPath !== ''
+        ? asset('storage/' . $loginBgPath)
+        : asset('images/approval-workflow.jpg');
+    /** JSON string for url(...) — must be unescaped in <style> ({{ }} turns " into &quot; and breaks CSS). */
+    $bgUrlJson = json_encode($bgImage, JSON_UNESCAPED_SLASHES) ?: '""';
+    $rawLoginBg = trim((string) ($loginBackgroundColor ?? '#1e3a8a'));
+    $loginBgColor = '#1e3a8a';
+    if (preg_match('/^#[0-9A-Fa-f]{3,8}$/', $rawLoginBg)) {
+        $loginBgColor = $rawLoginBg;
+    } elseif (preg_match('/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i', $rawLoginBg)) {
+        $loginBgColor = $rawLoginBg;
+    }
+@endphp
+    {{-- All background on body via normal flow — no fixed layers / z-index stacking (avoids “dead” hit targets in Chrome). --}}
+    <style>
+        .auth-guest-body {
+            min-height: 100dvh;
+            min-height: 100vh;
+            margin: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            font-family: 'Inter', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            pointer-events: auto;
+            background-color: {{ $loginBgColor }};
+            background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url({!! $bgUrlJson !!});
+            background-size: cover, cover;
+            background-position: center, center;
+            background-repeat: no-repeat, no-repeat;
+        }
+    </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 text-base text-slate-800 dark:text-slate-200 relative">
-    @php
-        $bgImage = ($loginBackground ?? null)
-            ? asset('storage/' . $loginBackground)
-            : asset('images/approval-workflow.jpg');
-    @endphp
-    <div class="fixed inset-0 z-0" style="background: url({{ $bgImage }}) center center / cover no-repeat; background-color: {{ $loginBackgroundColor ?? '#1e3a8a' }};"></div>
-    <div class="fixed inset-0 z-0 bg-black/40"></div>
+<body class="auth-guest-body text-base text-slate-800 dark:text-slate-200">
 
-    <div class="fixed bottom-4 right-4 z-50 text-xs text-white/80 font-medium drop-shadow">v{{ config('app.version') }}</div>
-
-    <div class="relative z-10 w-full max-w-[634px] mx-auto flex flex-col lg:flex-row rounded-[16px] shadow-2xl overflow-hidden border border-white/10 bg-white dark:bg-gray-900 login-card">
-        <div class="hidden lg:flex lg:w-[42%] flex-col justify-center items-center text-center p-8 lg:p-10 bg-gradient-to-b from-blue-800 to-blue-600 text-white login-welcome">
-            @if ($systemLogo ?? null)
-                <img src="{{ asset('storage/' . $systemLogo) }}" alt="{{ config('app.name') }}" class="max-h-20 w-auto object-contain mb-8 opacity-95">
-            @else
-                <h1 class="login-brand">{{ config('app.name') }}</h1>
-            @endif
-            <h2 class="login-welcome-title">{{ $welcomeTitle ?? __('common.login_welcome', ['app' => config('app.name')]) }}</h2>
-            <p class="login-welcome-desc">{{ $welcomeSubtitle ?? __('common.login_welcome_subtitle') }}</p>
-        </div>
-
-        <div class="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-10 bg-white dark:bg-gray-900 min-w-0">
-            <div class="w-full max-w-[280px] sm:max-w-xs">
+    <main class="auth-guest-main w-full max-w-[634px] mx-auto flex flex-col items-center">
+        <div class="w-full flex flex-col lg:flex-row rounded-[16px] shadow-2xl border border-white/10 bg-white dark:bg-gray-900 login-card overflow-visible">
+            <div class="login-welcome-pane hidden lg:flex lg:w-[42%] flex-col justify-center items-center text-center p-8 lg:p-10 bg-gradient-to-b from-blue-800 to-blue-600 text-white login-welcome">
                 @if ($systemLogo ?? null)
-                    <img src="{{ asset('storage/' . $systemLogo) }}" alt="{{ config('app.name') }}" class="lg:hidden h-12 w-auto object-contain mb-6 mx-auto">
+                    <img src="{{ asset('storage/' . $systemLogo) }}" alt="{{ config('app.name') }}" class="max-h-20 w-auto object-contain mb-8 opacity-95">
                 @else
-                    <h1 class="lg:hidden text-center font-bold tracking-widest text-blue-600 mb-6 text-2xl">{{ config('app.name') }}</h1>
+                    <h1 class="login-brand">{{ config('app.name') }}</h1>
                 @endif
-                @yield('content')
+                <h2 class="login-welcome-title">{{ $welcomeTitle ?? __('common.login_welcome', ['app' => config('app.name')]) }}</h2>
+                <p class="login-welcome-desc">{{ $welcomeSubtitle ?? __('common.login_welcome_subtitle') }}</p>
+            </div>
+
+            <div class="login-form-pane flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-10 bg-white dark:bg-gray-900 min-w-0">
+                <div class="w-full max-w-[280px] sm:max-w-xs">
+                    @if ($systemLogo ?? null)
+                        <img src="{{ asset('storage/' . $systemLogo) }}" alt="{{ config('app.name') }}" class="lg:hidden h-12 w-auto object-contain mb-6 mx-auto">
+                    @else
+                        <h1 class="lg:hidden text-center font-bold tracking-widest text-blue-600 mb-6 text-2xl">{{ config('app.name') }}</h1>
+                    @endif
+                    @yield('content')
+                </div>
             </div>
         </div>
-    </div>
+
+    </main>
+    <p class="fixed bottom-3 right-4 z-10 text-xs text-white/70 font-medium drop-shadow select-none pointer-events-none" aria-hidden="true">v{{ config('app.version') }}</p>
 
     <style>
     [x-cloak]{display:none!important}
     .login-card { min-width: 0; max-width: 634px; }
+    .login-welcome-pane { border-radius: 0; }
+    @media (max-width: 1023px) {
+        .login-form-pane { border-radius: 16px; }
+    }
     @media (min-width: 1024px) {
         .login-card { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05); }
+        .login-welcome-pane {
+            border-top-left-radius: 16px;
+            border-bottom-left-radius: 16px;
+        }
+        .login-form-pane {
+            border-top-right-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+    }
+    .login-form-pane input,
+    .login-form-pane textarea,
+    .login-form-pane select {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+    .login-form-pane input:-webkit-autofill,
+    .login-form-pane input:-webkit-autofill:hover,
+    .login-form-pane input:-webkit-autofill:focus {
+        -webkit-text-fill-color: rgb(15 23 42);
+        transition: background-color 99999s ease-out;
+        box-shadow: inset 0 0 0 1000px rgb(255 255 255);
+    }
+    .dark .login-form-pane input:-webkit-autofill,
+    .dark .login-form-pane input:-webkit-autofill:hover,
+    .dark .login-form-pane input:-webkit-autofill:focus {
+        -webkit-text-fill-color: rgb(241 245 249);
+        box-shadow: inset 0 0 0 1000px rgb(15 23 42);
     }
     .login-welcome { background: linear-gradient(to bottom, #1e40af, #2563eb); color: #fff; }
     .login-welcome .login-brand,
@@ -71,6 +149,23 @@
     .login-form-btn:hover { background: #1d4ed8; }
     .login-form-error { font-size: 0.9375rem; }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.js-auth-password-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var input = btn.previousElementSibling;
+                    if (!input || input.tagName !== 'INPUT') return;
+                    var showIcon = btn.querySelector('.js-auth-pw-icon-show');
+                    var hideIcon = btn.querySelector('.js-auth-pw-icon-hide');
+                    var toText = input.type === 'password';
+                    input.type = toText ? 'text' : 'password';
+                    btn.setAttribute('aria-pressed', toText ? 'true' : 'false');
+                    if (showIcon) showIcon.classList.toggle('hidden', toText);
+                    if (hideIcon) hideIcon.classList.toggle('hidden', !toText);
+                });
+            });
+        });
+    </script>
     @stack('scripts')
 </body>
 </html>

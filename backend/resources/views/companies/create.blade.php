@@ -2,14 +2,16 @@
 
 @section('title', __('company.add_company'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('company.companies'), 'url' => route('companies.index')],
+        ['label' => __('company.add_company')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
-    <div class="flex items-center justify-between gap-4 mb-6">
-        <nav class="text-sm text-slate-500 dark:text-slate-400">
-            <a href="{{ route('companies.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400">{{ __('company.companies') }}</a>
-            <span class="mx-1">/</span>
-            <span class="text-slate-700 dark:text-slate-300">{{ __('company.add_company') }}</span>
-        </nav>
+    <div class="flex justify-end mb-6">
         <a href="{{ route('companies.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 shrink-0">&larr; {{ __('common.back') }}</a>
     </div>
 

@@ -2,6 +2,12 @@
 
 @section('title', __('notifications.notifications'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.notifications')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6 flex items-center justify-between">
         <div>
@@ -75,8 +81,6 @@
             @endforeach
         </div>
 
-        <div class="mt-4">
-            {{ $notifications->links() }}
-        </div>
+        <x-per-page-footer :paginator="$notifications" :perPage="$perPage" id="notifications-pagination" />
     @endif
 @endsection

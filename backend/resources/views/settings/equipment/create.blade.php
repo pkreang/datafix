@@ -2,6 +2,14 @@
 
 @section('title', __('common.add_equipment_category'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.equipment_categories'), 'url' => route('settings.equipment.index')],
+        ['label' => __('common.add')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
     <nav class="text-sm text-slate-500 dark:text-slate-400 mb-2">

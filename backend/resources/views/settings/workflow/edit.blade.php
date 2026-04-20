@@ -2,24 +2,51 @@
 
 @section('title', __('common.edit') . ' ' . __('common.workflow'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.workflow'), 'url' => route('settings.workflow.index')],
+        ['label' => __('common.edit')],
+    ]" />
+@endsection
+
 @section('content')
 <div x-data="workflowBuilderEdit({{ Js::from($workflow->stages->map(fn($s) => [
     'step_no' => $s->step_no,
     'name' => $s->name,
     'approver_type' => $s->approver_type,
-    'approver_ref' => $s->approver_ref,
+    'approver_ref' => (string) $s->approver_ref,
     'min_approvals' => $s->min_approvals,
-])->values()) }}, {{ Js::from($roles->values()) }}, {{ Js::from($users->values()) }}, {{ Js::from($positions->values()) }}, {{ Js::from([
+])->values()) }}, {{ Js::from($roles->values()) }}, {{ Js::from($users->values()) }}, {{ Js::from($positions->map(fn($p) => ['id' => (string) $p['id'], 'code' => $p['code'] ?? '', 'label' => $p['label'], 'users' => $p['users'] ?? []])->values()) }}, {{ Js::from([
     'untitled' => __('common.workflow_stage_untitled'),
     'minLabel' => __('common.workflow_preview_min_label'),
     'typeRole' => __('common.workflow_approver_role'),
     'typeUser' => __('common.workflow_approver_user'),
     'typePosition' => __('common.workflow_approver_position'),
+    'people' => __('common.people_count'),
+    'noUsersInPosition' => __('common.no_users_in_position'),
 ]) }})">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.edit') }} {{ __('common.workflow') }}</h2>
         <a href="{{ route('settings.workflow.index') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">&larr; {{ __('common.back') }}</a>
     </div>
+
+    @if (session('success'))
+        <div class="alert-success mb-4">{{ session('success') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="alert-error mb-4">{{ session('error') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert-error mb-4">
+            <ul class="list-disc pl-5 text-sm space-y-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div class="xl:col-span-2 card p-6">
             <form method="POST" action="{{ route('settings.workflow.update', $workflow) }}" class="space-y-5" @submit="return canSubmit()" novalidate>
@@ -76,7 +103,7 @@
                             </div>
                         </div>
                         <input type="hidden" :name="`stages[${idx}][step_no]`" x-model="stage.step_no">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div class="grid gap-3 items-end" style="grid-template-columns: 1fr 100px 2fr 60px">
                             <div>
                                 <label class="text-xs text-slate-500">{{ __('common.workflow_stage_name') }}</label>
                                 <input :name="`stages[${idx}][name]`" x-model="stage.name" required class="form-input mt-1" />
@@ -108,17 +135,20 @@
                                     </select>
                                 </template>
                                 <template x-if="stage.approver_type === 'position'">
-                                    <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
-                                        <option value="">{{ __('common.workflow_placeholder_select_position') }}</option>
-                                        <template x-for="p in positions" :key="`pos-${p.id}`">
-                                            <option :value="String(p.id)" x-text="p.label"></option>
-                                        </template>
-                                    </select>
+                                    <div>
+                                        <select :name="`stages[${idx}][approver_ref]`" x-model="stage.approver_ref" required class="form-input mt-1">
+                                            <option value="">{{ __('common.workflow_placeholder_select_position') }}</option>
+                                            <template x-for="p in positions" :key="`pos-${p.id}`">
+                                                <option :value="String(p.id)" x-text="p.label"></option>
+                                            </template>
+                                        </select>
+                                        <p x-show="stage.approver_ref" x-text="positionUsersPreview(stage.approver_ref)" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
+                                    </div>
                                 </template>
                             </div>
                             <div>
-                                <label class="text-xs text-slate-500">{{ __('common.workflow_min_approvals') }}</label>
-                                <input type="number" min="1" :name="`stages[${idx}][min_approvals]`" x-model="stage.min_approvals" required class="form-input mt-1" />
+                                <label class="text-xs text-slate-500" title="{{ __('common.workflow_min_approvals') }}">ขั้นต่ำ</label>
+                                <input type="number" min="1" :name="`stages[${idx}][min_approvals]`" x-model="stage.min_approvals" required class="form-input mt-1 text-center" />
                             </div>
                         </div>
                     </div>
@@ -163,12 +193,20 @@
                     step_no: Number(s.step_no || 1),
                     name: s.name || '',
                     approver_type: s.approver_type ?? 'position',
-                    approver_ref: s.approver_ref || '',
+                    approver_ref: String(s.approver_ref || ''),
                     min_approvals: Number(s.min_approvals || 1),
                 }));
                 if (!this.stages.length) this.addStage();
                 this.normalize();
                 this.checkValidity();
+                // Force sync select values after x-if templates render
+                this.$nextTick(() => {
+                    setTimeout(() => {
+                        this.$el.querySelectorAll('select[name*="approver_ref"]').forEach((sel, i) => {
+                            if (this.stages[i]) sel.value = this.stages[i].approver_ref;
+                        });
+                    }, 50);
+                });
             },
             addStage() {
                 const approver_type = this.positions[0] ? 'position' : (this.users[0] ? 'user' : 'role');
@@ -223,6 +261,15 @@
                 if (t === 'user') return i.typeUser;
                 if (t === 'position') return i.typePosition;
                 return t || '—';
+            },
+            positionUsersPreview(positionId) {
+                const pos = this.positions.find(p => String(p.id) === String(positionId));
+                if (!pos) return '';
+                const users = pos.users || [];
+                if (users.length === 0) return this.i18n.noUsersInPosition || '';
+                const count = users.length + ' ' + (this.i18n.people || '');
+                const preview = users.length > 5 ? users.slice(0, 5).join(', ') + '…' : users.join(', ');
+                return count + ': ' + preview;
             },
         };
     }

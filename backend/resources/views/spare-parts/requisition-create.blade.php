@@ -2,6 +2,13 @@
 
 @section('title', __('common.create_requisition'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.spare_parts_requisition'), 'url' => route('spare-parts.requisition.index')],
+        ['label' => __('common.create_requisition')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6">
         <a href="{{ route('spare-parts.requisition.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>

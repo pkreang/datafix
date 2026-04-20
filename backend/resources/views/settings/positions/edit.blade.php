@@ -2,6 +2,14 @@
 
 @section('title', __('common.edit') . ' ' . __('common.positions'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.positions'), 'url' => route('settings.positions.index')],
+        ['label' => __('common.edit')],
+    ]" />
+@endsection
+
 @section('content')
 <div>
     <div class="flex items-center justify-between gap-4 mb-6">

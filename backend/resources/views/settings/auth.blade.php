@@ -2,6 +2,13 @@
 
 @section('title', __('auth.settings_title'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.authentication_sso')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="w-full">
         <div class="mb-6">

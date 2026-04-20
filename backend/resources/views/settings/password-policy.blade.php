@@ -2,6 +2,13 @@
 
 @section('title', __('password_policy.title'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.password_policy')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="w-full">
         <div class="mb-6">

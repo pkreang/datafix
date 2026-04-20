@@ -2,6 +2,12 @@
 
 @section('title', __('common.forms_index_title'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.forms_index_title')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>

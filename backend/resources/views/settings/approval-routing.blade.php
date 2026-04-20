@@ -2,6 +2,14 @@
 
 @section('title', __('common.approval_routing'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.workflow'), 'url' => route('settings.workflow.index')],
+        ['label' => __('common.approval_routing')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="max-w-3xl">
         <div class="flex items-center justify-between mb-6">

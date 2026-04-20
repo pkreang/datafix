@@ -2,6 +2,13 @@
 
 @section('title', __('branding.title'))
 
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
+        ['label' => __('common.branding')],
+    ]" />
+@endsection
+
 @section('content')
     <div class="w-full">
         <div class="mb-6">

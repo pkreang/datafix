@@ -1,5 +1,12 @@
 @extends('layouts.app')
 @section('title', __('common.create_purchase_request'))
+@section('breadcrumb')
+    <x-breadcrumb :items="[
+        ['label' => __('common.purchasing')],
+        ['label' => __('common.purchase_requests'), 'url' => route('purchase-requests.index')],
+        ['label' => __('common.create_purchase_request')],
+    ]" />
+@endsection
 @section('content')
     <div class="mb-6">
         <a href="{{ route('purchase-requests.index') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.back') }}</a>
