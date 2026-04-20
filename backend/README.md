@@ -56,21 +56,42 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 
 ## Foundation data (master / พื้นฐาน)
 
-`php artisan db:seed` loads:
+`php artisan db:seed` loads (see `Database\Seeders\DatabaseSeeder`):
 
 | Seeder | Contents |
 |--------|----------|
-| `CompanySeeder` | บริษัทตัวอย่าง `DFIX` (idempotent) |
-| `BranchSeeder` | สาขา HQ + ผูก `company_id` / `branch_id` ให้ผู้ใช้ทุกคน (หลัง Company) |
-| `DepartmentSeeder` | แผนกตัวอย่าง 6 แผนก (MAINT, PROD, WH, FAC, IT, GA) สำหรับเลือกในแจ้งซ่อมและ routing |
-| `DocumentFormSeeder` | ฟอร์มแจ้งซ่อม default + ป้ายฟิลด์ภาษาไทย |
-| `RepairApprovalDemoSeeder` | workflow + policy + ผู้ใช้ demo |
+| `PermissionSeeder` / `RolePermissionSeeder` | สิทธิ์ + บทบาท + `admin@example.com` |
+| `SettingSeeder` / `NavigationMenuSeeder` | การตั้งค่า + เมนู |
+| `DocumentTypeSeeder` | ประเภทเอกสารจัดซื้อ (เบิกอะไหล่, PR, PO) |
+| `PositionDemoSeeder` | ตำแหน่งโรงเรียนเท่านั้น (SCH\_TEACHER, SCH\_ACAD\_HEAD, …); ลบแถวตำแหน่ง CMMS เก่า (MAINT_SUP, …) เมื่อไม่มีผู้ใช้และไม่ถูก workflow อ้างอิง |
+| `FactoryPositionSeeder` | (ไม่รันจาก `db:seed` หลัก) ตำแหน่ง CMMS สำหรับ `FactoryCmmsTemplateSeeder` / `PurchaseWorkflowSeeder` / `ApprovalWorkflowDemoSeeder` |
+| `IndustryTemplateSeeder` | **เทมเพลตสองกลุ่มลูกค้า:** โรงงาน (`FactoryCmmsTemplateSeeder`: แจ้งซ่อม + PM/AM, ฟอร์ม, workflow, policy) และโรงเรียน (`SchoolEFormTemplateSeeder`: แผนก SCH\_\*, ประเภท eForm ลา/ขอซื้อ/กิจกรรม, ฟอร์ม, workflow, policy) |
+| `DashboardSeeder` | แดชบอร์ดตัวอย่าง |
+| `PurchaseWorkflowSeeder` | workflow ใบขอซื้อ/สั่งซื้อ (ต้องมีฟอร์ม `purchase_request_default` / `purchase_order_default` ใน DB — สร้างจาก UI หรือ seeder แยก) |
 
-รันเฉพาะแผนก: `php artisan db:seed --class=DepartmentSeeder`
+รันเฉพาะเทมเพลตอุตสาหกรรม: `php artisan db:seed --class=IndustryTemplateSeeder`  
+รันเฉพาะแผนกโรงเรียน + eForm: `php artisan db:seed --class=SchoolEFormTemplateSeeder`  
+ลบแผนกโรงงานตัวอย่างเก่า (MAINT, PROD, WH, …) ออกจาก DB: `php artisan db:seed --class=DepartmentSeeder` — คำสั่งนี้**ไม่สร้าง**แผนกใหม่ มีแค่ purge; การรัน `SchoolEFormTemplateSeeder` หรือ `IndustryTemplateSeeder` จะเรียก purge นี้ก่อนสร้างแผนก **SCH\_\*** เสมอ
+
+**`DevelopmentDemoSeeder`** — แผนกใน DB เป็น **SCH\_\*** จากเทมเพลตโรงเรียนเท่านั้น (แผนกโรงงานตัวอย่างถูกลบออกจากชุด seed แล้ว)
+
+รัน `php artisan db:seed --class=DevelopmentDemoSeeder` แล้วจะได้ผู้ใช้ทดสอบ eForm / workflow โรงเรียน (รหัส `demo1234`):
+
+| Email | แผนก | บทบาท | หมายเหตุ |
+|-------|------|--------|-----------|
+| `employee@demo.com` | ฝ่ายวิชาการ | viewer | ผู้ยื่น |
+| `admin.staff@demo.com` | ฝ่ายธุรการ | viewer | ผู้ยื่น |
+| `finance@demo.com` | ฝ่ายการเงิน | viewer | ผู้ยื่น |
+| `facility@demo.com` | ฝ่ายอาคารและสถานที่ | viewer | ผู้ยื่น |
+| `manager@demo.com` | ฝ่ายวิชาการ | approver | ขั้นที่ 1 (ตำแหน่งหัวหน้าฝ่ายวิชาการ) |
+| `gm@demo.com` | — | approver | ขั้นที่ 2 (รองผู้อำนวยการ) |
 
 ## Demo users (repair / approval MVP)
 
-After `php artisan migrate --seed` (or `php artisan db:seed --class=RepairApprovalDemoSeeder`):
+หลัง `migrate --seed` หน้า **แจ้งซ่อม** ใช้ฟอร์ม `repair_request_default` จาก `IndustryTemplateSeeder` แล้ว
+
+Optional: `php artisan db:seed --class=RepairApprovalDemoSeeder` เพิ่มผู้ใช้ `approver@` / `requester@` และตั้งขั้น workflow ชี้ไปที่ผู้ใช้ `approver@` (role `approver` ใช้แค่สิทธิ์หน้าอนุมัติ ไม่ใช่การกำหนดขั้น):
+
 
 | Email | Password | Role | Use |
 |-------|----------|------|-----|

@@ -1056,7 +1056,7 @@ Cache::forget("user.{$userId}.permissions");
 
 ### 9.8 Companies & branches — structured address
 
-Endpoints (Sanctum, ตาม `routes/api.php`): `GET/POST /companies`, `PUT/DELETE /companies/{company}`, `GET/POST /companies/{company}/branches`, `PUT/DELETE /companies/{company}/branches/{branch}`.
+Endpoints (Sanctum, ตาม `routes/api.php`): `GET/POST /v1/profile`, `PUT/DELETE /v1/profile/{company}`, `GET/POST /v1/profile/{company}/branches`, `PUT/DELETE /v1/profile/{company}/branches/{branch}`.
 
 **โมเดลการ deploy:** ติดตั้งแยกต่อลูกค้า — หนึ่ง deployment ต่อหนึ่งบริษัท; หนึ่งบริษัทมีได้หลายสาขา (`branches`) ไม่มีตารางแพ็กเกจหรือ `package_id` บน `companies`
 
