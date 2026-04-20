@@ -1,4 +1,4 @@
-@props(['menus'])
+@props(['menus', 'isPinnedSection' => false])
 
 @foreach($menus as $menu)
     @if($menu->route === null && $menu->children->isNotEmpty())
@@ -40,11 +40,16 @@
                 @endphp
                 @foreach($menu->children as $child)
                     @php $childActive = $activeChild && $child->id === $activeChild->id; @endphp
-                    <a href="{{ $child->route }}" @click="sidebarOpen = false"
-                       class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ $childActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}">
-                        <x-nav-icon :name="$child->icon" class="w-4 h-4" />
-                        <span x-show="!sidebarCollapsed" x-cloak>{{ $child->translated_label }}</span>
-                    </a>
+                    <div class="relative group">
+                        <a href="{{ $child->route }}" @click="sidebarOpen = false"
+                           class="flex items-center gap-3 px-3 py-1.5 {{ $isPinnedSection ? '' : 'pr-8' }} rounded-lg text-sm font-medium transition-colors {{ $childActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}">
+                            <x-nav-icon :name="$child->icon" class="w-4 h-4" />
+                            <span x-show="!sidebarCollapsed" x-cloak>{{ $child->translated_label }}</span>
+                        </a>
+                        @if(! $isPinnedSection && $child->id > 0 && $child->route)
+                            <x-sidebar-pin-button :menu-id="$child->id" size="sm" />
+                        @endif
+                    </div>
                 @endforeach
             </div>
         </div>
@@ -52,11 +57,16 @@
     @else
         {{-- Single menu item --}}
         @php $menuActive = $menu->isActive(); @endphp
-        <a href="{{ $menu->route }}" @click="sidebarOpen = false"
-           class="flex items-center rounded-lg px-3 py-2 text-sm font-medium {{ $menuActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}"
-           :class="sidebarCollapsed ? 'justify-center' : 'gap-3'">
-            <x-nav-icon :name="$menu->icon" class="w-5 h-5 shrink-0 text-blue-200" />
-            <span x-show="!sidebarCollapsed" x-cloak>{{ $menu->translated_label }}</span>
-        </a>
+        <div class="relative group">
+            <a href="{{ $menu->route }}" @click="sidebarOpen = false"
+               class="flex items-center rounded-lg px-3 py-2 {{ $isPinnedSection ? '' : 'pr-8' }} text-sm font-medium {{ $menuActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-3'">
+                <x-nav-icon :name="$menu->icon" class="w-5 h-5 shrink-0 text-blue-200" />
+                <span x-show="!sidebarCollapsed" x-cloak>{{ $menu->translated_label }}</span>
+            </a>
+            @if(! $isPinnedSection && $menu->id > 0 && $menu->route)
+                <x-sidebar-pin-button :menu-id="$menu->id" />
+            @endif
+        </div>
     @endif
 @endforeach

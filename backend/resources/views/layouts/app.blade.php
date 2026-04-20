@@ -29,6 +29,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @php
+        $userTheme = session('user.theme');
+        if (! $userTheme && session('api_token')) {
+            $userTheme = \App\Models\User::find(session('user.id'))?->theme;
+        }
+    @endphp
+    @if($userTheme && in_array($userTheme, ['light','dark'], true))
+        <meta name="user-theme" content="{{ $userTheme }}">
+    @endif
 
     <title>{{ $appDisplayName }} - @yield('title', __('common.dashboard'))</title>
 
@@ -36,11 +45,16 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <script>
+        window.__PINNED_MENU_IDS__ = @json(($pinnedMenus ?? collect())->pluck('id')->map(fn ($id) => (string) $id)->values());
+    </script>
+
     @stack('scripts')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="h-full font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200"
-      x-data="{ sidebarOpen: false, sidebarCollapsed: false }">
+      x-data="{ sidebarOpen: false, sidebarCollapsed: false }"
+      data-submit-loading-text="{{ __('common.saving_in_progress') }}">
     <div class="flex min-h-screen">
         {{-- Mobile overlay --}}
         <div x-show="sidebarOpen"
@@ -78,7 +92,7 @@
                     <span x-show="!sidebarCollapsed" x-cloak>{{ $appDisplayName }}</span>
                     <span x-show="sidebarCollapsed" x-cloak>{{ $brandAbbr }}</span>
                 </button>
-                <button @click="sidebarOpen = false" type="button" class="lg:hidden p-2 -mr-2 text-blue-200 hover:text-white focus:outline-none" aria-label="ปิดเมนู">
+                <button @click="sidebarOpen = false" type="button" class="lg:hidden inline-flex items-center justify-center min-h-11 min-w-11 p-2 -mr-2 text-blue-200 hover:text-white focus:outline-none rounded-lg" aria-label="ปิดเมนู">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -86,6 +100,15 @@
             </div>
 
             <nav id="sidebar-nav" class="sidebar-nav-scroll flex-1 min-h-0 p-4 space-y-1 overflow-y-auto overflow-x-hidden">
+                @if(!empty($pinnedMenus) && $pinnedMenus->isNotEmpty())
+                    <div class="mb-3" x-show="!sidebarCollapsed" x-cloak>
+                        <p class="px-3 text-[10px] font-semibold uppercase tracking-wider text-blue-200/70 mb-1">
+                            ★ {{ __('common.pinned_favorites') ?? 'Pinned' }}
+                        </p>
+                        <x-sidebar-menu :menus="$pinnedMenus" :is-pinned-section="true" />
+                        <div class="border-t border-white/10 mt-2"></div>
+                    </div>
+                @endif
                 <x-sidebar-menu :menus="$navigationMenus ?? collect()" />
             </nav>
 
@@ -106,7 +129,7 @@
         <div class="flex-1 min-w-0 flex flex-col gap-4">
             <header class="sticky top-0 z-20 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex items-center justify-between gap-4 px-4 sm:px-8">
                 <div class="flex items-center gap-3 min-w-0">
-                    <button @click="sidebarOpen = true" type="button" class="lg:hidden shrink-0 p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg focus:outline-none" aria-label="Open menu">
+                    <button @click="sidebarOpen = true" type="button" class="lg:hidden shrink-0 inline-flex items-center justify-center min-h-11 min-w-11 p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg focus:outline-none" aria-label="Open menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
@@ -117,7 +140,7 @@
                 <div class="flex items-center gap-2">
                     @stack('header-actions')
                     <button @click="$store.theme.toggle()"
-                            class="p-2 rounded-lg transition-colors
+                            class="inline-flex items-center justify-center min-h-11 min-w-11 p-2 rounded-lg transition-colors
                                    text-slate-500 dark:text-slate-400
                                    hover:bg-slate-100 dark:hover:bg-slate-800"
                             aria-label="Toggle dark mode">
@@ -146,7 +169,7 @@
 
                     <div x-data="{ open: false }" class="relative">
                         <button @click="open = !open" type="button"
-                                class="flex items-center gap-1.5 p-1 rounded-lg
+                                class="flex items-center gap-1.5 min-h-11 px-2 py-1 rounded-lg
                                        hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                             @if($layoutUser['avatar'] ?? null)
                                 <img src="{{ $layoutUserAvatar }}" alt="" class="w-7 h-7 rounded-full object-cover">
@@ -237,11 +260,23 @@
                 </div>
             </header>
 
+            @hasSection('breadcrumb')
+                <div class="px-4 sm:px-6 lg:px-10 py-2 border-b border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
+                    @yield('breadcrumb')
+                </div>
+            @endif
+
             {{-- overflow-x-hidden breaks position:sticky inside main (e.g. document form builder). Allow horizontal overflow on those pages only. --}}
+            @php
+                $isFormFillPage = request()->routeIs('forms.create', 'forms.draft.edit', 'forms.submission.show', 'settings.workflow.edit', 'settings.workflow.create');
+                $isFormBuilderPage = request()->routeIs('settings.document-forms.create', 'settings.document-forms.edit');
+            @endphp
             <main @class([
-                'flex-1 w-full min-w-0 p-4 sm:p-6 lg:px-10',
-                'overflow-x-hidden' => ! request()->routeIs('settings.document-forms.create', 'settings.document-forms.edit'),
-                'overflow-x-visible' => request()->routeIs('settings.document-forms.create', 'settings.document-forms.edit'),
+                'flex-1 w-full min-w-0',
+                'p-4 sm:p-6 lg:px-10' => ! $isFormFillPage,
+                'p-3 sm:p-4 lg:px-4 lg:py-5' => $isFormFillPage,
+                'overflow-x-hidden'   => ! $isFormBuilderPage,
+                'overflow-x-visible'  => $isFormBuilderPage,
             ])>
                 @yield('content')
             </main>
