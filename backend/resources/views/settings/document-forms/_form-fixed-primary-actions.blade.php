@@ -30,11 +30,15 @@
 
             if (spacer) {
                 spacer.style.minHeight = '';
-                // Measure actual positions: spacer.top is constant regardless of spacer height.
-                // Set spacer so content after it starts 8px below the bar's bottom edge.
+                // Formula needs to be scroll-independent. Convert spacer's viewport
+                // top to a document-coord top (add scrollY) so the calculation is
+                // the same whether the user is at the top of the page or scrolled
+                // partway down. The previous viewport-only formula produced a
+                // wildly oversized spacer mid-scroll because spacer.top was
+                // negative once the user had scrolled past it.
                 var barBottom = bar.getBoundingClientRect().bottom;
-                var spacerTop = spacer.getBoundingClientRect().top;
-                var needed = Math.ceil(barBottom - spacerTop - 12);
+                var spacerDocTop = spacer.getBoundingClientRect().top + window.scrollY;
+                var needed = Math.ceil(barBottom - spacerDocTop - 12);
                 spacer.style.height = Math.max(0, needed) + 'px';
             }
         }

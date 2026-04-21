@@ -594,25 +594,25 @@
                         <div>
                             <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.visibility_rules') ?? 'Visibility Rules' }}</p>
                             <template x-for="(rule, ri) in (field.visibility_rules || [])" :key="ri">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <select x-model="rule.field" class="form-input py-1 px-2 text-xs flex-1">
-                                        <option value="">{{ __('common.select_field') ?? 'Select field' }}</option>
+                                <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,2fr)_auto] items-center gap-2 mb-2">
+                                    <select x-model="rule.field" class="form-input py-1 px-2 text-xs min-w-0">
+                                        <option value="">{{ __('common.select_field') }}</option>
                                         <template x-for="(other, oi) in fields" :key="'vis-'+oi">
                                             <template x-if="oi !== idx && other.field_key && other.field_type !== 'section'">
                                                 <option :value="other.field_key" x-text="other.label || other.field_key"></option>
                                             </template>
                                         </template>
                                     </select>
-                                    <select x-model="rule.operator" class="form-input py-1 px-2 text-xs w-32">
-                                        <option value="equals">{{ __('common.op_equals') ?? 'Equals' }}</option>
-                                        <option value="not_equals">{{ __('common.op_not_equals') ?? 'Not equals' }}</option>
-                                        <option value="is_empty">{{ __('common.op_is_empty') ?? 'Is empty' }}</option>
-                                        <option value="is_not_empty">{{ __('common.op_is_not_empty') ?? 'Is not empty' }}</option>
-                                        <option value="greater_than">{{ __('common.op_greater_than') ?? 'Greater than' }}</option>
-                                        <option value="less_than">{{ __('common.op_less_than') ?? 'Less than' }}</option>
+                                    <select x-model="rule.operator" class="form-input py-1 px-2 text-xs w-20 text-center">
+                                        <option value="equals">{{ __('common.op_equals') }}</option>
+                                        <option value="not_equals">{{ __('common.op_not_equals') }}</option>
+                                        <option value="is_empty">{{ __('common.op_is_empty') }}</option>
+                                        <option value="is_not_empty">{{ __('common.op_is_not_empty') }}</option>
+                                        <option value="greater_than">{{ __('common.op_greater_than') }}</option>
+                                        <option value="less_than">{{ __('common.op_less_than') }}</option>
                                     </select>
-                                    <input x-show="!['is_empty','is_not_empty'].includes(rule.operator)" x-model="rule.value" placeholder="{{ __('common.value') ?? 'Value' }}" class="form-input py-1 px-2 text-xs flex-1" />
-                                    <button type="button" @click="field.visibility_rules.splice(ri, 1)" class="text-red-500 hover:text-red-700 text-xs shrink-0">&times;</button>
+                                    <input x-show="!['is_empty','is_not_empty'].includes(rule.operator)" x-model="rule.value" placeholder="{{ __('common.value') }}" class="form-input py-1 px-2 text-xs min-w-0" />
+                                    <button type="button" @click="field.visibility_rules.splice(ri, 1)" class="text-red-500 hover:text-red-700 text-xs">&times;</button>
                                 </div>
                             </template>
                             <button type="button" @click="if(!field.visibility_rules) field.visibility_rules = []; field.visibility_rules.push({field:'', operator:'equals', value:''})" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">+ {{ __('common.add_condition') ?? 'Add condition' }}</button>
