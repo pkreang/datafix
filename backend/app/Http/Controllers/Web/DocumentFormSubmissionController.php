@@ -274,6 +274,38 @@ class DocumentFormSubmissionController extends Controller
         return redirect()->route('forms.my-submissions')->with('success', __('common.deleted'));
     }
 
+    /**
+     * Rejected → draft: lets the owner re-edit and resubmit the same submission
+     * without losing reference_no or approval history.
+     *
+     * We keep `approval_instance_id` linked so the rejection trail stays visible
+     * on the edit page; `submit()` overwrites the reference_no and instance id
+     * when the owner resubmits, so no cleanup is needed here.
+     */
+    public function returnToDraft(DocumentFormSubmission $submission): RedirectResponse
+    {
+        $this->authorizeReturnToDraft($submission);
+        $submission->load('form');
+
+        $userId = (int) (session('user.id') ?? 0);
+        $form = $submission->form;
+
+        $submission->update(['status' => 'draft']);
+
+        if ($submission->fdata_row_id && $form?->hasDedicatedTable()) {
+            $this->schemaService->updateRow($form, $submission->fdata_row_id, $submission->payload ?? [], [
+                'status' => 'draft',
+            ]);
+        }
+
+        SubmissionActivityLog::record($submission->id, $userId, 'returned_to_draft', [
+            'from_approval_instance_id' => $submission->approval_instance_id,
+        ]);
+
+        return redirect()->route('forms.draft.edit', $submission)
+            ->with('success', __('common.returned_to_draft'));
+    }
+
     public function submit(DocumentFormSubmission $submission, ApprovalFlowService $approvalFlowService): RedirectResponse
     {
         $this->authorizeOwnerDraft($submission);
@@ -419,6 +451,13 @@ class DocumentFormSubmissionController extends Controller
         $userId = (int) (session('user.id') ?? 0);
         abort_unless((int) $submission->user_id === $userId, 403);
         abort_unless($submission->status === 'draft', 403);
+    }
+
+    private function authorizeReturnToDraft(DocumentFormSubmission $submission): void
+    {
+        $userId = (int) (session('user.id') ?? 0);
+        abort_unless((int) $submission->user_id === $userId, 403);
+        abort_unless($submission->effective_status === 'rejected', 403);
     }
 
     private function authorizeView(DocumentFormSubmission $submission): void

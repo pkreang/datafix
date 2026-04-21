@@ -212,6 +212,116 @@ class FormActionsTest extends TestCase
         $response->assertForbidden();
     }
 
+    // ── Return-to-draft ─────────────────────────────────────
+
+    public function test_owner_can_return_rejected_submission_to_draft(): void
+    {
+        [$submission, $owner, $instance] = $this->makeRejectedSubmission();
+
+        $response = $this->actingAsWebSession($owner)
+            ->post(route('forms.submission.return-to-draft', $submission));
+
+        $response->assertRedirect(route('forms.draft.edit', $submission));
+
+        $submission->refresh();
+        $this->assertSame('draft', $submission->status);
+        $this->assertSame($instance->id, $submission->approval_instance_id, 'instance link must be preserved for audit trail');
+        $this->assertNotNull($submission->reference_no);
+    }
+
+    public function test_non_owner_cannot_return_to_draft(): void
+    {
+        [$submission] = $this->makeRejectedSubmission();
+        $other = $this->makeUser();
+
+        $response = $this->actingAsWebSession($other)
+            ->post(route('forms.submission.return-to-draft', $submission));
+
+        $response->assertForbidden();
+        $this->assertSame('submitted', $submission->fresh()->status);
+    }
+
+    public function test_cannot_return_draft_submission(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['title' => 'x'],
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAsWebSession($owner)
+            ->post(route('forms.submission.return-to-draft', $submission));
+
+        $response->assertForbidden();
+    }
+
+    public function test_cannot_return_pending_submission(): void
+    {
+        [$submission, $owner] = $this->makeSubmissionWithInstance('pending');
+
+        $response = $this->actingAsWebSession($owner)
+            ->post(route('forms.submission.return-to-draft', $submission));
+
+        $response->assertForbidden();
+        $this->assertSame('submitted', $submission->fresh()->status);
+    }
+
+    public function test_cannot_return_approved_submission(): void
+    {
+        [$submission, $owner] = $this->makeSubmissionWithInstance('approved');
+
+        $response = $this->actingAsWebSession($owner)
+            ->post(route('forms.submission.return-to-draft', $submission));
+
+        $response->assertForbidden();
+    }
+
+    public function test_return_logs_activity(): void
+    {
+        [$submission, $owner, $instance] = $this->makeRejectedSubmission();
+
+        $this->actingAsWebSession($owner)
+            ->post(route('forms.submission.return-to-draft', $submission));
+
+        $log = \App\Models\SubmissionActivityLog::where('submission_id', $submission->id)
+            ->where('action', 'returned_to_draft')
+            ->first();
+        $this->assertNotNull($log, 'activity log entry must be recorded');
+        $this->assertSame($instance->id, $log->meta['from_approval_instance_id'] ?? null);
+    }
+
+    public function test_action_plan_offers_return_button_for_rejected_owner(): void
+    {
+        [$submission, $owner] = $this->makeRejectedSubmission();
+
+        $plan = $submission->actionPlan($this->viewerFor($owner));
+
+        $this->assertNotNull($plan['primary']);
+        $this->assertSame('POST', $plan['primary']['method']);
+        $this->assertSame(
+            route('forms.submission.return-to-draft', $submission),
+            $plan['primary']['action']
+        );
+    }
+
+    public function test_action_plan_hides_return_button_from_non_owner(): void
+    {
+        [$submission] = $this->makeRejectedSubmission();
+        $other = $this->makeUser();
+
+        $plan = $submission->actionPlan($this->viewerFor($other));
+
+        // Non-owner without approval permissions: no primary action at all (no return-to-draft).
+        // If a primary is shown (e.g., view link for an approver), it must never be the
+        // return-to-draft POST — that's owner-only.
+        $primaryMethod = $plan['primary']['method'] ?? null;
+        $this->assertNotSame('POST', $primaryMethod);
+    }
+
     // ── Helpers ─────────────────────────────────────────────
 
     private function seedBase(): void
@@ -258,6 +368,55 @@ class FormActionsTest extends TestCase
             'is_active' => true,
             'is_super_admin' => false,
         ]);
+    }
+
+    /**
+     * Build (submission, owner, instance) with instance.status = rejected and
+     * submission.status = 'submitted' — the state that `returnToDraft` is
+     * designed to unlock.
+     */
+    private function makeRejectedSubmission(): array
+    {
+        return $this->makeSubmissionWithInstance('rejected');
+    }
+
+    /**
+     * Build a submission linked to an approval instance with the requested
+     * status (pending / approved / rejected). Submission itself stays
+     * `status = 'submitted'` — effective_status is derived from the instance.
+     */
+    private function makeSubmissionWithInstance(string $instanceStatus): array
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $workflow = \App\Models\ApprovalWorkflow::create([
+            'document_type' => $form->document_type,
+            'name' => 'Minimal workflow',
+            'is_active' => true,
+        ]);
+
+        $instance = \App\Models\ApprovalInstance::create([
+            'workflow_id' => $workflow->id,
+            'department_id' => null,
+            'requester_user_id' => $owner->id,
+            'document_type' => $form->document_type,
+            'reference_no' => 'REF-'.uniqid(),
+            'payload' => [],
+            'current_step_no' => 1,
+            'status' => $instanceStatus,
+        ]);
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['title' => 'original'],
+            'status' => 'submitted',
+            'approval_instance_id' => $instance->id,
+            'reference_no' => $instance->reference_no,
+        ]);
+
+        return [$submission, $owner, $instance];
     }
 
     private function actingAsWebSession(User $user): self

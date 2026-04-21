@@ -110,6 +110,7 @@ class DocumentFormSubmission extends Model
         $printUrl = route('forms.submission.print', $this);
         $duplicateUrl = route('forms.submission.duplicate', $this);
         $deleteUrl = route('forms.draft.destroy', $this);
+        $returnToDraftUrl = route('forms.submission.return-to-draft', $this);
 
         $primary = null;
         $secondary = [];
@@ -118,6 +119,14 @@ class DocumentFormSubmission extends Model
         // Primary (status-adaptive)
         if ($status === 'draft' && $canEditDraft) {
             $primary = ['label' => __('common.edit'), 'href' => $editUrl];
+        } elseif ($status === 'rejected' && $isOwner) {
+            // Owner can re-edit a rejected submission in place — preserves reference_no + audit trail.
+            $primary = [
+                'label' => __('common.action_return_to_draft'),
+                'action' => $returnToDraftUrl,
+                'method' => 'POST',
+                'confirm' => __('common.confirm_return_to_draft'),
+            ];
         } elseif ($status === 'approved' && $canPrint) {
             $primary = ['label' => __('common.action_print'), 'href' => $printUrl, 'target' => '_blank'];
         } elseif ($canView) {
@@ -131,8 +140,8 @@ class DocumentFormSubmission extends Model
         if ($status === 'approved' && $canView) {
             $secondary[] = ['label' => __('common.view'), 'href' => $viewUrl];
         }
-        if ($status === 'rejected' && $canDuplicate) {
-            $secondary[] = ['label' => __('common.action_duplicate'), 'action' => $duplicateUrl, 'method' => 'POST'];
+        if ($status === 'rejected' && $canView) {
+            $secondary[] = ['label' => __('common.view'), 'href' => $viewUrl];
         }
 
         // Menu
