@@ -81,7 +81,7 @@ class DocumentFormSubmissionController extends Controller
         $this->applyFieldFilters($query, $documentForm, $searchable, $filters);
 
         $submissions = $query->select('document_form_submissions.*')
-            ->with('instance')
+            ->with(['instance', 'latestActivity.user'])
             ->latest('document_form_submissions.id')
             ->paginate(20)
             ->withQueryString();
@@ -359,6 +359,25 @@ class DocumentFormSubmissionController extends Controller
             ->get();
 
         return view('forms.show-submission', compact('submission', 'activity'));
+    }
+
+    /**
+     * Dedicated audit view: full activity history (no 20-row cap) for a
+     * single submission. Same authorization as show — anyone who can see
+     * the submission can see its audit trail.
+     */
+    public function history(DocumentFormSubmission $submission): View
+    {
+        $this->authorizeView($submission);
+
+        $submission->load(['form', 'instance.workflow']);
+        $activities = SubmissionActivityLog::with('user')
+            ->where('submission_id', $submission->id)
+            ->latest('created_at')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('forms.submission-history', compact('submission', 'activities'));
     }
 
     public function print(DocumentFormSubmission $submission): View

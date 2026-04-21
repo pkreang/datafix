@@ -322,6 +322,59 @@ class FormActionsTest extends TestCase
         $this->assertNotSame('POST', $primaryMethod);
     }
 
+    // ── Submission history ──────────────────────────────────
+
+    public function test_history_page_accessible_to_owner(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['title' => 'x'],
+            'status' => 'draft',
+        ]);
+        \App\Models\SubmissionActivityLog::record($submission->id, $owner->id, 'created');
+        \App\Models\SubmissionActivityLog::record($submission->id, $owner->id, 'updated');
+
+        $response = $this->actingAsWebSession($owner)
+            ->get(route('forms.submission.history', $submission));
+
+        $response->assertOk();
+        $response->assertSee(__('common.activity_created'));
+        $response->assertSee(__('common.activity_updated'));
+    }
+
+    public function test_history_page_forbidden_for_non_owner_without_approval_perm(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+        $stranger = $this->makeUser();
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => [],
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAsWebSession($stranger)
+            ->get(route('forms.submission.history', $submission));
+        $response->assertForbidden();
+    }
+
+    public function test_action_plan_includes_history_menu_for_viewer(): void
+    {
+        [$submission, $owner] = $this->makeRejectedSubmission();
+
+        $plan = $submission->actionPlan($this->viewerFor($owner));
+
+        $historyItem = collect($plan['menu'])->firstWhere('href', route('forms.submission.history', $submission));
+        $this->assertNotNull($historyItem, 'history item must be in menu');
+        $this->assertSame(__('common.action_history'), $historyItem['label']);
+    }
+
     // ── Helpers ─────────────────────────────────────────────
 
     private function seedBase(): void

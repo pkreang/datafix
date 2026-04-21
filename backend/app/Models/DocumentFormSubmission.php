@@ -48,6 +48,17 @@ class DocumentFormSubmission extends Model
     }
 
     /**
+     * Most recent activity log entry for this submission. Used on the list
+     * page so admins can scan "who did what when" without opening each row.
+     * Uses Laravel's latestOfMany() so a single query per page fetches one
+     * row per submission (no N+1).
+     */
+    public function latestActivity()
+    {
+        return $this->hasOne(SubmissionActivityLog::class, 'submission_id')->latestOfMany('created_at');
+    }
+
+    /**
      * 'draft' | 'pending' | 'approved' | 'rejected' | 'submitted'
      * draft comes from the submission itself; post-submit statuses come from the
      * approval_instance so the UI tracks workflow outcome, not just submission state.
@@ -111,6 +122,7 @@ class DocumentFormSubmission extends Model
         $duplicateUrl = route('forms.submission.duplicate', $this);
         $deleteUrl = route('forms.draft.destroy', $this);
         $returnToDraftUrl = route('forms.submission.return-to-draft', $this);
+        $historyUrl = route('forms.submission.history', $this);
 
         $primary = null;
         $secondary = [];
@@ -145,6 +157,13 @@ class DocumentFormSubmission extends Model
         }
 
         // Menu
+        if ($canView) {
+            $menu[] = [
+                'label' => __('common.action_history'),
+                'href' => $historyUrl,
+                'icon' => 'clock',
+            ];
+        }
         if ($canDuplicate) {
             $menu[] = [
                 'label' => __('common.action_duplicate'),

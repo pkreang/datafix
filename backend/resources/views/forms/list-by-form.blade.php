@@ -112,6 +112,17 @@
                         <p class="text-xs text-slate-500 dark:text-slate-400">
                             {{ $submission->created_at->format('d M Y H:i') }}
                         </p>
+                        @if($submission->latestActivity)
+                            @php $la = $submission->latestActivity; @endphp
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                <span class="font-medium text-slate-500 dark:text-slate-400">{{ __('common.last_activity') }}:</span>
+                                {{ __('common.activity_'.$la->action) }}
+                                @if($la->user)
+                                    · {{ $la->user->first_name }} {{ $la->user->last_name }}
+                                @endif
+                                · {{ $la->created_at->diffForHumans() }}
+                            </p>
+                        @endif
                     </div>
 
                     <div class="flex items-center justify-end gap-2 px-4 pb-3 md:pb-0 md:px-0 md:absolute md:top-1/2 md:right-4 md:-translate-y-1/2">
