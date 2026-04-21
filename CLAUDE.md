@@ -31,6 +31,7 @@ php artisan migrate:fresh --seed  # ล้าง DB แล้ว migrate + seed 
 php artisan db:seed --class=NavigationMenuSeeder    # หลังแก้แถวเมนูใน NavigationMenuSeeder
 php artisan db:seed --class=IndustryTemplateSeeder   # เทมเพลตโรงเรียน eForm เท่านั้น (ไม่รวม CMMS)
 php artisan db:seed --class=FactoryCmmsTemplateSeeder # เทมเพลตโรงงาน CMMS แยกต่างหาก
+php artisan forms:backfill-dedicated-table <form_key> # migrate payload เก่า → fdata_* (ใช้หลังเปิด dedicated table ทีหลัง)
 php artisan test --filter ExampleTest               # ตัวอย่าง: รันเทสเฉพาะคลาส (เปลี่ยนเป็นชื่อคลาสจริง)
 ```
 
