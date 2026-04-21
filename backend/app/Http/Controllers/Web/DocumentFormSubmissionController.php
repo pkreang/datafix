@@ -56,10 +56,14 @@ class DocumentFormSubmissionController extends Controller
     {
         $userId = (int) (session('user.id') ?? 0);
         $userDeptId = session('user.department_id') ?? User::find($userId)?->department_id;
+        $isSuperAdmin = (bool) session('user.is_super_admin', false);
 
         abort_if(! $documentForm->is_active, 404);
+        // Super-admins bypass the department-scope check so they can monitor /
+        // support submissions on every form regardless of their own department.
         abort_unless(
-            DocumentForm::query()->whereKey($documentForm->id)->visibleToUser($userDeptId)->exists(),
+            $isSuperAdmin
+                || DocumentForm::query()->whereKey($documentForm->id)->visibleToUser($userDeptId)->exists(),
             404
         );
 
@@ -70,7 +74,9 @@ class DocumentFormSubmissionController extends Controller
         $query = DocumentFormSubmission::query()
             ->when($showCancelled, fn ($q) => $q->withTrashed())
             ->where('document_form_submissions.form_id', $documentForm->id)
-            ->where('document_form_submissions.user_id', $userId);
+            // Super-admins see every submission for the form (monitoring/support).
+            // Everyone else is scoped to their own submissions.
+            ->when(! $isSuperAdmin, fn ($q) => $q->where('document_form_submissions.user_id', $userId));
 
         $referenceNoFilter = trim((string) $request->query('reference_no', ''));
         if ($referenceNoFilter !== '') {
