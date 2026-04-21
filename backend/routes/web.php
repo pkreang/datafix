@@ -76,12 +76,13 @@ Route::middleware(['auth.web', 'password.enforced'])->group(function () {
     Route::put('/forms/drafts/{submission}', [DocumentFormSubmissionController::class, 'updateDraft'])->name('forms.draft.update');
     Route::delete('/forms/drafts/{submission}', [DocumentFormSubmissionController::class, 'destroyDraft'])->name('forms.draft.destroy');
     Route::post('/forms/drafts/{submission}/submit', [DocumentFormSubmissionController::class, 'submit'])->name('forms.draft.submit');
-    Route::get('/forms/submissions/{submission}', [DocumentFormSubmissionController::class, 'showSubmission'])->name('forms.submission.show');
+    Route::get('/forms/submissions/{submission}', [DocumentFormSubmissionController::class, 'showSubmission'])->name('forms.submission.show')->withTrashed();
     Route::get('/forms/{documentForm:form_key}/submissions', [DocumentFormSubmissionController::class, 'listByForm'])->name('forms.list-by-form');
     Route::get('/forms/submissions/{submission}/print', [DocumentFormSubmissionController::class, 'print'])->name('forms.submission.print');
     Route::post('/forms/submissions/{submission}/duplicate', [DocumentFormSubmissionController::class, 'duplicate'])->name('forms.submission.duplicate');
     Route::post('/forms/submissions/{submission}/return-to-draft', [DocumentFormSubmissionController::class, 'returnToDraft'])->name('forms.submission.return-to-draft');
-    Route::get('/forms/submissions/{submission}/history', [DocumentFormSubmissionController::class, 'history'])->name('forms.submission.history');
+    Route::get('/forms/submissions/{submission}/history', [DocumentFormSubmissionController::class, 'history'])->name('forms.submission.history')->withTrashed();
+    Route::post('/forms/submissions/{submission}/restore', [DocumentFormSubmissionController::class, 'restore'])->name('forms.submission.restore');
     Route::post('/forms/submissions/bulk-delete-drafts', [DocumentFormSubmissionController::class, 'bulkDeleteDrafts'])->name('forms.submissions.bulk-delete-drafts');
     Route::get('/forms/{documentForm:form_key}', [DocumentFormSubmissionController::class, 'create'])->name('forms.create');
     Route::post('/forms/{documentForm:form_key}/drafts', [DocumentFormSubmissionController::class, 'storeDraft'])->name('forms.draft.store');

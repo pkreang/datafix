@@ -48,9 +48,15 @@
                 @include('forms._filter-input', ['field' => $field, 'filters' => $filters])
             @endforeach
         </div>
-        <div class="mt-4 flex gap-2">
+        <div class="mt-4 flex flex-wrap items-center gap-2">
             <button type="submit" class="btn-primary">{{ __('common.search') }}</button>
             <a href="{{ route('forms.list-by-form', $form->form_key) }}" class="btn-secondary">{{ __('common.reset') }}</a>
+            <label class="ml-auto inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <input type="checkbox" name="show_cancelled" value="1" @checked($showCancelled ?? false)
+                       onchange="this.form.submit()"
+                       class="rounded border-slate-300 dark:border-slate-600">
+                {{ __('common.show_cancelled_toggle') }}
+            </label>
         </div>
     </form>
 
@@ -84,6 +90,7 @@
                         'approved' => 'badge-green',
                         'rejected' => 'badge-red',
                         'submitted' => 'badge-gray',
+                        'cancelled' => 'badge-gray',
                     ][$status] ?? 'badge-gray';
                 @endphp
                 <div class="relative group {{ $rowHref ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50' : '' }}"

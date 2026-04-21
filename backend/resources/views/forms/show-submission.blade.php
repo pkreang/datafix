@@ -29,6 +29,24 @@
         </div>
     @endif
 
+    @if ($submission->trashed())
+        @php $submission->load('deleter'); @endphp
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.73-3L13.73 4.99a2 2 0 00-3.46 0L3.2 16A2 2 0 004.93 19z"/></svg>
+                <div>
+                    <p class="font-medium">{{ __('common.approval_status_cancelled') }}</p>
+                    <p class="mt-0.5">
+                        {{ __('common.submission_cancelled_banner', [
+                            'at' => $submission->deleted_at?->format('d M Y H:i') ?? '—',
+                            'by' => $submission->deleter ? trim(($submission->deleter->first_name ?? '').' '.($submission->deleter->last_name ?? '')) : __('common.system'),
+                        ]) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Workflow status — compact horizontal bar on top --}}
     @if($submission->instance)
         @php $instance = $submission->instance; @endphp

@@ -66,7 +66,9 @@ class DocumentFormSubmissionController extends Controller
         $searchable = $documentForm->fields()->where('is_searchable', true)->orderBy('sort_order')->get();
         $filters = $this->extractFilters($request, $searchable);
 
+        $showCancelled = (bool) $request->query('show_cancelled');
         $query = DocumentFormSubmission::query()
+            ->when($showCancelled, fn ($q) => $q->withTrashed())
             ->where('document_form_submissions.form_id', $documentForm->id)
             ->where('document_form_submissions.user_id', $userId);
 
@@ -91,6 +93,7 @@ class DocumentFormSubmissionController extends Controller
             'submissions' => $submissions,
             'searchable' => $searchable,
             'filters' => $filters,
+            'showCancelled' => $showCancelled,
         ]);
     }
 
@@ -268,10 +271,56 @@ class DocumentFormSubmissionController extends Controller
             $this->schemaService->deleteRow($submission->form, $submission->fdata_row_id);
         }
 
-        SubmissionActivityLog::record($submission->id, (int) session('user.id'), 'deleted', ['reference_no' => $submission->reference_no]);
+        SubmissionActivityLog::record($submission->id, (int) session('user.id'), 'cancelled', ['reference_no' => $submission->reference_no]);
         $submission->delete();
 
         return redirect()->route('forms.my-submissions')->with('success', __('common.deleted'));
+    }
+
+    /**
+     * Super-admin-only recovery of a cancelled submission. Rebuilds the
+     * fdata_* row that was hard-deleted during cancellation so reports and
+     * list queries see the row again.
+     *
+     * The route parameter is a plain string (not bound to the model) so the
+     * default soft-delete global scope can't filter it out before we call
+     * `withTrashed()`.
+     */
+    public function restore(string $submission): RedirectResponse
+    {
+        abort_unless(session('user.is_super_admin', false), 403);
+
+        $trashed = DocumentFormSubmission::withTrashed()->findOrFail((int) $submission);
+        if (! $trashed->trashed()) {
+            return redirect()->route('forms.submission.show', $trashed);
+        }
+
+        $userId = (int) (session('user.id') ?? 0);
+
+        $trashed->restore();
+        $trashed->forceFill(['deleted_by' => null])->saveQuietly();
+
+        $trashed->load('form');
+        $form = $trashed->form;
+        if ($form?->hasDedicatedTable()) {
+            $newId = $this->schemaService->insertRow($form, $trashed->payload ?? [], [
+                'user_id' => $trashed->user_id,
+                'department_id' => $trashed->department_id,
+                'status' => $trashed->status,
+                'reference_no' => $trashed->reference_no,
+                'approval_instance_id' => $trashed->approval_instance_id,
+            ]);
+            if ($newId) {
+                $trashed->forceFill(['fdata_row_id' => $newId])->saveQuietly();
+            }
+        }
+
+        SubmissionActivityLog::record($trashed->id, $userId, 'restored', [
+            'reference_no' => $trashed->reference_no,
+        ]);
+
+        return redirect()->route('forms.submission.show', $trashed)
+            ->with('success', __('common.restored'));
     }
 
     /**
@@ -414,7 +463,7 @@ class DocumentFormSubmissionController extends Controller
             if ($submission->fdata_row_id && $submission->form?->hasDedicatedTable()) {
                 $this->schemaService->deleteRow($submission->form, $submission->fdata_row_id);
             }
-            SubmissionActivityLog::record($submission->id, $userId, 'deleted', ['reference_no' => $submission->reference_no, 'bulk' => true]);
+            SubmissionActivityLog::record($submission->id, $userId, 'cancelled', ['reference_no' => $submission->reference_no, 'bulk' => true]);
             $submission->delete();
         }
 

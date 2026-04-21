@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DocumentFormSubmission extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'form_id',
@@ -18,13 +19,42 @@ class DocumentFormSubmission extends Model
         'approval_instance_id',
         'reference_no',
         'fdata_row_id',
+        'deleted_by',
     ];
 
     protected function casts(): array
     {
         return [
             'payload' => 'array',
+            'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Capture the session user as `deleted_by` on soft-delete. Runs only when
+     * the trait is performing a soft-delete (not forceDelete), so compliance
+     * data is preserved even if the user closed the session mid-request.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $submission) {
+            if ($submission->isForceDeleting()) {
+                return;
+            }
+            if ($submission->deleted_by !== null) {
+                return;
+            }
+            $userId = (int) (session('user.id') ?? 0);
+            if ($userId > 0) {
+                $submission->deleted_by = $userId;
+                $submission->saveQuietly();
+            }
+        });
+    }
+
+    public function deleter()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function form()
@@ -65,6 +95,9 @@ class DocumentFormSubmission extends Model
      */
     public function getEffectiveStatusAttribute(): string
     {
+        if ($this->trashed()) {
+            return 'cancelled';
+        }
         if ($this->status === 'draft') {
             return 'draft';
         }
@@ -123,10 +156,35 @@ class DocumentFormSubmission extends Model
         $deleteUrl = route('forms.draft.destroy', $this);
         $returnToDraftUrl = route('forms.submission.return-to-draft', $this);
         $historyUrl = route('forms.submission.history', $this);
+        $restoreUrl = route('forms.submission.restore', $this);
 
         $primary = null;
         $secondary = [];
         $menu = [];
+
+        // Cancelled (soft-deleted) submissions: no normal actions — only view/restore.
+        // Super-admins can recover; everyone else with view access sees read-only details + history.
+        if ($this->trashed()) {
+            if ($viewer['is_super_admin']) {
+                $primary = [
+                    'label' => __('common.action_restore'),
+                    'action' => $restoreUrl,
+                    'method' => 'POST',
+                    'confirm' => __('common.confirm_restore'),
+                ];
+            } elseif ($canView) {
+                $primary = ['label' => __('common.view'), 'href' => $viewUrl];
+            }
+            if ($canView) {
+                $menu[] = [
+                    'label' => __('common.action_history'),
+                    'href' => $historyUrl,
+                    'icon' => 'clock',
+                ];
+            }
+
+            return compact('primary', 'secondary', 'menu');
+        }
 
         // Primary (status-adaptive)
         if ($status === 'draft' && $canEditDraft) {

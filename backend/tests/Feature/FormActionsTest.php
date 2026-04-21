@@ -322,6 +322,144 @@ class FormActionsTest extends TestCase
         $this->assertNotSame('POST', $primaryMethod);
     }
 
+    // ── Soft delete / restore ───────────────────────────────
+
+    public function test_destroy_draft_soft_deletes_main_and_records_cancelled(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['title' => 'x'],
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAsWebSession($owner)
+            ->delete(route('forms.draft.destroy', $submission));
+        $response->assertRedirect();
+
+        $trashed = DocumentFormSubmission::withTrashed()->find($submission->id);
+        $this->assertNotNull($trashed);
+        $this->assertTrue($trashed->trashed());
+        $this->assertSame($owner->id, (int) $trashed->deleted_by);
+
+        $log = \App\Models\SubmissionActivityLog::where('submission_id', $submission->id)
+            ->where('action', 'cancelled')
+            ->first();
+        $this->assertNotNull($log);
+    }
+
+    public function test_global_scope_hides_trashed_submissions(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $sub = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => [],
+            'status' => 'draft',
+        ]);
+        $sub->delete();
+
+        $this->assertSame(0, DocumentFormSubmission::count(), 'default scope hides trashed');
+        $this->assertSame(1, DocumentFormSubmission::withTrashed()->count());
+    }
+
+    public function test_effective_status_returns_cancelled_when_trashed(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $sub = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => [],
+            'status' => 'draft',
+        ]);
+        $sub->delete();
+        $sub = DocumentFormSubmission::withTrashed()->find($sub->id);
+
+        $this->assertSame('cancelled', $sub->effective_status);
+    }
+
+    public function test_super_admin_can_restore_cancelled_submission(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $sub = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['title' => 'x'],
+            'status' => 'draft',
+        ]);
+        $sub->delete();
+
+        $admin = $this->makeSuperAdmin();
+        $response = $this->actingAsWebSession($admin)
+            ->post(route('forms.submission.restore', $sub->id));
+        $response->assertRedirect();
+
+        $restored = DocumentFormSubmission::find($sub->id);
+        $this->assertNotNull($restored);
+        $this->assertFalse($restored->trashed());
+        $this->assertNull($restored->deleted_by);
+
+        $log = \App\Models\SubmissionActivityLog::where('submission_id', $sub->id)
+            ->where('action', 'restored')
+            ->first();
+        $this->assertNotNull($log);
+    }
+
+    public function test_non_super_admin_cannot_restore(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $sub = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => [],
+            'status' => 'draft',
+        ]);
+        $sub->delete();
+
+        $response = $this->actingAsWebSession($owner)
+            ->post(route('forms.submission.restore', $sub->id));
+        $response->assertForbidden();
+
+        $this->assertTrue(DocumentFormSubmission::withTrashed()->find($sub->id)->trashed(), 'must still be trashed');
+    }
+
+    public function test_action_plan_shows_restore_primary_for_super_admin_on_trashed(): void
+    {
+        $this->seedBase();
+        [$form, $owner] = $this->makeForm();
+
+        $sub = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => [],
+            'status' => 'draft',
+        ]);
+        $sub->delete();
+        $sub = DocumentFormSubmission::withTrashed()->find($sub->id);
+
+        $admin = $this->makeSuperAdmin();
+        $plan = $sub->actionPlan([
+            'id' => $admin->id,
+            'can_approve' => false,
+            'is_super_admin' => true,
+        ]);
+
+        $this->assertNotNull($plan['primary']);
+        $this->assertSame('POST', $plan['primary']['method']);
+        $this->assertSame(route('forms.submission.restore', $sub), $plan['primary']['action']);
+    }
+
     // ── Submission history ──────────────────────────────────
 
     public function test_history_page_accessible_to_owner(): void
@@ -420,6 +558,21 @@ class FormActionsTest extends TestCase
             'password' => 'password',
             'is_active' => true,
             'is_super_admin' => false,
+        ]);
+    }
+
+    private function makeSuperAdmin(): User
+    {
+        static $counter = 0;
+        $counter++;
+
+        return User::create([
+            'first_name' => 'Super',
+            'last_name' => "Admin{$counter}",
+            'email' => "super{$counter}@example.test",
+            'password' => 'password',
+            'is_active' => true,
+            'is_super_admin' => true,
         ]);
     }
 
