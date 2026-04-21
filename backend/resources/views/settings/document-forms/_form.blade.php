@@ -4,6 +4,8 @@
     $action = $isEdit ? route('settings.document-forms.update', $documentForm) : route('settings.document-forms.store');
     $cascadingRelations = \App\Support\LookupRegistry::cascadingRelations();
     $searchableTypes = \App\Models\DocumentFormField::SEARCHABLE_TYPES;
+    $workflowStepsByDocType = $workflowStepsByDocType ?? [];
+    $departments = $departments ?? collect();
     $initialFields = old('fields', $isEdit ? $documentForm->fields->map(function ($f) {
         $isLookup = $f->field_type === 'lookup';
         $isOldLookup = in_array($f->field_type, ['user_lookup', 'equipment_lookup']);
@@ -23,14 +25,25 @@
             'table_columns' => $isTable ? ($f->options['columns'] ?? []) : [],
             'visibility_rules' => $f->visibility_rules ?? [],
             'validation_rules' => (object) ($f->validation_rules ?? []),
+            'editable_by' => $f->editable_by ?? ['requester'],
+            'visible_to_departments' => array_map('intval', $f->visible_to_departments ?? []),
         ];
     })->values() : [
-        ['field_key' => 'title', 'label' => __('common.document_form_default_title'), 'field_type' => 'text', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass],
-        ['field_key' => 'amount', 'label' => __('common.document_form_default_amount'), 'field_type' => 'number', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass],
+        ['field_key' => 'title', 'label' => __('common.document_form_default_title'), 'field_type' => 'text', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass, 'editable_by' => ['requester'], 'visible_to_departments' => []],
+        ['field_key' => 'amount', 'label' => __('common.document_form_default_amount'), 'field_type' => 'number', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass, 'editable_by' => ['requester'], 'visible_to_departments' => []],
     ]);
 @endphp
 
-<div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }}, {{ Js::from($searchableTypes) }})">
+@php
+    $initialDocumentType = old('document_type', $documentForm?->document_type ?? '');
+    $roleLabels = [
+        'requester' => __('common.role_requester'),
+        'step_prefix' => __('common.role_step_prefix'),
+    ];
+    $departmentsJs = $departments->map(fn ($d) => ['id' => (int) $d->id, 'name' => $d->name])->values()->all();
+@endphp
+
+<div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }}, {{ Js::from($searchableTypes) }}, {{ Js::from($workflowStepsByDocType) }}, {{ Js::from($departmentsJs) }}, {{ Js::from($initialDocumentType) }}, {{ Js::from($roleLabels) }})">
     {{-- Preview Modal — teleported to <body> to escape stacking context --}}
     <template x-teleport="body">
     <div x-show="showPreview" x-cloak
@@ -347,10 +360,9 @@
             </div>
             <div>
                 <label class="form-label">{{ __('common.document_type') }}</label>
-                <select name="document_type" class="form-input mt-1">
-                    @php $docType = old('document_type', $documentForm?->document_type ?? ''); @endphp
+                <select name="document_type" x-model="currentDocumentType" class="form-input mt-1">
                     @foreach(\App\Models\DocumentType::allActive() as $dt)
-                        <option value="{{ $dt->code }}" @selected($docType === $dt->code)>{{ $dt->label() }}</option>
+                        <option value="{{ $dt->code }}">{{ $dt->label() }}</option>
                     @endforeach
                 </select>
             </div>
@@ -657,6 +669,49 @@
                             </p>
                             <input type="hidden" :name="`fields[${idx}][validation_rules]`" :value="JSON.stringify(field.validation_rules || {})">
                         </div>
+
+                        {{-- Field-level permissions: who can edit this field + which departments see it --}}
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.field_editable_by') }}</p>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1">
+                                <template x-for="role in availableRoles" :key="role.value">
+                                    <label class="inline-flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                        <input type="checkbox" :value="role.value"
+                                               :checked="(field.editable_by || []).includes(role.value)"
+                                               @change="toggleArrayValue(field, 'editable_by', role.value)"
+                                               class="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700">
+                                        <span x-text="role.label"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <p x-show="!(field.editable_by || []).length" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                {{ __('common.field_editable_by_none_hint') }}
+                            </p>
+                            <input type="hidden" :name="`fields[${idx}][editable_by]`" :value="JSON.stringify(field.editable_by || [])">
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.field_visible_to_departments') }}</p>
+                            @if(count($departmentsJs))
+                                <div class="flex flex-wrap gap-x-4 gap-y-1 max-h-40 overflow-y-auto p-1 rounded border border-slate-200 dark:border-slate-600">
+                                    <template x-for="dept in departments" :key="dept.id">
+                                        <label class="inline-flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                            <input type="checkbox" :value="dept.id"
+                                                   :checked="(field.visible_to_departments || []).map(Number).includes(dept.id)"
+                                                   @change="toggleArrayValue(field, 'visible_to_departments', dept.id, true)"
+                                                   class="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700">
+                                            <span x-text="dept.name"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                                <p x-show="!(field.visible_to_departments || []).length" class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                    {{ __('common.field_visible_to_departments_all_hint') }}
+                                </p>
+                            @else
+                                <p class="text-xs text-slate-400 dark:text-slate-500">{{ __('common.field_visible_to_departments_empty') }}</p>
+                            @endif
+                            <input type="hidden" :name="`fields[${idx}][visible_to_departments]`" :value="JSON.stringify(field.visible_to_departments || [])">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -678,10 +733,12 @@
                 ? crypto.randomUUID()
                 : 'row_' + Math.random().toString(36).slice(2, 11);
         }
+        if (!Array.isArray(f.editable_by)) f.editable_by = ['requester'];
+        if (!Array.isArray(f.visible_to_departments)) f.visible_to_departments = [];
         return f;
     }
 
-    function formBuilder(initialFields, lookupSources, cascadingRelations, searchableTypes) {
+    function formBuilder(initialFields, lookupSources, cascadingRelations, searchableTypes, workflowStepsByDocType, departments, initialDocumentType, roleLabels) {
         const SEARCHABLE_TYPES = searchableTypes || [];
         const defaultSearchable = (type) => SEARCHABLE_TYPES.includes(type);
         return {
@@ -689,7 +746,30 @@
             lookupSources: lookupSources || {},
             cascadingRelations: cascadingRelations || {},
             searchableTypes: SEARCHABLE_TYPES,
+            workflowStepsByDocType: workflowStepsByDocType || {},
+            departments: departments || [],
+            currentDocumentType: initialDocumentType || '',
+            roleLabels: roleLabels || { requester: 'Requester', step_prefix: 'Step' },
             isSearchableType(type) { return SEARCHABLE_TYPES.includes(type); },
+            get availableRoles() {
+                const steps = this.workflowStepsByDocType[this.currentDocumentType] || [];
+                const roles = [{ value: 'requester', label: this.roleLabels.requester }];
+                for (const s of steps) {
+                    const suffix = s.name ? ': ' + s.name : '';
+                    roles.push({ value: 'step_' + s.step_no, label: this.roleLabels.step_prefix + ' ' + s.step_no + suffix });
+                }
+                return roles;
+            },
+            toggleArrayValue(field, prop, value, asNumber = false) {
+                if (!Array.isArray(field[prop])) field[prop] = [];
+                const cast = (v) => asNumber ? Number(v) : v;
+                const idx = field[prop].findIndex((v) => cast(v) === cast(value));
+                if (idx >= 0) {
+                    field[prop].splice(idx, 1);
+                } else {
+                    field[prop].push(cast(value));
+                }
+            },
             showPreview: false,
             showSaveConfirm: false,
             previewTitle: '',

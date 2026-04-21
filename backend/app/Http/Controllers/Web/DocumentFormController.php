@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalInstance;
+use App\Models\ApprovalWorkflow;
+use App\Models\Department;
 use App\Models\DocumentForm;
 use App\Models\DocumentFormSubmission;
 use App\Models\RunningNumberConfig;
@@ -53,16 +55,62 @@ class DocumentFormController extends Controller
     public function create(): View
     {
         $lookupSources = LookupRegistry::sources();
+        $workflowStepsByDocType = $this->workflowStepsByDocType();
+        $departments = Department::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
-        return view('settings.document-forms.create', compact('lookupSources'));
+        return view('settings.document-forms.create', compact('lookupSources', 'workflowStepsByDocType', 'departments'));
     }
 
     public function edit(DocumentForm $documentForm): View
     {
         $documentForm->load('fields');
         $lookupSources = LookupRegistry::sources();
+        $workflowStepsByDocType = $this->workflowStepsByDocType();
+        $departments = Department::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
-        return view('settings.document-forms.edit', compact('documentForm', 'lookupSources'));
+        return view('settings.document-forms.edit', compact('documentForm', 'lookupSources', 'workflowStepsByDocType', 'departments'));
+    }
+
+    /**
+     * Map each document_type to the step labels its workflows expose. Admins use
+     * this list to decide which roles can edit each field (`editable_by`).
+     *
+     * Returns: ['maintenance_request' => [['step_no' => 1, 'name' => 'Supervisor'], ...], ...]
+     * When multiple workflows exist for one document_type, step names are taken
+     * from the first workflow that defines that step_no (admin sees one label per step).
+     *
+     * @return array<string, list<array{step_no:int,name:string}>>
+     */
+    private function workflowStepsByDocType(): array
+    {
+        $rows = DB::table('approval_workflow_stages')
+            ->join('approval_workflows', 'approval_workflow_stages.workflow_id', '=', 'approval_workflows.id')
+            ->where('approval_workflow_stages.is_active', true)
+            ->select(
+                'approval_workflows.document_type',
+                'approval_workflow_stages.step_no',
+                'approval_workflow_stages.name'
+            )
+            ->orderBy('approval_workflow_stages.step_no')
+            ->get();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $bucket = &$result[$row->document_type];
+            $bucket ??= [];
+            if (! array_key_exists((int) $row->step_no, $bucket)) {
+                $bucket[(int) $row->step_no] = [
+                    'step_no' => (int) $row->step_no,
+                    'name' => (string) $row->name,
+                ];
+            }
+        }
+        foreach ($result as $docType => $byStep) {
+            ksort($byStep);
+            $result[$docType] = array_values($byStep);
+        }
+
+        return $result;
     }
 
     /**
@@ -104,6 +152,8 @@ class DocumentFormController extends Controller
             'fields.*.col_span' => ['nullable', 'integer', 'min:0', 'max:4'],
             'fields.*.visibility_rules' => ['nullable', 'string', 'max:65535'],
             'fields.*.validation_rules' => ['nullable', 'string', 'max:65535'],
+            'fields.*.editable_by' => ['nullable', 'string', 'max:2000'],
+            'fields.*.visible_to_departments' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $validator->after(function (\Illuminate\Validation\Validator $v) use ($request, $sourceKeys): void {
@@ -269,6 +319,8 @@ class DocumentFormController extends Controller
                     'options' => $this->parseOptions($field),
                     'visibility_rules' => $this->parseJsonField($field['visibility_rules'] ?? null),
                     'validation_rules' => $this->parseJsonField($field['validation_rules'] ?? null),
+                    'editable_by' => $this->parseEditableBy($field, $validated['document_type']),
+                    'visible_to_departments' => $this->parseDepartmentIds($field),
                 ]);
             }
 
@@ -311,6 +363,8 @@ class DocumentFormController extends Controller
                     'options' => $this->parseOptions($field),
                     'visibility_rules' => $this->parseJsonField($field['visibility_rules'] ?? null),
                     'validation_rules' => $this->parseJsonField($field['validation_rules'] ?? null),
+                    'editable_by' => $this->parseEditableBy($field, $validated['document_type']),
+                    'visible_to_departments' => $this->parseDepartmentIds($field),
                 ]);
             }
 
@@ -541,5 +595,79 @@ class DocumentFormController extends Controller
         }
 
         return count($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Normalise the `editable_by` field from the form builder into a clean
+     * list of allowed role strings. Roles are restricted to 'requester' plus
+     * 'step_N' values that actually exist in any workflow for the form's
+     * document_type (so admins can't save stale step_5 if the workflow was
+     * shortened later).
+     *
+     * Returns null when the submitted value equals the implicit default
+     * `['requester']`, so DB column stays null for unchanged/default fields.
+     */
+    private function parseEditableBy(array $field, string $documentType): ?array
+    {
+        $decoded = $this->decodeJsonList($field['editable_by'] ?? null);
+        if ($decoded === null) {
+            return null;
+        }
+
+        $allowedSteps = array_map(
+            fn ($row) => 'step_'.$row['step_no'],
+            $this->workflowStepsByDocType()[$documentType] ?? []
+        );
+        $allowed = array_merge(['requester'], $allowedSteps);
+
+        $clean = array_values(array_unique(array_intersect($decoded, $allowed)));
+
+        // default `['requester']` → null so we don't bloat the column
+        if ($clean === ['requester']) {
+            return null;
+        }
+
+        return $clean ?: null;
+    }
+
+    /**
+     * Normalise `visible_to_departments` into a list of integer IDs. Unknown
+     * IDs are dropped silently. Empty list → null (visible to everyone).
+     */
+    private function parseDepartmentIds(array $field): ?array
+    {
+        $decoded = $this->decodeJsonList($field['visible_to_departments'] ?? null);
+        if ($decoded === null) {
+            return null;
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $decoded)));
+        $ids = array_values(array_filter($ids, fn ($id) => $id > 0));
+        if (! $ids) {
+            return null;
+        }
+
+        $valid = Department::whereIn('id', $ids)->pluck('id')->all();
+        $valid = array_values(array_intersect($ids, $valid));
+
+        return $valid ?: null;
+    }
+
+    /**
+     * Decode a JSON-string field into an array of scalars. Returns null for
+     * empty/invalid payloads; callers can distinguish "not set" vs "empty list".
+     */
+    private function decodeJsonList(?string $raw): ?array
+    {
+        if ($raw === null || $raw === '' || $raw === '[]') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded) || json_last_error() !== JSON_ERROR_NONE) {
+            return null;
+        }
+
+        return array_values(array_filter($decoded, fn ($v) => $v !== null && $v !== ''));
     }
 }
