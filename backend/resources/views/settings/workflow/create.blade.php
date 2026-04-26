@@ -133,6 +133,16 @@
                                 <input type="number" min="1" :name="`stages[${idx}][min_approvals]`" x-model="stage.min_approvals" required class="form-input mt-1" />
                             </div>
                         </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <label class="inline-flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                <input type="checkbox" :name="`stages[${idx}][require_signature]`" value="1"
+                                       :checked="!!stage.require_signature"
+                                       @change="stage.require_signature = $event.target.checked"
+                                       class="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700">
+                                <span>{{ __('common.workflow_require_signature') }}</span>
+                            </label>
+                            <span class="text-xs text-slate-400">{{ __('common.workflow_require_signature_help') }}</span>
+                        </div>
                     </div>
                 </template>
 
@@ -218,6 +228,7 @@
                     approver_type,
                     approver_ref,
                     min_approvals: data.min_approvals || 1,
+                    require_signature: !!data.require_signature,
                 });
                 this.normalize();
                 this.checkValidity();
@@ -241,7 +252,7 @@
             },
             cloneStage(idx) {
                 const s = this.stages[idx];
-                this.addStage({name: s.name, approver_type: s.approver_type, approver_ref: s.approver_ref, min_approvals: s.min_approvals});
+                this.addStage({name: s.name, approver_type: s.approver_type, approver_ref: s.approver_ref, min_approvals: s.min_approvals, require_signature: !!s.require_signature});
                 this.checkValidity();
             },
             applyTemplate(type) {

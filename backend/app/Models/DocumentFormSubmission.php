@@ -20,14 +20,30 @@ class DocumentFormSubmission extends Model
         'reference_no',
         'fdata_row_id',
         'deleted_by',
+        'assigned_editor_user_ids',
     ];
 
     protected function casts(): array
     {
         return [
             'payload' => 'array',
+            'assigned_editor_user_ids' => 'array',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * True when the given user id is in the assigned-editors list.
+     * Owner is NOT auto-included — callers compose owner OR assignee checks
+     * explicitly so the two scopes stay distinguishable.
+     */
+    public function isAssignedEditor(?int $userId): bool
+    {
+        if (! $userId) {
+            return false;
+        }
+        $ids = $this->assigned_editor_user_ids ?? [];
+        return in_array($userId, array_map('intval', $ids), true);
     }
 
     /**
@@ -89,6 +105,17 @@ class DocumentFormSubmission extends Model
     }
 
     /**
+     * First-time-submitted activity (action='submitted'). Used as the canonical
+     * "submit date" on list pages. Returns null for drafts never submitted.
+     */
+    public function submittedActivity()
+    {
+        return $this->hasOne(SubmissionActivityLog::class, 'submission_id')
+            ->where('action', 'submitted')
+            ->oldestOfMany('created_at');
+    }
+
+    /**
      * 'draft' | 'pending' | 'approved' | 'rejected' | 'submitted'
      * draft comes from the submission itself; post-submit statuses come from the
      * approval_instance so the UI tracks workflow outcome, not just submission state.
@@ -141,9 +168,10 @@ class DocumentFormSubmission extends Model
     public function actionPlan(array $viewer): array
     {
         $isOwner = (int) $this->user_id === (int) $viewer['id'];
-        $canView = $isOwner || $viewer['can_approve'] || $viewer['is_super_admin'];
-        $canEditDraft = $isOwner && $this->status === 'draft';
-        $canDeleteDraft = $canEditDraft;
+        $isAssignee = $this->isAssignedEditor((int) $viewer['id']);
+        $canView = $isOwner || $isAssignee || $viewer['can_approve'] || $viewer['is_super_admin'];
+        $canEditDraft = ($isOwner || $isAssignee) && $this->status === 'draft';
+        $canDeleteDraft = $isOwner && $this->status === 'draft';
         $canDuplicate = $isOwner;
         $canPrint = $canView && $this->status !== 'draft';
 
@@ -162,18 +190,23 @@ class DocumentFormSubmission extends Model
         $secondary = [];
         $menu = [];
 
-        // Cancelled (soft-deleted) submissions: no normal actions — only view/restore.
-        // Super-admins can recover; everyone else with view access sees read-only details + history.
+        // Cancelled (soft-deleted) submissions: everything in the kebab menu —
+        // no primary button. Row remains clickable (via $rowHref in view) to open view.
         if ($this->trashed()) {
+            if ($canView) {
+                $menu[] = [
+                    'label' => __('common.view'),
+                    'href' => $viewUrl,
+                    'icon' => 'view',
+                ];
+            }
             if ($viewer['is_super_admin']) {
-                $primary = [
+                $menu[] = [
                     'label' => __('common.action_restore'),
                     'action' => $restoreUrl,
                     'method' => 'POST',
                     'confirm' => __('common.confirm_restore'),
                 ];
-            } elseif ($canView) {
-                $primary = ['label' => __('common.view'), 'href' => $viewUrl];
             }
             if ($canView) {
                 $menu[] = [
@@ -186,40 +219,38 @@ class DocumentFormSubmission extends Model
             return compact('primary', 'secondary', 'menu');
         }
 
-        // Primary (status-adaptive)
-        if ($status === 'draft' && $canEditDraft) {
-            $primary = ['label' => __('common.edit'), 'href' => $editUrl];
-        } elseif ($status === 'rejected' && $isOwner) {
-            // Owner can re-edit a rejected submission in place — preserves reference_no + audit trail.
-            $primary = [
+        // All actions live in the kebab menu — no primary button.
+        // Row remains clickable via $rowHref in the view to open the submission.
+        // Secondary stays empty for backward-compat with views still iterating the key.
+
+        // Menu — ordered by usage frequency, view first, history pinned to the bottom.
+        if ($canView) {
+            $menu[] = [
+                'label' => __('common.view'),
+                'href' => $viewUrl,
+                'icon' => 'view',
+            ];
+        }
+        if ($canEditDraft) {
+            $menu[] = [
+                'label' => __('common.edit'),
+                'href' => $editUrl,
+                'icon' => 'edit',
+            ];
+        }
+        if ($status === 'rejected' && $isOwner) {
+            $menu[] = [
                 'label' => __('common.action_return_to_draft'),
                 'action' => $returnToDraftUrl,
                 'method' => 'POST',
                 'confirm' => __('common.confirm_return_to_draft'),
             ];
-        } elseif ($status === 'approved' && $canPrint) {
-            $primary = ['label' => __('common.action_print'), 'href' => $printUrl, 'target' => '_blank'];
-        } elseif ($canView) {
-            $primary = ['label' => __('common.view'), 'href' => $viewUrl];
         }
-
-        // Secondary (desktop, intent-reinforcing)
-        if ($status === 'pending' && $canPrint) {
-            $secondary[] = ['label' => __('common.action_print'), 'href' => $printUrl, 'target' => '_blank'];
-        }
-        if ($status === 'approved' && $canView) {
-            $secondary[] = ['label' => __('common.view'), 'href' => $viewUrl];
-        }
-        if ($status === 'rejected' && $canView) {
-            $secondary[] = ['label' => __('common.view'), 'href' => $viewUrl];
-        }
-
-        // Menu
-        if ($canView) {
+        if ($canPrint) {
             $menu[] = [
-                'label' => __('common.action_history'),
-                'href' => $historyUrl,
-                'icon' => 'clock',
+                'label' => __('common.action_print'),
+                'href' => $printUrl,
+                'icon' => 'print',
             ];
         }
         if ($canDuplicate) {
@@ -230,14 +261,6 @@ class DocumentFormSubmission extends Model
                 'icon' => 'duplicate',
             ];
         }
-        if ($canPrint && $status !== 'approved' && $status !== 'pending') {
-            // rejected status — print lives in menu
-            $menu[] = [
-                'label' => __('common.action_print'),
-                'href' => $printUrl,
-                'icon' => 'print',
-            ];
-        }
         if ($canDeleteDraft) {
             $menu[] = [
                 'label' => __('common.action_delete_draft'),
@@ -246,6 +269,14 @@ class DocumentFormSubmission extends Model
                 'icon' => 'delete',
                 'class' => 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30',
                 'confirm' => __('common.confirm_delete'),
+            ];
+        }
+        // History last — low-frequency action, pinned to bottom for predictable location.
+        if ($canView) {
+            $menu[] = [
+                'label' => __('common.action_history'),
+                'href' => $historyUrl,
+                'icon' => 'clock',
             ];
         }
 

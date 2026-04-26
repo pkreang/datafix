@@ -88,8 +88,11 @@ class FormActionsTest extends TestCase
 
         $plan = $submission->actionPlan($this->viewerFor($user));
 
-        $this->assertSame(__('common.edit'), $plan['primary']['label']);
+        // No primary button — all actions live in the kebab menu.
+        $this->assertNull($plan['primary']);
         $menuLabels = array_column($plan['menu'], 'label');
+        $this->assertContains(__('common.view'), $menuLabels);
+        $this->assertContains(__('common.edit'), $menuLabels);
         $this->assertContains(__('common.action_duplicate'), $menuLabels);
         $this->assertContains(__('common.action_delete_draft'), $menuLabels);
     }
@@ -300,11 +303,15 @@ class FormActionsTest extends TestCase
 
         $plan = $submission->actionPlan($this->viewerFor($owner));
 
-        $this->assertNotNull($plan['primary']);
-        $this->assertSame('POST', $plan['primary']['method']);
+        // No primary button — return-to-draft action lives in the kebab menu.
+        $this->assertNull($plan['primary']);
+
+        $returnAction = collect($plan['menu'])->firstWhere('label', __('common.action_return_to_draft'));
+        $this->assertNotNull($returnAction, 'return-to-draft should appear in the kebab menu for rejected owner');
+        $this->assertSame('POST', $returnAction['method']);
         $this->assertSame(
             route('forms.submission.return-to-draft', $submission),
-            $plan['primary']['action']
+            $returnAction['action']
         );
     }
 
@@ -455,9 +462,12 @@ class FormActionsTest extends TestCase
             'is_super_admin' => true,
         ]);
 
-        $this->assertNotNull($plan['primary']);
-        $this->assertSame('POST', $plan['primary']['method']);
-        $this->assertSame(route('forms.submission.restore', $sub), $plan['primary']['action']);
+        // Restore moved from primary button to the kebab menu (all actions consolidated).
+        $this->assertNull($plan['primary']);
+        $restoreAction = collect($plan['menu'])->firstWhere('label', __('common.action_restore'));
+        $this->assertNotNull($restoreAction, 'restore action should appear in the menu for super-admin on a trashed submission');
+        $this->assertSame('POST', $restoreAction['method']);
+        $this->assertSame(route('forms.submission.restore', $sub), $restoreAction['action']);
     }
 
     // ── Submission history ──────────────────────────────────
@@ -511,6 +521,306 @@ class FormActionsTest extends TestCase
         $historyItem = collect($plan['menu'])->firstWhere('href', route('forms.submission.history', $submission));
         $this->assertNotNull($historyItem, 'history item must be in menu');
         $this->assertSame(__('common.action_history'), $historyItem['label']);
+    }
+
+    // ── Conditional required + group repeater ───────────────
+
+    public function test_conditional_required_passes_when_rule_does_not_apply(): void
+    {
+        $this->seedBase();
+        [$form, $user] = $this->makeConditionalRequiredForm();
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id, 'user_id' => $user->id,
+            'payload' => [], 'status' => 'draft',
+        ]);
+
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['status' => 'on_time'],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+
+        $this->assertSame('on_time', $submission->fresh()->payload['status']);
+    }
+
+    public function test_conditional_required_fires_when_rule_true_and_field_empty(): void
+    {
+        $this->seedBase();
+        [$form, $user] = $this->makeConditionalRequiredForm();
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id, 'user_id' => $user->id,
+            'payload' => [], 'status' => 'draft',
+        ]);
+
+        // status=late triggers reason as required; reason left empty → 422
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['status' => 'late', 'reason' => ''],
+            ])
+            ->assertSessionHasErrors('fields.reason');
+    }
+
+    public function test_conditional_required_skipped_when_field_hidden_by_visibility(): void
+    {
+        $this->seedBase();
+        $form = DocumentForm::create([
+            'form_key' => 'cv_form',
+            'name' => 'Conditional Visibility Form',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'gate', 'label' => 'Gate',
+            'field_type' => 'text', 'sort_order' => 1,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'trigger', 'label' => 'Trigger',
+            'field_type' => 'text', 'sort_order' => 2,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'note', 'label' => 'Note',
+            'field_type' => 'text', 'sort_order' => 3,
+            'is_required' => false,
+            'visibility_rules' => [['field' => 'gate', 'operator' => 'equals', 'value' => 'show']],
+            'required_rules' => [['field' => 'trigger', 'operator' => 'equals', 'value' => 'yes']],
+        ]);
+        $user = $this->makeUser();
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id, 'user_id' => $user->id,
+            'payload' => [], 'status' => 'draft',
+        ]);
+
+        // gate=hide → note hidden → required_rules ignored even though trigger=yes
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['gate' => 'hide', 'trigger' => 'yes', 'note' => ''],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+    }
+
+    public function test_group_repeater_validates_min_rows_required(): void
+    {
+        $this->seedBase();
+        $form = DocumentForm::create([
+            'form_key' => 'gr_form',
+            'name' => 'Group Form',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'beneficiaries', 'label' => 'Beneficiaries',
+            'field_type' => 'group', 'sort_order' => 1, 'is_required' => false,
+            'options' => [
+                'fields' => [
+                    ['key' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true, 'col_span' => 0],
+                    ['key' => 'pct',  'label' => 'Pct',  'type' => 'number', 'required' => false, 'col_span' => 0],
+                ],
+                'min_rows' => 2,
+                'max_rows' => 5,
+                'layout_columns' => 2,
+                'label_singular' => 'Person',
+            ],
+        ]);
+        $user = $this->makeUser();
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id, 'user_id' => $user->id,
+            'payload' => [], 'status' => 'draft',
+        ]);
+
+        // Fewer than min_rows → fails
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['beneficiaries' => [['name' => 'A', 'pct' => 100]]],
+            ])
+            ->assertSessionHasErrors('fields.beneficiaries');
+
+        // Inner required field missing → fails
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['beneficiaries' => [
+                    ['name' => 'A', 'pct' => 60],
+                    ['name' => '',  'pct' => 40],
+                ]],
+            ])
+            ->assertSessionHasErrors('fields.beneficiaries.1.name');
+
+        // Two rows with name filled → passes
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['beneficiaries' => [
+                    ['name' => 'A', 'pct' => 60],
+                    ['name' => 'B', 'pct' => 40],
+                ]],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+    }
+
+    // ── filterPayloadForAssignee coverage ───────────────────
+
+    public function test_assignee_write_filter_drops_non_granted_fields(): void
+    {
+        $this->seedBase();
+        $owner = $this->makeUser();
+        $assignee = $this->makeUser();
+
+        $form = DocumentForm::create([
+            'form_key' => 'assignee_filter_form',
+            'name' => 'Assignee Filter Form',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'open_field', 'label' => 'Open',
+            'field_type' => 'text', 'sort_order' => 1,
+            'editable_by' => ['requester'],
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'shared_field', 'label' => 'Shared',
+            'field_type' => 'text', 'sort_order' => 2,
+            'editable_by' => ['requester', 'user:'.$assignee->id],
+        ]);
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['open_field' => 'original_open', 'shared_field' => 'original_shared'],
+            'status' => 'draft',
+            'assigned_editor_user_ids' => [$assignee->id],
+        ]);
+
+        // Assignee tampers — sends both fields. Server filter should keep
+        // only shared_field; open_field stays at the original value.
+        $this->actingAsWebSession($assignee)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => [
+                    'open_field' => 'tampered_open',
+                    'shared_field' => 'updated_shared',
+                ],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+
+        $fresh = $submission->fresh();
+        $this->assertSame('original_open', $fresh->payload['open_field']);
+        $this->assertSame('updated_shared', $fresh->payload['shared_field']);
+    }
+
+    public function test_owner_writes_all_fields_unchanged_by_filter(): void
+    {
+        $this->seedBase();
+        $owner = $this->makeUser();
+        $assignee = $this->makeUser();
+
+        $form = DocumentForm::create([
+            'form_key' => 'owner_filter_form',
+            'name' => 'Owner Filter Form',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'open_field', 'label' => 'Open',
+            'field_type' => 'text', 'sort_order' => 1,
+            'editable_by' => ['requester'],
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'shared_field', 'label' => 'Shared',
+            'field_type' => 'text', 'sort_order' => 2,
+            'editable_by' => ['requester', 'user:'.$assignee->id],
+        ]);
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['open_field' => 'old_open', 'shared_field' => 'old_shared'],
+            'status' => 'draft',
+            'assigned_editor_user_ids' => [$assignee->id],
+        ]);
+
+        // Owner is exempt from the filter — both writes must land.
+        $this->actingAsWebSession($owner)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => [
+                    'open_field' => 'new_open',
+                    'shared_field' => 'new_shared',
+                ],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+
+        $fresh = $submission->fresh();
+        $this->assertSame('new_open', $fresh->payload['open_field']);
+        $this->assertSame('new_shared', $fresh->payload['shared_field']);
+    }
+
+    public function test_assignee_cannot_write_field_with_only_role_tokens(): void
+    {
+        $this->seedBase();
+        $owner = $this->makeUser();
+        $assignee = $this->makeUser();
+
+        $form = DocumentForm::create([
+            'form_key' => 'role_only_filter_form',
+            'name' => 'Role-Only Filter Form',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        // Step-only token, no requester, no user:{id} — assignee has no grant.
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'restricted_field', 'label' => 'Restricted',
+            'field_type' => 'text', 'sort_order' => 1,
+            'editable_by' => ['step_1'],
+        ]);
+        // A field the assignee can write — confirms the request didn't fail at
+        // the route level (would mask the actual filter behavior we're testing).
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'allowed_field', 'label' => 'Allowed',
+            'field_type' => 'text', 'sort_order' => 2,
+            'editable_by' => ['requester', 'user:'.$assignee->id],
+        ]);
+
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id,
+            'user_id' => $owner->id,
+            'payload' => ['restricted_field' => 'locked', 'allowed_field' => 'before'],
+            'status' => 'draft',
+            'assigned_editor_user_ids' => [$assignee->id],
+        ]);
+
+        $this->actingAsWebSession($assignee)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => [
+                    'restricted_field' => 'TAMPERED',
+                    'allowed_field' => 'after',
+                ],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+
+        $fresh = $submission->fresh();
+        $this->assertSame('locked', $fresh->payload['restricted_field']);
+        $this->assertSame('after', $fresh->payload['allowed_field']);
+    }
+
+    private function makeConditionalRequiredForm(): array
+    {
+        $form = DocumentForm::create([
+            'form_key' => 'cr_form',
+            'name' => 'Conditional Required Form',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'status', 'label' => 'Status',
+            'field_type' => 'text', 'sort_order' => 1, 'is_required' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'reason', 'label' => 'Reason',
+            'field_type' => 'text', 'sort_order' => 2,
+            'is_required' => false,
+            'required_rules' => [
+                ['field' => 'status', 'operator' => 'equals', 'value' => 'late'],
+            ],
+        ]);
+        $user = $this->makeUser();
+
+        return [$form->fresh('fields'), $user];
     }
 
     // ── Helpers ─────────────────────────────────────────────

@@ -36,7 +36,13 @@
         </div>
     @endif
 
-    @php $form = $submission->form; @endphp
+    @php
+        $form = $submission->form;
+        $viewerId = (int) (session('user.id') ?? 0);
+        // Only the owner gets the implicit 'requester' role token. Assigned
+        // editors edit fields purely through their user:{id} grant.
+        $viewerEditorRole = ((int) $submission->user_id === $viewerId) ? 'requester' : null;
+    @endphp
 
     {{-- Update draft form --}}
     @php
@@ -95,15 +101,20 @@
                       @endif
                         @if($field->field_type !== 'section')
                             <label class="form-label">
-                                {{ $field->label }}
-                                @if($field->is_required) <span class="text-red-500">*</span> @endif
+                                {{ $field->localized_label }}
+                                @if($field->is_required)
+                                    <span class="text-red-500">*</span>
+                                @elseif(! empty($field->required_rules))
+                                    <span x-show="requiredRulesActive(@js($field->required_rules))" x-cloak class="text-red-500">*</span>
+                                @endif
                             </label>
                         @endif
                         @include('components.dynamic-field', [
-                            'field'      => $field,
-                            'name'       => $fName,
-                            'value'      => $fValue,
-                            'editorRole' => 'requester',
+                            'field'        => $field,
+                            'name'         => $fName,
+                            'value'        => $fValue,
+                            'editorRole'   => $viewerEditorRole,
+                            'editorUserId' => $viewerId ?: null,
                         ])
                       @if($xShowExpr)
                         </div>

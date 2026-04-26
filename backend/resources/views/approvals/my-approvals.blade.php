@@ -98,6 +98,7 @@
                 </div>
 
                 {{-- Action form --}}
+                @php $stepRequiresSig = (bool) ($current?->require_signature ?? false); @endphp
                 <form method="POST" action="{{ route('approvals.act', $instance) }}"
                       class="px-4 sm:px-5 pb-4 sm:pb-5 pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-end gap-3" novalidate>
                     @csrf
@@ -105,6 +106,15 @@
                         <textarea name="comment" rows="1" placeholder="{{ __('common.approval_comment_placeholder') }}"
                                   class="form-input text-sm resize-y"></textarea>
                     </div>
+                    @if($stepRequiresSig)
+                        <div class="basis-full">
+                            <p class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                {{ __('common.approval_signature_required_label') }}
+                                <span class="text-red-500">*</span>
+                            </p>
+                            <x-signature-pad name="signature_image" :saved-data-url="$mySignatureDataUrl ?? null" :required="true" />
+                        </div>
+                    @endif
                     <div class="flex gap-2 shrink-0">
                         <button type="submit" name="action" value="approved" class="btn-primary">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>

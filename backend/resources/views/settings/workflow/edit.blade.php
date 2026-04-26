@@ -17,6 +17,7 @@
     'approver_type' => $s->approver_type,
     'approver_ref' => (string) $s->approver_ref,
     'min_approvals' => $s->min_approvals,
+    'require_signature' => (bool) $s->require_signature,
 ])->values()) }}, {{ Js::from($roles->values()) }}, {{ Js::from($users->values()) }}, {{ Js::from($positions->map(fn($p) => ['id' => (string) $p['id'], 'code' => $p['code'] ?? '', 'label' => $p['label'], 'users' => $p['users'] ?? []])->values()) }}, {{ Js::from([
     'untitled' => __('common.workflow_stage_untitled'),
     'minLabel' => __('common.workflow_preview_min_label'),
@@ -151,6 +152,16 @@
                                 <input type="number" min="1" :name="`stages[${idx}][min_approvals]`" x-model="stage.min_approvals" required class="form-input mt-1 text-center" />
                             </div>
                         </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <label class="inline-flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                                <input type="checkbox" :name="`stages[${idx}][require_signature]`" value="1"
+                                       :checked="!!stage.require_signature"
+                                       @change="stage.require_signature = $event.target.checked"
+                                       class="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700">
+                                <span>{{ __('common.workflow_require_signature') }}</span>
+                            </label>
+                            <span class="text-xs text-slate-400">{{ __('common.workflow_require_signature_help') }}</span>
+                        </div>
                     </div>
                 </template>
 
@@ -195,6 +206,7 @@
                     approver_type: s.approver_type ?? 'position',
                     approver_ref: String(s.approver_ref || ''),
                     min_approvals: Number(s.min_approvals || 1),
+                    require_signature: !!s.require_signature,
                 }));
                 if (!this.stages.length) this.addStage();
                 this.normalize();
@@ -213,7 +225,7 @@
                 let approver_ref = '';
                 if (approver_type === 'position' && this.positions[0]) approver_ref = String(this.positions[0].id);
                 else if (approver_type === 'user' && this.users[0]) approver_ref = String(this.users[0].id);
-                this.stages.push({uuid: this.seq++, step_no: this.stages.length + 1, name: '', approver_type, approver_ref, min_approvals: 1});
+                this.stages.push({uuid: this.seq++, step_no: this.stages.length + 1, name: '', approver_type, approver_ref, min_approvals: 1, require_signature: false});
                 this.normalize();
                 this.checkValidity();
             },
@@ -237,7 +249,7 @@
             },
             cloneStage(idx) {
                 const s = this.stages[idx];
-                this.stages.splice(idx + 1, 0, {uuid: this.seq++, step_no: s.step_no, name: s.name, approver_type: s.approver_type, approver_ref: s.approver_ref, min_approvals: s.min_approvals});
+                this.stages.splice(idx + 1, 0, {uuid: this.seq++, step_no: s.step_no, name: s.name, approver_type: s.approver_type, approver_ref: s.approver_ref, min_approvals: s.min_approvals, require_signature: !!s.require_signature});
                 this.normalize();
                 this.checkValidity();
             },

@@ -30,10 +30,19 @@
     @endif
 
     @php
+        $resolveFieldDefault = function ($field) {
+            if (! $field->default_value) {
+                return '';
+            }
+            if ($field->field_type === 'date') {
+                return \App\Support\DateExpressionResolver::resolve($field->default_value) ?? '';
+            }
+            return (string) $field->default_value;
+        };
+
         $initialPayload = collect($form->fields)
             ->filter(fn($f) => !in_array($f->field_type, ['section', 'auto_number']))
-            ->pluck('field_key')
-            ->mapWithKeys(fn($k) => [$k => old("fields.{$k}", '')])
+            ->mapWithKeys(fn($f) => [$f->field_key => old("fields.{$f->field_key}", $resolveFieldDefault($f))])
             ->all();
     @endphp
     <form method="POST" action="{{ route('forms.draft.store', $form->form_key) }}" enctype="multipart/form-data" novalidate class="w-full"
@@ -45,7 +54,7 @@
                     @php
                         $fKey   = $field->field_key;
                         $fName  = "fields[{$fKey}]";
-                        $fValue = old("fields.{$fKey}");
+                        $fValue = old("fields.{$fKey}", $resolveFieldDefault($field));
                         $fSpan  = ($field->col_span && ($form->layout_columns ?? 1) > 1)
                             ? min($field->col_span, $form->layout_columns)
                             : 1;
@@ -85,15 +94,20 @@
                       @endif
                         @if($field->field_type !== 'section')
                             <label class="form-label">
-                                {{ $field->label }}
-                                @if($field->is_required) <span class="text-red-500">*</span> @endif
+                                {{ $field->localized_label }}
+                                @if($field->is_required)
+                                    <span class="text-red-500">*</span>
+                                @elseif(! empty($field->required_rules))
+                                    <span x-show="requiredRulesActive(@js($field->required_rules))" x-cloak class="text-red-500">*</span>
+                                @endif
                             </label>
                         @endif
                         @include('components.dynamic-field', [
-                            'field'      => $field,
-                            'name'       => $fName,
-                            'value'      => $fValue,
-                            'editorRole' => 'requester',
+                            'field'        => $field,
+                            'name'         => $fName,
+                            'value'        => $fValue,
+                            'editorRole'   => 'requester',
+                            'editorUserId' => (int) (session('user.id') ?? 0) ?: null,
                         ])
                       @if($xShowExpr)
                         </div>

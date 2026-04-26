@@ -16,6 +16,7 @@ class ApprovalWorkflowStage extends Model
         'approver_type',
         'approver_ref',
         'min_approvals',
+        'require_signature',
         'is_active',
     ];
 
@@ -24,6 +25,7 @@ class ApprovalWorkflowStage extends Model
         return [
             'step_no' => 'integer',
             'min_approvals' => 'integer',
+            'require_signature' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

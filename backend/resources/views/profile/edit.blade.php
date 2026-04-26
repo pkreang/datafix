@@ -127,6 +127,47 @@
                 </div>
             </div>
 
+            {{-- Signature --}}
+            <div class="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100 dark:border-slate-700"
+                 x-data="{ preview: '{{ $user->signature_path }}', remove: false }">
+                <div class="flex-shrink-0">
+                    <template x-if="preview && !remove">
+                        <img :src="preview" alt="" class="h-16 w-32 object-contain border border-slate-200 dark:border-slate-700 bg-white">
+                    </template>
+                    <template x-if="!preview || remove">
+                        <div class="h-16 w-32 flex items-center justify-center text-xs text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800">
+                            {{ __('common.profile_signature_empty') }}
+                        </div>
+                    </template>
+                </div>
+                <div class="flex-1">
+                    <p class="font-semibold text-slate-900 dark:text-slate-100">{{ __('common.profile_signature') }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('common.profile_signature_help') }}</p>
+                    <div class="mt-2 flex items-center gap-3">
+                        <label class="text-sm text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                            <input type="file" name="signature" accept="image/png,image/jpeg" class="hidden"
+                                   @change="
+                                       remove = false;
+                                       if ($event.target.files[0]) {
+                                           const r = new FileReader();
+                                           r.onload = e => preview = e.target.result;
+                                           r.readAsDataURL($event.target.files[0]);
+                                       }
+                                   ">
+                            {{ __('common.profile_signature_upload') }}
+                        </label>
+                        <template x-if="preview && !remove">
+                            <button type="button" @click="remove = true; preview = ''"
+                                    class="text-sm text-red-500 hover:underline">
+                                {{ __('common.profile_signature_remove') }}
+                            </button>
+                        </template>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('common.profile_signature_hint') }}</p>
+                    <input type="hidden" name="remove_signature" :value="remove ? '1' : '0'">
+                </div>
+            </div>
+
             <div class="space-y-4">
 
                 @php $lockedClass = 'bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 cursor-not-allowed'; @endphp

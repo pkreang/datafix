@@ -96,6 +96,73 @@
         </div>
     @endif
 
+    {{-- Assigned editors (owner / super-admin only, draft only) + read-only
+         visibility of the current list to anyone who can see the submission --}}
+    @if(($canManageAssignedEditors ?? false) || !empty($assignedEditorRows ?? []))
+        <div class="card p-4 mb-6"
+             @if(($canManageAssignedEditors ?? false))
+                 x-data="assignedEditorsPicker(@js($assignedEditorRows ?? []), @js($assignableUsers ?? []))"
+             @endif>
+            <div class="flex items-center justify-between gap-3 mb-2">
+                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ __('common.assigned_editors_title') }}</h3>
+                @if(($canManageAssignedEditors ?? false))
+                    <button type="button" class="text-xs text-blue-600 hover:underline" @click="open = !open">
+                        <span x-show="!open">{{ __('common.assigned_editors_manage') }}</span>
+                        <span x-show="open" x-cloak>{{ __('common.cancel') }}</span>
+                    </button>
+                @endif
+            </div>
+
+            @if(($canManageAssignedEditors ?? false))
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">{{ __('common.assigned_editors_help') }}</p>
+
+                <div class="flex flex-wrap items-center gap-1">
+                    <template x-for="u in selected" :key="u.id">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs">
+                            <span x-text="u.name"></span>
+                            <button type="button" x-show="open" x-cloak class="text-blue-500 hover:text-red-600" @click="remove(u.id)">×</button>
+                        </span>
+                    </template>
+                    <span x-show="!selected.length" class="text-xs text-slate-400 dark:text-slate-500">{{ __('common.assigned_editors_none') }}</span>
+                </div>
+
+                <div x-show="open" x-cloak class="mt-2 p-2 border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-800">
+                    <input type="text" x-model="query" placeholder="{{ __('common.field_editable_by_users_search') }}"
+                           class="form-input py-1 px-2 text-xs w-full mb-1" />
+                    <div class="max-h-40 overflow-y-auto">
+                        <template x-for="u in available()" :key="u.id">
+                            <button type="button"
+                                    class="block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                    @click="add(u); query = ''">
+                                <span x-text="u.name"></span>
+                            </button>
+                        </template>
+                        <p x-show="!available().length" class="text-xs text-slate-400 dark:text-slate-500 px-2 py-1">
+                            {{ __('common.field_editable_by_users_empty') }}
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ route('forms.submission.assigned-editors.update', $submission) }}" class="mt-2 flex justify-end gap-2">
+                        @csrf
+                        <template x-for="u in selected" :key="'inp-' + u.id">
+                            <input type="hidden" name="user_ids[]" :value="u.id">
+                        </template>
+                        <button type="submit" class="btn-primary text-xs">{{ __('common.save') }}</button>
+                    </form>
+                </div>
+            @else
+                {{-- Read-only view for non-owners (e.g. assignees viewing the list) --}}
+                <div class="flex flex-wrap items-center gap-1">
+                    @foreach($assignedEditorRows ?? [] as $row)
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 text-xs">
+                            {{ $row['name'] }}
+                        </span>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @endif
+
     {{-- Activity log (audit trail) --}}
     @if(isset($activity) && $activity->isNotEmpty())
         <div class="card p-4 mb-6">
@@ -132,19 +199,126 @@
                 <div @if($fSpan > 1) style="grid-column: span {{ $fSpan }}" @endif>
                     @if($field->field_type !== 'section')
                         <label class="block text-sm text-slate-500 dark:text-slate-400 mb-1">
-                            {{ $field->label }}
+                            {{ $field->localized_label }}
                         </label>
                     @endif
+                    @php
+                        $qrPayloadForField = ($field->field_type === 'qr_code')
+                            ? \App\Support\QrTemplateResolver::resolve(
+                                (string) ((is_array($field->options) ? $field->options : [])['template'] ?? ''),
+                                $submission
+                            )
+                            : null;
+                    @endphp
                     @include('components.dynamic-field', [
                         'field'       => $field,
                         'name'        => $fName,
                         'value'       => $fValue,
                         'editorRole'  => 'view_only',
                         'referenceNo' => $submission->reference_no,
+                        'qrPayload'   => $qrPayloadForField,
                     ])
                 </div>
             @endforeach
         </x-document-form-fields-grid>
     </div>
+
+    @if($submission->instance && $submission->instance->steps->isNotEmpty())
+        @php
+            $signatureRows = [];
+            foreach ($submission->instance->steps as $step) {
+                if ($step->action === 'approved') {
+                    foreach (($step->approved_by ?? []) as $entry) {
+                        $signatureRows[] = [
+                            'step' => $step->step_no,
+                            'stage' => $step->stage_name,
+                            'name' => $entry['name'] ?? '—',
+                            'signature' => $entry['signature'] ?? null,
+                            'at' => $entry['at'] ?? null,
+                            'action' => 'approved',
+                        ];
+                    }
+                } elseif ($step->action === 'rejected') {
+                    $rejector = \App\Models\User::find($step->acted_by_user_id);
+                    $signatureRows[] = [
+                        'step' => $step->step_no,
+                        'stage' => $step->stage_name,
+                        'name' => $rejector?->full_name ?? '—',
+                        'signature' => $step->signature_image,
+                        'at' => $step->acted_at?->toIso8601String(),
+                        'action' => 'rejected',
+                    ];
+                }
+            }
+        @endphp
+        @if(! empty($signatureRows))
+            <div class="card p-4 sm:p-6 mt-6">
+                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">{{ __('common.authorized_signatures') }}</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-800">
+                                <th class="border border-slate-300 dark:border-slate-600 px-2 py-1 w-12 text-center">{{ __('common.workflow_step_short') }}</th>
+                                <th class="border border-slate-300 dark:border-slate-600 px-2 py-1 text-left">{{ __('common.workflow_stage_name') }}</th>
+                                <th class="border border-slate-300 dark:border-slate-600 px-2 py-1 text-left">{{ __('common.name') }}</th>
+                                <th class="border border-slate-300 dark:border-slate-600 px-2 py-1 text-center" style="width:220px">{{ __('common.signature') }}</th>
+                                <th class="border border-slate-300 dark:border-slate-600 px-2 py-1 text-left" style="width:130px">{{ __('common.date') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($signatureRows as $row)
+                                <tr>
+                                    <td class="border border-slate-300 dark:border-slate-600 px-2 py-1 text-center font-semibold">{{ $row['step'] }}</td>
+                                    <td class="border border-slate-300 dark:border-slate-600 px-2 py-1">{{ $row['stage'] }}</td>
+                                    <td class="border border-slate-300 dark:border-slate-600 px-2 py-1">
+                                        {{ $row['name'] }}
+                                        @if($row['action'] === 'rejected')
+                                            <div class="text-[10px] text-red-600 dark:text-red-400">{{ __('common.approval_status_rejected') }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="border border-slate-300 dark:border-slate-600 px-2 py-1 text-center" style="height:70px">
+                                        @if(! empty($row['signature']))
+                                            <img src="{{ $row['signature'] }}" alt="" class="inline-block max-h-14 max-w-[200px] object-contain">
+                                        @endif
+                                    </td>
+                                    <td class="border border-slate-300 dark:border-slate-600 px-2 py-1">
+                                        {{ $row['at'] ? \Carbon\Carbon::parse($row['at'])->format('d M Y H:i') : '—' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+    @endif
 </div>
+
+@if(($canManageAssignedEditors ?? false))
+<script>
+    function assignedEditorsPicker(initialSelected, pool) {
+        return {
+            open: false,
+            query: '',
+            selected: Array.isArray(initialSelected) ? [...initialSelected] : [],
+            pool: Array.isArray(pool) ? pool : [],
+            available() {
+                const q = (this.query || '').toLowerCase().trim();
+                const selectedIds = new Set(this.selected.map((u) => u.id));
+                let list = this.pool.filter((u) => !selectedIds.has(u.id));
+                if (q) list = list.filter((u) => (u.name || '').toLowerCase().includes(q));
+                return list.slice(0, 25);
+            },
+            add(user) {
+                if (!this.selected.find((u) => u.id === user.id)) {
+                    this.selected.push(user);
+                }
+            },
+            remove(userId) {
+                this.selected = this.selected.filter((u) => u.id !== userId);
+            },
+        };
+    }
+</script>
+@endif
 @endsection

@@ -32,6 +32,13 @@ class ApprovalController extends Controller
 
         $actorPositionId = User::query()->whereKey($userId)->value('position_id');
 
+        // Profile signature pre-fill — when present, the signature pad starts
+        // with this image loaded so approvers don't have to redraw every time.
+        // Always passed to the view; the pad ignores it when null.
+        $mySignatureDataUrl = $userId
+            ? User::query()->whereKey($userId)->value('signature_path')
+            : null;
+
         $instances = ApprovalInstance::query()
             ->from('approval_instances')
             ->with(['steps', 'workflow', 'requester', 'formSubmission'])
@@ -65,7 +72,7 @@ class ApprovalController extends Controller
             ->latest()
             ->get();
 
-        return view('approvals.my-approvals', compact('instances'));
+        return view('approvals.my-approvals', compact('instances', 'mySignatureDataUrl'));
     }
 
     public function act(Request $request, ApprovalInstance $instance, ApprovalFlowService $approvalFlowService): RedirectResponse
@@ -73,20 +80,32 @@ class ApprovalController extends Controller
         $validated = $request->validate([
             'action' => 'required|in:approved,rejected',
             'comment' => 'nullable|string|max:1000',
+            // Either a base64 PNG/JPG data URL captured from the canvas, or a
+            // public URL (when pre-loaded from profile). Soft cap of 1MB ≈ 1.4MB
+            // base64 to allow some headroom for encoding overhead.
+            'signature_image' => 'nullable|string|max:1500000',
         ]);
 
         $userId = (int) (session('user.id') ?? 0);
         $action = $validated['action'];
+        $signature = $validated['signature_image'] ?? null;
+        if (is_string($signature) && $signature !== '' && ! preg_match('/^(data:image\/|https?:\/\/)/', $signature)) {
+            $signature = null;
+        }
 
         try {
             $approvalFlowService->act(
                 $instance->id,
                 $userId,
                 $action,
-                $validated['comment'] ?? null
+                $validated['comment'] ?? null,
+                $signature
             );
         } catch (RuntimeException $e) {
-            return back()->withErrors(['approval' => $e->getMessage()]);
+            $message = $e->getMessage() === 'signature_required'
+                ? __('common.approval_signature_required_error')
+                : $e->getMessage();
+            return back()->withErrors(['approval' => $message]);
         }
 
         $fresh = $instance->fresh(['steps']);
@@ -128,9 +147,11 @@ class ApprovalController extends Controller
 
         abort_unless($form, 404);
 
+        $userToken = 'user:'.$userId;
         $editableKeys = $form->fields
             ->filter(fn ($f) => $f->field_type !== 'file'
-                && in_array($stepRole, $f->effective_editable_by))
+                && (in_array($stepRole, $f->effective_editable_by, true)
+                    || in_array($userToken, $f->effective_editable_by, true)))
             ->pluck('field_key')
             ->toArray();
 

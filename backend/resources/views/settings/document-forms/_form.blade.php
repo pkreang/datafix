@@ -6,31 +6,42 @@
     $searchableTypes = \App\Models\DocumentFormField::SEARCHABLE_TYPES;
     $workflowStepsByDocType = $workflowStepsByDocType ?? [];
     $departments = $departments ?? collect();
+    $companyUsers = $companyUsers ?? [];
     $initialFields = old('fields', $isEdit ? $documentForm->fields->map(function ($f) {
         $isLookup = $f->field_type === 'lookup';
         $isOldLookup = in_array($f->field_type, ['user_lookup', 'equipment_lookup']);
         $isTable = $f->field_type === 'table';
+        $isGroup = $f->field_type === 'group';
+        $isQrCode = $f->field_type === 'qr_code';
+        $isMultiSelectLookup = $f->field_type === 'multi_select' && is_array($f->options) && isset($f->options['source']);
         return [
             'field_key' => $f->field_key,
             'label' => $f->label,
+            'label_en' => $f->label_en ?? $f->label,
+            'label_th' => $f->label_th ?? $f->label,
             'field_type' => $isOldLookup ? 'lookup' : $f->field_type,
             'is_required' => $f->is_required,
             'is_searchable' => $f->is_searchable,
+            'is_readonly' => (bool) ($f->is_readonly ?? false),
             'placeholder' => $f->placeholder,
+            'default_value' => $f->default_value ?? '',
             'options_raw' => is_array($f->options) && !isset($f->options['source']) && !isset($f->options['columns']) ? implode("\n", $f->options) : '',
-            'lookup_source' => $isLookup ? ($f->options['source'] ?? '') : ($isOldLookup ? str_replace('_lookup', '', $f->field_type) : ''),
+            'lookup_source' => $isLookup ? ($f->options['source'] ?? '') : ($isMultiSelectLookup ? ($f->options['source'] ?? '') : ($isOldLookup ? str_replace('_lookup', '', $f->field_type) : '')),
             'depends_on' => $isLookup ? ($f->options['depends_on'] ?? '') : '',
             'foreign_key' => $isLookup ? ($f->options['foreign_key'] ?? '') : '',
             'col_span' => $f->col_span ?? 0,
             'table_columns' => $isTable ? ($f->options['columns'] ?? []) : [],
+            'group_options' => $isGroup ? (is_array($f->options) ? $f->options : []) : [],
+            'qr_options' => $isQrCode ? (is_array($f->options) ? $f->options : []) : [],
             'visibility_rules' => $f->visibility_rules ?? [],
+            'required_rules' => $f->required_rules ?? [],
             'validation_rules' => (object) ($f->validation_rules ?? []),
             'editable_by' => $f->editable_by ?? ['requester'],
             'visible_to_departments' => array_map('intval', $f->visible_to_departments ?? []),
         ];
     })->values() : [
-        ['field_key' => 'title', 'label' => __('common.document_form_default_title'), 'field_type' => 'text', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass, 'editable_by' => ['requester'], 'visible_to_departments' => []],
-        ['field_key' => 'amount', 'label' => __('common.document_form_default_amount'), 'field_type' => 'number', 'is_required' => true, 'is_searchable' => true, 'placeholder' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass, 'editable_by' => ['requester'], 'visible_to_departments' => []],
+        ['field_key' => 'title', 'label' => __('common.document_form_default_title'), 'label_en' => 'Title', 'label_th' => __('common.document_form_default_title'), 'field_type' => 'text', 'is_required' => true, 'is_searchable' => true, 'is_readonly' => false, 'placeholder' => '', 'default_value' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass, 'editable_by' => ['requester'], 'visible_to_departments' => []],
+        ['field_key' => 'amount', 'label' => __('common.document_form_default_amount'), 'label_en' => 'Amount', 'label_th' => __('common.document_form_default_amount'), 'field_type' => 'number', 'is_required' => true, 'is_searchable' => true, 'is_readonly' => false, 'placeholder' => '', 'default_value' => '', 'options_raw' => '', 'lookup_source' => '', 'depends_on' => '', 'foreign_key' => '', 'col_span' => 0, 'table_columns' => [], 'visibility_rules' => [], 'validation_rules' => new \stdClass, 'editable_by' => ['requester'], 'visible_to_departments' => []],
     ]);
 @endphp
 
@@ -41,9 +52,10 @@
         'step_prefix' => __('common.role_step_prefix'),
     ];
     $departmentsJs = $departments->map(fn ($d) => ['id' => (int) $d->id, 'name' => $d->name])->values()->all();
+    $companyUsersJs = is_array($companyUsers) ? $companyUsers : (is_iterable($companyUsers) ? iterator_to_array($companyUsers) : []);
 @endphp
 
-<div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }}, {{ Js::from($searchableTypes) }}, {{ Js::from($workflowStepsByDocType) }}, {{ Js::from($departmentsJs) }}, {{ Js::from($initialDocumentType) }}, {{ Js::from($roleLabels) }})">
+<div x-data="formBuilder({{ Js::from($initialFields) }}, {{ Js::from($lookupSources) }}, {{ Js::from($cascadingRelations) }}, {{ Js::from($searchableTypes) }}, {{ Js::from($workflowStepsByDocType) }}, {{ Js::from($departmentsJs) }}, {{ Js::from($initialDocumentType) }}, {{ Js::from($roleLabels) }}, {{ Js::from($companyUsersJs) }})" x-cloak>
     {{-- Preview Modal — teleported to <body> to escape stacking context --}}
     <template x-teleport="body">
     <div x-show="showPreview" x-cloak
@@ -220,6 +232,19 @@
                                 <div>
                                     <p class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ __('common.document_form_type_file') }}</p>
                                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ __('common.document_form_preview_file_hint') }}</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- multi_file --}}
+                        <template x-if="field.field_type === 'multi_file'">
+                            <div class="mt-1.5 flex items-center gap-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 px-4 py-5 pointer-events-none select-none">
+                                <svg class="w-6 h-6 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M3 8h18M5 8a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V8z"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ __('common.document_form_type_multi_file') }}</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">multiple · accept="image/*,application/pdf"</p>
                                 </div>
                             </div>
                         </template>
@@ -438,8 +463,12 @@
                         <input type="hidden" :name="`fields[${idx}][field_key]`" :value="field.field_key">
                     </template>
                     <div :class="field.field_type === 'section' ? 'md:col-span-2' : ''">
-                        <label class="text-xs text-slate-500" x-text="field.field_type === 'section' ? '{{ __('common.document_form_section_title') }}' : '{{ __('common.document_form_field_label') }}'"></label>
-                        <input :name="`fields[${idx}][label]`" x-model="field.label" required class="form-input mt-1" />
+                        <label class="text-xs text-slate-500" x-text="field.field_type === 'section' ? '{{ __('common.document_form_section_title') . ' (TH)' }}' : '{{ __('common.document_form_field_label') . ' (TH)' }}'"></label>
+                        <input :name="`fields[${idx}][label_th]`" x-model="field.label_th" required class="form-input mt-1" />
+                    </div>
+                    <div :class="field.field_type === 'section' ? 'md:col-span-2' : ''">
+                        <label class="text-xs text-slate-500" x-text="field.field_type === 'section' ? '{{ __('common.document_form_section_title') . ' (EN)' }}' : '{{ __('common.document_form_field_label') . ' (EN)' }}'"></label>
+                        <input :name="`fields[${idx}][label_en]`" x-model="field.label_en" required class="form-input mt-1" />
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">{{ __('common.document_form_field_type') }}</label>
@@ -457,20 +486,45 @@
                             <option value="email">{{ __('common.document_form_type_email') }}</option>
                             <option value="phone">{{ __('common.document_form_type_phone') }}</option>
                             <option value="file">{{ __('common.document_form_type_file') }}</option>
+                            <option value="multi_file">{{ __('common.document_form_type_multi_file') }}</option>
                             <option value="image">{{ __('common.document_form_type_image') }}</option>
                             <option value="signature">{{ __('common.document_form_type_signature') }}</option>
                             <option value="multi_select">{{ __('common.document_form_type_multi_select') }}</option>
                             <option value="lookup">{{ __('common.document_form_type_lookup') }}</option>
                             <option value="table">{{ __('common.document_form_type_table') }}</option>
+                            <option value="group">{{ __('common.document_form_type_group') }}</option>
                             <option value="section">{{ __('common.document_form_type_section') }}</option>
+                            <option value="page_break">{{ __('common.document_form_type_page_break') }}</option>
+                            <option value="qr_code">{{ __('common.document_form_type_qr_code') }}</option>
                             <option value="auto_number">{{ __('common.document_form_type_auto_number') }}</option>
                         </select>
                     </div>
-                    <div x-show="!['lookup','table','section','image'].includes(field.field_type)">
+                    <div x-show="!['lookup','table','section','image','group','page_break','qr_code'].includes(field.field_type)">
                         <label class="text-xs text-slate-500">{{ __('common.document_form_placeholder') }}</label>
                         <input :name="`fields[${idx}][placeholder]`" x-model="field.placeholder" class="form-input mt-1" />
                     </div>
-                    <div class="md:col-span-2" x-show="['select','radio','checkbox','multi_select'].includes(field.field_type)">
+                    {{-- multi_select data source: lookup list OR custom options --}}
+                    <template x-if="field.field_type === 'multi_select'">
+                        <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
+                            <div>
+                                <label class="text-xs text-slate-500">{{ __('common.document_form_multi_select_source') }}</label>
+                                <select :name="`fields[${idx}][lookup_source]`" x-model="field.lookup_source" class="form-input mt-1">
+                                    <option value="">{{ __('common.document_form_multi_select_custom') }}</option>
+                                    <template x-for="[key, src] in Object.entries(lookupSources)" :key="'ms-' + key">
+                                        <template x-if="src.source_type === 'db' || (src.source_type || '') === ''">
+                                            <option :value="key" x-text="(src.label_{{ app()->getLocale() }} || src.label_en || key)"></option>
+                                        </template>
+                                    </template>
+                                </select>
+                                <p class="text-xs text-slate-400 mt-1">{{ __('common.document_form_multi_select_source_help') }}</p>
+                            </div>
+                            <div class="md:col-span-2" x-show="!field.lookup_source">
+                                <label class="text-xs text-slate-500">{{ __('common.document_form_options_hint') }}</label>
+                                <textarea :name="`fields[${idx}][options_raw]`" x-model="field.options_raw" rows="2" class="form-input resize-y"></textarea>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="md:col-span-2" x-show="['select','radio','checkbox'].includes(field.field_type)">
                         <label class="text-xs text-slate-500">{{ __('common.document_form_options_hint') }}</label>
                         <textarea :name="`fields[${idx}][options_raw]`" x-model="field.options_raw" rows="2" class="form-input mt-1 resize-y"></textarea>
                     </div>
@@ -572,6 +626,116 @@
                             <input type="hidden" :name="`fields[${idx}][table_columns]`" :value="JSON.stringify(field.table_columns)">
                         </div>
                     </template>
+
+                    {{-- Group (subform) config — repeating block of named fields --}}
+                    <template x-if="field.field_type === 'group'">
+                        <div class="md:col-span-3 border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                <div>
+                                    <label class="text-xs text-slate-400">{{ __('common.group_min_rows') }}</label>
+                                    <input type="number" min="0" x-model.number="field.group_options.min_rows" class="form-input py-1 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-400">{{ __('common.group_max_rows') }}</label>
+                                    <input type="number" min="1" max="200" x-model.number="field.group_options.max_rows" class="form-input py-1 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-400">{{ __('common.group_layout_columns') }}</label>
+                                    <select x-model.number="field.group_options.layout_columns" class="form-input py-1 text-sm">
+                                        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-400">{{ __('common.group_label_singular') }}</label>
+                                    <input type="text" x-model="field.group_options.label_singular" placeholder="{{ __('common.group_row_default') }}" class="form-input py-1 text-sm">
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-medium text-slate-500">{{ __('common.group_inner_fields') }}</p>
+                                <button type="button" @click="addGroupInnerField(field)" class="px-2 py-1 rounded bg-blue-600 text-white text-xs">+ {{ __('common.group_add_inner_field') }}</button>
+                            </div>
+                            <template x-for="(inner, ii) in (field.group_options.fields || [])" :key="ii">
+                                <div class="flex items-end gap-2 border-l-2 border-slate-200 dark:border-slate-700 pl-2">
+                                    <div class="flex-1">
+                                        <label class="text-xs text-slate-400" x-show="ii === 0">{{ __('common.document_form_field_key') }}</label>
+                                        <input x-model="inner.key" placeholder="key" class="form-input py-1 text-sm" />
+                                    </div>
+                                    <div class="flex-1">
+                                        <label class="text-xs text-slate-400" x-show="ii === 0">{{ __('common.document_form_field_label') }} TH</label>
+                                        <input x-model="inner.label_th" class="form-input py-1 text-sm" />
+                                    </div>
+                                    <div class="w-32">
+                                        <label class="text-xs text-slate-400" x-show="ii === 0">{{ __('common.document_form_field_type') }}</label>
+                                        <select x-model="inner.type" class="form-input py-1 text-sm">
+                                            <option value="text">text</option>
+                                            <option value="textarea">textarea</option>
+                                            <option value="number">number</option>
+                                            <option value="currency">currency</option>
+                                            <option value="date">date</option>
+                                            <option value="time">time</option>
+                                            <option value="datetime">datetime</option>
+                                            <option value="email">email</option>
+                                            <option value="phone">phone</option>
+                                            <option value="select">select</option>
+                                            <option value="radio">radio</option>
+                                            <option value="checkbox">checkbox</option>
+                                            <option value="multi_select">multi_select</option>
+                                            <option value="lookup">lookup</option>
+                                        </select>
+                                    </div>
+                                    <div class="w-20">
+                                        <label class="text-xs text-slate-400" x-show="ii === 0">{{ __('common.document_form_col_span') }}</label>
+                                        <select x-model.number="inner.col_span" class="form-input py-1 text-sm">
+                                            <option value="0">auto</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                                        </select>
+                                    </div>
+                                    <label class="inline-flex items-center gap-1 text-xs">
+                                        <input type="checkbox" x-model="inner.required">
+                                        <span>{{ __('common.document_form_required') }}</span>
+                                    </label>
+                                    <button type="button" @click="field.group_options.fields.splice(ii, 1)" class="px-2 py-1 rounded bg-red-600 text-white text-xs shrink-0">×</button>
+                                </div>
+                            </template>
+                            <input type="hidden" :name="`fields[${idx}][group_options]`" :value="JSON.stringify(field.group_options || {})">
+                        </div>
+                    </template>
+
+                    {{-- QR-code config — template + size + label position --}}
+                    <template x-if="field.field_type === 'qr_code'">
+                        <div class="md:col-span-3 border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
+                            <div>
+                                <label class="text-xs text-slate-500">{{ __('common.qr_template') }}</label>
+                                <input type="text" x-model="field.qr_options.template"
+                                       placeholder="https://example.com/verify/{ref_no}"
+                                       maxlength="1000"
+                                       class="form-input mt-1 text-sm font-mono">
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                    {{ __('common.qr_token_help') }}
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-slate-500">{{ __('common.qr_size') }}</label>
+                                    <select x-model.number="field.qr_options.size" class="form-input mt-1 text-sm">
+                                        <option value="96">96 px</option>
+                                        <option value="128">128 px</option>
+                                        <option value="192">192 px</option>
+                                        <option value="256">256 px</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-slate-500">{{ __('common.qr_label_position') }}</label>
+                                    <select x-model="field.qr_options.label_position" class="form-input mt-1 text-sm">
+                                        <option value="above">{{ __('common.qr_label_above') }}</option>
+                                        <option value="below">{{ __('common.qr_label_below') }}</option>
+                                        <option value="none">{{ __('common.qr_label_none') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" :name="`fields[${idx}][qr_options]`" :value="JSON.stringify(field.qr_options || {})">
+                        </div>
+                    </template>
                 </div>
                 <div class="flex items-center gap-4" x-show="field.field_type !== 'section'">
                     <label class="inline-flex items-center gap-2">
@@ -581,6 +745,10 @@
                     <label class="inline-flex items-center gap-2" x-show="isSearchableType(field.field_type)">
                         <input type="checkbox" :name="`fields[${idx}][is_searchable]`" value="1" x-model="field.is_searchable">
                         <span class="text-xs text-slate-600 dark:text-slate-300">{{ __('common.document_form_searchable') }}</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" :name="`fields[${idx}][is_readonly]`" value="1" x-model="field.is_readonly">
+                        <span class="text-xs text-slate-600 dark:text-slate-300">{{ __('common.field_readonly') }}</span>
                     </label>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">{{ __('common.document_form_col_span') }}</span>
@@ -631,6 +799,36 @@
                             <input type="hidden" :name="`fields[${idx}][visibility_rules]`" :value="JSON.stringify(field.visibility_rules || [])">
                         </div>
 
+                        {{-- Required Rules — only meaningful when is_required = false --}}
+                        <div x-show="!field.is_required">
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.required_rules') }}</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mb-2">{{ __('common.required_rules_help') }}</p>
+                            <template x-for="(rule, ri) in (field.required_rules || [])" :key="'req-'+ri">
+                                <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,2fr)_auto] items-center gap-2 mb-2">
+                                    <select x-model="rule.field" class="form-input py-1 px-2 text-xs min-w-0">
+                                        <option value="">{{ __('common.select_field') }}</option>
+                                        <template x-for="(other, oi) in fields" :key="'req-fld-'+oi">
+                                            <template x-if="oi !== idx && other.field_key && other.field_type !== 'section'">
+                                                <option :value="other.field_key" x-text="other.label || other.field_key"></option>
+                                            </template>
+                                        </template>
+                                    </select>
+                                    <select x-model="rule.operator" class="form-input py-1 px-2 text-xs w-20 text-center">
+                                        <option value="equals">{{ __('common.op_equals') }}</option>
+                                        <option value="not_equals">{{ __('common.op_not_equals') }}</option>
+                                        <option value="is_empty">{{ __('common.op_is_empty') }}</option>
+                                        <option value="is_not_empty">{{ __('common.op_is_not_empty') }}</option>
+                                        <option value="greater_than">{{ __('common.op_greater_than') }}</option>
+                                        <option value="less_than">{{ __('common.op_less_than') }}</option>
+                                    </select>
+                                    <input x-show="!['is_empty','is_not_empty'].includes(rule.operator)" x-model="rule.value" placeholder="{{ __('common.value') }}" class="form-input py-1 px-2 text-xs min-w-0" />
+                                    <button type="button" @click="field.required_rules.splice(ri, 1)" class="text-red-500 hover:text-red-700 text-xs">&times;</button>
+                                </div>
+                            </template>
+                            <button type="button" @click="if(!field.required_rules) field.required_rules = []; field.required_rules.push({field:'', operator:'equals', value:''})" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">+ {{ __('common.add_condition') ?? 'Add condition' }}</button>
+                            <input type="hidden" :name="`fields[${idx}][required_rules]`" :value="JSON.stringify(field.required_rules || [])">
+                        </div>
+
                         {{-- Validation Rules --}}
                         <div>
                             <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ __('common.validation_rules') ?? 'Validation Rules' }}</p>
@@ -663,6 +861,10 @@
                                     <label class="text-xs text-slate-400">{{ __('common.max_date') }}</label>
                                     <input type="text" x-model="field.validation_rules.max_date" placeholder="today / 2026-12-31" class="form-input py-1 px-2 text-xs mt-1" />
                                 </div>
+                                <div x-show="field.field_type === 'date'">
+                                    <label class="text-xs text-slate-400">{{ __('common.default_value') }}</label>
+                                    <input type="text" :name="`fields[${idx}][default_value]`" x-model="field.default_value" placeholder="today / 2026-01-01" class="form-input py-1 px-2 text-xs mt-1" />
+                                </div>
                             </div>
                             <p x-show="field.field_type === 'date'" class="text-xs text-slate-400 dark:text-slate-500 mt-1">
                                 {{ __('common.date_expression_help') }}
@@ -684,6 +886,41 @@
                                     </label>
                                 </template>
                             </div>
+
+                            {{-- Per-user editable_by: chip selector + searchable suggestion list --}}
+                            @if(count($companyUsersJs))
+                            <div class="mt-2" x-data="{ open: false, query: '' }">
+                                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{{ __('common.field_editable_by_users') }}</p>
+                                <div class="flex flex-wrap items-center gap-1">
+                                    <template x-for="u in selectedEditableUsers(field)" :key="u.id">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs">
+                                            <span x-text="u.name"></span>
+                                            <button type="button" class="text-blue-500 hover:text-red-600" @click="removeEditableUser(field, u.id)">×</button>
+                                        </span>
+                                    </template>
+                                    <button type="button" class="text-xs text-blue-600 hover:underline ml-1" @click="open = !open">
+                                        + {{ __('common.field_editable_by_users_add') }}
+                                    </button>
+                                </div>
+                                <div x-show="open" x-cloak class="mt-1 p-2 border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-800">
+                                    <input type="text" x-model="query" placeholder="{{ __('common.field_editable_by_users_search') }}"
+                                           class="form-input py-1 px-2 text-xs w-full mb-1" />
+                                    <div class="max-h-40 overflow-y-auto">
+                                        <template x-for="u in availableEditableUsers(field, query)" :key="u.id">
+                                            <button type="button"
+                                                    class="block w-full text-left text-xs px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                                    @click="addEditableUser(field, u.id); query = ''">
+                                                <span x-text="u.name"></span>
+                                            </button>
+                                        </template>
+                                        <p x-show="!availableEditableUsers(field, query).length" class="text-xs text-slate-400 dark:text-slate-500 px-2 py-1">
+                                            {{ __('common.field_editable_by_users_empty') }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
                             <p x-show="!(field.editable_by || []).length" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
                                 {{ __('common.field_editable_by_none_hint') }}
                             </p>
@@ -735,10 +972,31 @@
         }
         if (!Array.isArray(f.editable_by)) f.editable_by = ['requester'];
         if (!Array.isArray(f.visible_to_departments)) f.visible_to_departments = [];
+        if (!Array.isArray(f.required_rules)) f.required_rules = [];
+        // Group fields need a populated options object so the editor's x-models bind cleanly.
+        if (f.field_type === 'group') {
+            const g = (typeof f.group_options === 'object' && f.group_options !== null) ? f.group_options : {};
+            f.group_options = {
+                fields: Array.isArray(g.fields) ? g.fields : [],
+                min_rows: typeof g.min_rows === 'number' ? g.min_rows : 0,
+                max_rows: typeof g.max_rows === 'number' ? g.max_rows : 20,
+                layout_columns: typeof g.layout_columns === 'number' ? g.layout_columns : 1,
+                label_singular: typeof g.label_singular === 'string' ? g.label_singular : '',
+            };
+        }
+        // QR-code fields: same defaulting trick so x-model bindings always have a target.
+        if (f.field_type === 'qr_code') {
+            const q = (typeof f.qr_options === 'object' && f.qr_options !== null) ? f.qr_options : {};
+            f.qr_options = {
+                template: typeof q.template === 'string' ? q.template : '',
+                size: typeof q.size === 'number' ? q.size : 128,
+                label_position: typeof q.label_position === 'string' ? q.label_position : 'below',
+            };
+        }
         return f;
     }
 
-    function formBuilder(initialFields, lookupSources, cascadingRelations, searchableTypes, workflowStepsByDocType, departments, initialDocumentType, roleLabels) {
+    function formBuilder(initialFields, lookupSources, cascadingRelations, searchableTypes, workflowStepsByDocType, departments, initialDocumentType, roleLabels, companyUsers) {
         const SEARCHABLE_TYPES = searchableTypes || [];
         const defaultSearchable = (type) => SEARCHABLE_TYPES.includes(type);
         return {
@@ -748,6 +1006,8 @@
             searchableTypes: SEARCHABLE_TYPES,
             workflowStepsByDocType: workflowStepsByDocType || {},
             departments: departments || [],
+            companyUsers: companyUsers || [],
+            userPickerQuery: {},
             currentDocumentType: initialDocumentType || '',
             roleLabels: roleLabels || { requester: 'Requester', step_prefix: 'Step' },
             isSearchableType(type) { return SEARCHABLE_TYPES.includes(type); },
@@ -759,6 +1019,38 @@
                     roles.push({ value: 'step_' + s.step_no, label: this.roleLabels.step_prefix + ' ' + s.step_no + suffix });
                 }
                 return roles;
+            },
+            // Users currently selected for a field's editable_by (decoded from
+            // 'user:{id}' tokens). Lookup against companyUsers gives display name.
+            selectedEditableUsers(field) {
+                const userIds = (field.editable_by || [])
+                    .filter((t) => typeof t === 'string' && t.startsWith('user:'))
+                    .map((t) => parseInt(t.slice(5), 10))
+                    .filter((n) => !isNaN(n));
+                return userIds
+                    .map((id) => this.companyUsers.find((u) => u.id === id))
+                    .filter((u) => !!u);
+            },
+            availableEditableUsers(field, query) {
+                const q = (query || '').toLowerCase().trim();
+                const selectedIds = new Set(this.selectedEditableUsers(field).map((u) => u.id));
+                let pool = this.companyUsers.filter((u) => !selectedIds.has(u.id));
+                if (q) {
+                    pool = pool.filter((u) => (u.name || '').toLowerCase().includes(q));
+                }
+                return pool.slice(0, 25);
+            },
+            addEditableUser(field, userId) {
+                if (!Array.isArray(field.editable_by)) field.editable_by = [];
+                const token = 'user:' + userId;
+                if (!field.editable_by.includes(token)) {
+                    field.editable_by.push(token);
+                }
+            },
+            removeEditableUser(field, userId) {
+                if (!Array.isArray(field.editable_by)) return;
+                const token = 'user:' + userId;
+                field.editable_by = field.editable_by.filter((t) => t !== token);
             },
             toggleArrayValue(field, prop, value, asNumber = false) {
                 if (!Array.isArray(field[prop])) field[prop] = [];
@@ -805,7 +1097,7 @@
                 return span > 1 ? `grid-column: span ${span}` : '';
             },
             addField() {
-                this.fields.push(ensureFieldRowId({field_key: '', label: '', field_type: 'text', is_required: false, is_searchable: defaultSearchable('text'), placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: [], visibility_rules: [], validation_rules: {}}));
+                this.fields.push(ensureFieldRowId({field_key: '', label: '', label_en: '', label_th: '', field_type: 'text', is_required: false, is_searchable: defaultSearchable('text'), is_readonly: false, placeholder: '', default_value: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: [], visibility_rules: [], validation_rules: {}}));
             },
             addSection() {
                 let max = 0;
@@ -814,11 +1106,18 @@
                     if (m) max = Math.max(max, parseInt(m[1], 10));
                 }
                 const n = max + 1;
-                this.fields.push(ensureFieldRowId({field_key: 'section_' + n, label: '', field_type: 'section', is_required: false, is_searchable: false, placeholder: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: [], visibility_rules: [], validation_rules: {}}));
+                this.fields.push(ensureFieldRowId({field_key: 'section_' + n, label: '', label_en: '', label_th: '', field_type: 'section', is_required: false, is_searchable: false, is_readonly: false, placeholder: '', default_value: '', options_raw: '', lookup_source: '', depends_on: '', foreign_key: '', col_span: 0, table_columns: [], visibility_rules: [], validation_rules: {}}));
             },
             addTableColumn(field) {
                 if (!field.table_columns) field.table_columns = [];
                 field.table_columns.push({key: '', label: '', type: 'text', lookup_source: '', depends_on: '', foreign_key: '', formula: ''});
+            },
+            addGroupInnerField(field) {
+                if (!field.group_options || typeof field.group_options !== 'object') {
+                    field.group_options = { fields: [], min_rows: 0, max_rows: 20, layout_columns: 1, label_singular: '' };
+                }
+                if (!Array.isArray(field.group_options.fields)) field.group_options.fields = [];
+                field.group_options.fields.push({ key: '', label_th: '', label_en: '', type: 'text', required: false, col_span: 0, options: [] });
             },
             autoSuggestTableColumnForeignKey(field, col) {
                 if (!col.lookup_source || !col.depends_on) {

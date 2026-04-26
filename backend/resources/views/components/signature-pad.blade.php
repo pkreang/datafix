@@ -1,0 +1,96 @@
+@props([
+    'name' => 'signature_image',
+    'initialValue' => '',
+    'savedDataUrl' => null,
+    'required' => false,
+])
+
+{{--
+    Signature pad — canvas drawing → base64 data URL stored in a hidden input.
+    Optional `savedDataUrl` is the user's profile signature (already base64
+    or a public URL); when present, the pad starts with that value loaded so
+    the user can simply submit, or click "Draw new" to replace it.
+
+    Used by:
+      - components/dynamic-field.blade.php (signature field type)
+      - approvals/my-approvals.blade.php (require_signature stages)
+--}}
+
+<div class="signature-pad mt-1"
+     x-data="{
+        signatureData: '{{ $initialValue }}',
+        savedUrl: @js($savedDataUrl),
+        mode: '{{ $initialValue ? 'kept' : ($savedDataUrl ? 'saved' : 'draw') }}',
+        _inited: false,
+        useSaved() {
+            if (this.savedUrl) {
+                this.signatureData = this.savedUrl;
+                this.mode = 'saved';
+            }
+        },
+        clearPad() {
+            const c = this.$refs.padCanvas;
+            if (c) {
+                const ctx = c.getContext('2d');
+                c.width = c.offsetWidth;
+                ctx.clearRect(0, 0, c.width, c.height);
+            }
+            this.signatureData = '';
+            this.mode = 'draw';
+        },
+        startDraw($event) {
+            const canvas = this.$refs.padCanvas;
+            if (!this._inited) { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; this._inited = true; }
+            const ctx = canvas.getContext('2d');
+            let drawing = true;
+            ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const rect = canvas.getBoundingClientRect();
+            ctx.moveTo($event.clientX - rect.left, $event.clientY - rect.top);
+            const move = (e) => { if (drawing) { ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top); ctx.stroke(); } };
+            const up = () => { drawing = false; this.signatureData = canvas.toDataURL(); this.mode = 'drawn'; canvas.removeEventListener('mousemove', move); canvas.removeEventListener('mouseup', up); };
+            canvas.addEventListener('mousemove', move);
+            canvas.addEventListener('mouseup', up);
+        },
+     }"
+     x-init="
+        if (mode === 'saved' || mode === 'kept') {
+            // Pre-loaded signature — no canvas init needed until user clicks 'Draw new'
+        } else {
+            $nextTick(() => {
+                const c = $refs.padCanvas;
+                if (c) { c.width = c.offsetWidth; c.height = c.offsetHeight; _inited = true; }
+            });
+        }
+     ">
+
+    {{-- Pre-loaded signature preview (saved profile signature OR retained value) --}}
+    <template x-if="mode === 'saved' || mode === 'kept'">
+        <div class="flex items-center gap-3">
+            <img :src="signatureData" alt="" class="h-20 max-w-xs object-contain border border-slate-200 dark:border-slate-700 bg-white rounded">
+            <div class="flex flex-col gap-1">
+                <button type="button" class="text-xs text-blue-600 hover:underline" @click="clearPad()">{{ __('common.signature_pad_draw_new') }}</button>
+            </div>
+        </div>
+    </template>
+
+    {{-- Canvas drawing surface --}}
+    <template x-if="mode === 'draw' || mode === 'drawn'">
+        <div>
+            <canvas
+                class="w-full h-32 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-crosshair"
+                x-ref="padCanvas"
+                @mousedown="startDraw($event)"
+            ></canvas>
+            <div class="mt-1 flex items-center gap-3">
+                <button type="button" class="text-xs text-red-500 hover:underline" @click="clearPad()">{{ __('common.delete') }}</button>
+                @if($savedDataUrl ?? false)
+                    <button type="button" class="text-xs text-blue-600 hover:underline" @click="useSaved()">{{ __('common.signature_pad_use_saved') }}</button>
+                @endif
+            </div>
+        </div>
+    </template>
+
+    <input type="hidden" name="{{ $name }}" :value="signatureData" @if($required) data-required-signature="1" @endif>
+</div>

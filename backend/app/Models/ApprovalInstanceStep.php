@@ -16,10 +16,12 @@ class ApprovalInstanceStep extends Model
         'approver_type',
         'approver_ref',
         'min_approvals',
+        'require_signature',
         'approved_by',
         'acted_by_user_id',
         'action',
         'comment',
+        'signature_image',
         'acted_at',
     ];
 
@@ -28,6 +30,7 @@ class ApprovalInstanceStep extends Model
         return [
             'step_no' => 'integer',
             'min_approvals' => 'integer',
+            'require_signature' => 'boolean',
             'approved_by' => 'array',
             'acted_at' => 'datetime',
         ];

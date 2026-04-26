@@ -91,6 +91,7 @@ class ApprovalFlowService
                     'approver_type' => $stage->approver_type,
                     'approver_ref' => $stage->approver_ref,
                     'min_approvals' => $stage->min_approvals ?? 1,
+                    'require_signature' => (bool) ($stage->require_signature ?? false),
                     'approved_by' => [],
                     'action' => 'pending',
                 ]);
@@ -209,13 +210,23 @@ class ApprovalFlowService
         return "No workflow binding found for {$documentType}";
     }
 
-    public function act(int $instanceId, int $actorUserId, string $action, ?string $comment = null): ApprovalInstance
+    /**
+     * @param  string|null  $signatureImage  Data URL (data:image/...) or public
+     *                                       URL of the approver's signature.
+     *                                       Required when the step has
+     *                                       `require_signature=true`. Stored
+     *                                       per-approver in `approved_by` for
+     *                                       approve actions; in the step's
+     *                                       `signature_image` column for
+     *                                       reject actions.
+     */
+    public function act(int $instanceId, int $actorUserId, string $action, ?string $comment = null, ?string $signatureImage = null): ApprovalInstance
     {
         if (! in_array($action, ['approved', 'rejected'], true)) {
             throw new RuntimeException('Invalid approval action');
         }
 
-        return DB::transaction(function () use ($instanceId, $actorUserId, $action, $comment) {
+        return DB::transaction(function () use ($instanceId, $actorUserId, $action, $comment, $signatureImage) {
             $instance = ApprovalInstance::query()->with(['steps', 'workflow'])->lockForUpdate()->findOrFail($instanceId);
 
             if ($instance->status !== 'pending') {
@@ -232,11 +243,18 @@ class ApprovalFlowService
                 throw new RuntimeException('You are not allowed to approve this step');
             }
 
+            // Per-stage signature requirement — block both approve and reject
+            // when the stage requires a signature and the actor didn't supply one.
+            if ($step->require_signature && empty($signatureImage)) {
+                throw new RuntimeException('signature_required');
+            }
+
             if ($action === 'rejected') {
                 $step->update([
                     'acted_by_user_id' => $actorUserId,
                     'action' => 'rejected',
                     'comment' => $comment,
+                    'signature_image' => $signatureImage,
                     'acted_at' => now(),
                 ]);
                 $instance->update(['status' => 'rejected']);
@@ -253,6 +271,7 @@ class ApprovalFlowService
                 'user_id' => $actorUserId,
                 'name' => $actor?->full_name ?? (string) $actorUserId,
                 'comment' => $comment,
+                'signature' => $signatureImage,
                 'at' => now()->toIso8601String(),
             ];
             $step->approved_by = $approvedBy;

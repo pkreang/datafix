@@ -119,6 +119,7 @@ class WorkflowController extends Controller
             'stages.*.approver_type' => 'required|in:role,user,position',
             'stages.*.approver_ref' => 'required|string|max:255',
             'stages.*.min_approvals' => 'required|integer|min:1',
+            'stages.*.require_signature' => 'nullable|boolean',
         ]);
 
         $this->validateUniqueSteps($validated['stages']);
@@ -141,6 +142,7 @@ class WorkflowController extends Controller
                     'approver_type' => $stage['approver_type'],
                     'approver_ref' => $stage['approver_ref'],
                     'min_approvals' => (int) $stage['min_approvals'],
+                    'require_signature' => (bool) ($stage['require_signature'] ?? false),
                     'is_active' => true,
                 ]);
             }
@@ -163,6 +165,7 @@ class WorkflowController extends Controller
             'stages.*.approver_type' => 'required|in:role,user,position',
             'stages.*.approver_ref' => 'required|string|max:255',
             'stages.*.min_approvals' => 'required|integer|min:1',
+            'stages.*.require_signature' => 'nullable|boolean',
         ]);
 
         $this->validateUniqueSteps($validated['stages']);
@@ -186,6 +189,7 @@ class WorkflowController extends Controller
                     'approver_type' => $stage['approver_type'],
                     'approver_ref' => $stage['approver_ref'],
                     'min_approvals' => (int) $stage['min_approvals'],
+                    'require_signature' => (bool) ($stage['require_signature'] ?? false),
                     'is_active' => true,
                 ]);
             }

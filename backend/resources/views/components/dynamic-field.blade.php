@@ -4,14 +4,18 @@
     // Visibility check (Feature 1B) — department-based (server-side)
     $userDeptId = $userDeptId ?? null;
     $editorRole = $editorRole ?? 'requester';
+    $editorUserId = $editorUserId ?? null;
     $visibleDepts = $field->visible_to_departments;
     $isVisible = empty($visibleDepts)
         || ($userDeptId !== null && in_array((int) $userDeptId, array_map('intval', $visibleDepts)));
 
-    // Editability check (Feature 2)
+    // Editability check (Feature 2) — token set may contain role tokens
+    // ('requester', 'step_N') and user tokens ('user:{id}').
     $effectiveEditableBy = $field->effective_editable_by; // accessor: null → ['requester']
+    $canEditByRole = in_array($editorRole, $effectiveEditableBy, true);
+    $canEditByUser = $editorUserId && in_array('user:'.(int) $editorUserId, $effectiveEditableBy, true);
     $isReadOnly = $field->field_type !== 'section'
-        && !in_array($editorRole, $effectiveEditableBy);
+        && ((! $canEditByRole && ! $canEditByUser) || (bool) ($field->is_readonly ?? false));
     $readonlyClass = $isReadOnly ? ' opacity-70 cursor-not-allowed bg-gray-50 dark:bg-gray-800' : '';
 
     // Visibility rules (client-side conditional show/hide based on other field values)
@@ -57,7 +61,169 @@
 @elseif($field->field_type === 'section')
     {{-- Section divider — display only, no input --}}
     <div class="border-b border-gray-300 dark:border-gray-600 pb-1 mt-2">
-        <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ $field->label }}</h4>
+        <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ $field->localized_label }}</h4>
+    </div>
+
+@elseif($field->field_type === 'qr_code')
+    @php
+        $qrOpts = is_array($field->options) ? $field->options : [];
+        $qrSize = (int) ($qrOpts['size'] ?? 128);
+        $qrLabelPos = (string) ($qrOpts['label_position'] ?? 'below');
+        // $qrPayload is supplied by show-submission etc. when the submission
+        // exists; null on data-entry views (template tokens haven't resolved
+        // yet — show a placeholder instead).
+        $qrPayload = $qrPayload ?? null;
+    @endphp
+    @if(! $qrPayload)
+        <div class="text-xs text-slate-400 dark:text-slate-500 italic mt-1">
+            {{ __('common.qr_pending_after_submit') }}
+        </div>
+    @else
+        <div class="qr-block inline-flex flex-col items-center gap-1 mt-1">
+            @if($qrLabelPos === 'above' && $field->field_type !== 'section')
+                <span class="text-xs text-slate-600 dark:text-slate-400">{{ $field->localized_label }}</span>
+            @endif
+            <canvas data-qr-payload="{{ $qrPayload }}"
+                    data-qr-size="{{ $qrSize }}"
+                    width="{{ $qrSize }}" height="{{ $qrSize }}"
+                    class="border border-slate-200 dark:border-slate-700"></canvas>
+            @if($qrLabelPos === 'below' && $field->field_type !== 'section')
+                <span class="text-xs text-slate-600 dark:text-slate-400">{{ $field->localized_label }}</span>
+            @endif
+        </div>
+    @endif
+
+@elseif($field->field_type === 'page_break')
+    {{-- Page break — visual hint only on screen; print view emits a CSS page-break-after marker --}}
+    <div class="my-2 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500" aria-hidden="true">
+        <span class="flex-1 border-t border-dashed border-slate-300 dark:border-slate-600"></span>
+        <span class="uppercase tracking-wide">{{ __('common.page_break_marker') }}</span>
+        <span class="flex-1 border-t border-dashed border-slate-300 dark:border-slate-600"></span>
+    </div>
+
+@elseif($field->field_type === 'group')
+    @php
+        $groupOpts = is_array($field->options) ? $field->options : [];
+        $innerFields = is_array($groupOpts['fields'] ?? null) ? $groupOpts['fields'] : [];
+        $groupMin = (int) ($groupOpts['min_rows'] ?? 0);
+        $groupMax = (int) ($groupOpts['max_rows'] ?? 20);
+        $groupCols = max(1, min(4, (int) ($groupOpts['layout_columns'] ?? 1)));
+        $groupSingular = (string) ($groupOpts['label_singular'] ?? __('common.group_row_default'));
+        $groupRows = is_array($value) ? array_values($value) : [];
+        if (empty($groupRows) && $groupMin > 0) {
+            $groupRows = array_fill(0, $groupMin, []);
+        }
+        if (empty($groupRows)) {
+            $groupRows = [[]];
+        }
+    @endphp
+    <div class="mt-1 space-y-2"
+         x-data="groupRepeater({ rows: @js($groupRows), minRows: {{ $groupMin }}, maxRows: {{ $groupMax }} })">
+        <template x-for="(row, idx) in rows" :key="idx">
+            <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-800/30">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {{ $groupSingular }} #<span x-text="idx + 1"></span>
+                    </span>
+                    @if(! $isReadOnly)
+                        <button type="button" class="text-xs text-red-500 hover:underline"
+                                :disabled="rows.length <= {{ $groupMin }}"
+                                :class="rows.length <= {{ $groupMin }} ? 'opacity-40 cursor-not-allowed' : ''"
+                                @click="removeRow(idx)">{{ __('common.delete') }}</button>
+                    @endif
+                </div>
+                <div class="grid gap-3" style="grid-template-columns: repeat({{ $groupCols }}, minmax(0, 1fr))">
+                    @foreach($innerFields as $inner)
+                        @php
+                            $iKey = $inner['key'];
+                            $iLabel = $inner['label_th'] ?? $inner['label'] ?? $iKey;
+                            $iType = $inner['type'] ?? 'text';
+                            $iRequired = (bool) ($inner['required'] ?? false);
+                            $iSpan = max(1, min($groupCols, (int) ($inner['col_span'] ?? 0) ?: 1));
+                        @endphp
+                        <div @if($iSpan > 1) style="grid-column: span {{ $iSpan }}" @endif>
+                            <label class="form-label text-xs">
+                                {{ $iLabel }}
+                                @if($iRequired) <span class="text-red-500">*</span> @endif
+                            </label>
+                            @if(in_array($iType, ['text','email','phone']))
+                                <input type="{{ $iType === 'email' ? 'email' : ($iType === 'phone' ? 'tel' : 'text') }}"
+                                       :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                       :value="row['{{ $iKey }}'] || ''"
+                                       @if($isReadOnly) readonly @endif
+                                       class="form-input mt-1 text-sm">
+                            @elseif($iType === 'textarea')
+                                <textarea :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                          @if($isReadOnly) readonly @endif
+                                          class="form-input mt-1 text-sm" rows="2"
+                                          x-text="row['{{ $iKey }}'] || ''"></textarea>
+                            @elseif(in_array($iType, ['number','currency']))
+                                <input type="number" step="{{ $iType === 'currency' ? '0.01' : 'any' }}"
+                                       :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                       :value="row['{{ $iKey }}'] || ''"
+                                       @if($isReadOnly) readonly @endif
+                                       class="form-input mt-1 text-sm">
+                            @elseif($iType === 'date')
+                                <input type="date"
+                                       :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                       :value="row['{{ $iKey }}'] || ''"
+                                       @if($isReadOnly) readonly @endif
+                                       class="form-input mt-1 text-sm">
+                            @elseif($iType === 'time')
+                                <input type="time"
+                                       :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                       :value="row['{{ $iKey }}'] || ''"
+                                       @if($isReadOnly) readonly @endif
+                                       class="form-input mt-1 text-sm">
+                            @elseif($iType === 'datetime')
+                                <input type="datetime-local"
+                                       :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                       :value="row['{{ $iKey }}'] || ''"
+                                       @if($isReadOnly) readonly @endif
+                                       class="form-input mt-1 text-sm">
+                            @elseif(in_array($iType, ['select','radio']))
+                                <select :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                        @if($isReadOnly) disabled @endif
+                                        class="form-input mt-1 text-sm">
+                                    <option value="">—</option>
+                                    @foreach((array) ($inner['options'] ?? []) as $opt)
+                                        <option value="{{ $opt }}" :selected="(row['{{ $iKey }}'] || '') === '{{ $opt }}'">{{ $opt }}</option>
+                                    @endforeach
+                                </select>
+                            @elseif($iType === 'multi_select' || $iType === 'checkbox')
+                                <div class="mt-1 space-y-1">
+                                    @foreach((array) ($inner['options'] ?? []) as $opt)
+                                        <label class="inline-flex items-center gap-2 text-xs mr-3">
+                                            <input type="checkbox" value="{{ $opt }}"
+                                                   :name="`{{ $name }}[${idx}][{{ $iKey }}][]`"
+                                                   :checked="Array.isArray(row['{{ $iKey }}']) && row['{{ $iKey }}'].includes('{{ $opt }}')"
+                                                   @if($isReadOnly) disabled @endif
+                                                   class="rounded border-slate-300">
+                                            <span>{{ $opt }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @else
+                                <input type="text"
+                                       :name="`{{ $name }}[${idx}][{{ $iKey }}]`"
+                                       :value="row['{{ $iKey }}'] || ''"
+                                       @if($isReadOnly) readonly @endif
+                                       class="form-input mt-1 text-sm">
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </template>
+
+        @if(! $isReadOnly)
+            <button type="button" class="btn-secondary text-xs"
+                    :disabled="rows.length >= {{ $groupMax }}"
+                    :class="rows.length >= {{ $groupMax }} ? 'opacity-40 cursor-not-allowed' : ''"
+                    @click="addRow()">
+                + {{ __('common.group_add_row', ['name' => $groupSingular]) }}
+            </button>
+        @endif
     </div>
 
 @elseif($field->field_type === 'textarea')
@@ -103,7 +269,7 @@
         <div class="mt-2">
             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 {{ $isReadOnly ? 'opacity-70' : '' }}">
                 <input type="checkbox" name="{{ $name }}" value="1" @checked($value) @disabled($isReadOnly) class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                {{ $field->label }}
+                {{ $field->localized_label }}
             </label>
         </div>
     @endif
@@ -120,7 +286,7 @@
 
 @elseif($field->field_type === 'image')
     @if($value && is_string($value))
-        <img src="{{ \Illuminate\Support\Facades\Storage::url($value) }}" alt="{{ $field->label }}"
+        <img src="{{ \Illuminate\Support\Facades\Storage::url($value) }}" alt="{{ $field->localized_label }}"
              class="mb-2 max-h-40 rounded border border-gray-200 dark:border-gray-600">
     @endif
     @if(!$isReadOnly)
@@ -128,12 +294,53 @@
                class="mt-1 w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 dark:file:bg-gray-700 file:text-blue-700 dark:file:text-gray-300">
     @endif
 
+@elseif($field->field_type === 'multi_file')
+    @php
+        $paths = is_array($value) ? $value : (is_string($value) && $value !== '' ? (json_decode($value, true) ?: []) : []);
+    @endphp
+    @if(count($paths) > 0)
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-2">
+            @foreach($paths as $path)
+                @php $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION)); $isImg = in_array($ext, ['jpg','jpeg','png','gif','webp','heic','bmp'], true); @endphp
+                <a href="{{ \Illuminate\Support\Facades\Storage::url($path) }}" target="_blank" class="block border border-gray-200 dark:border-gray-600 rounded overflow-hidden hover:border-blue-400">
+                    @if($isImg)
+                        <img src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="attachment" class="w-full h-20 object-cover">
+                    @else
+                        <div class="flex items-center justify-center h-20 bg-slate-50 dark:bg-slate-800 text-xs text-slate-500 p-1 text-center">{{ basename((string) $path) }}</div>
+                    @endif
+                </a>
+            @endforeach
+        </div>
+    @endif
+    @if(!$isReadOnly)
+        <input type="file" name="{{ $name }}[]" multiple accept="image/*,application/pdf"
+               class="mt-1 w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 dark:file:bg-gray-700 file:text-blue-700 dark:file:text-gray-300">
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('common.multi_file_hint') }}</p>
+    @endif
+
 @elseif($field->field_type === 'multi_select')
-    @php $selected = is_array($value) ? $value : (is_string($value) ? (json_decode($value, true) ?: []) : []); @endphp
+    @php
+        $selected = is_array($value) ? $value : (is_string($value) ? (json_decode($value, true) ?: []) : []);
+        $selectedStr = array_map('strval', $selected);
+        // Support lookup-driven options: $field->options = ['source' => 'lookup_key']
+        $opts = $field->options ?? [];
+        $lookupSource = (is_array($opts) && isset($opts['source'])) ? $opts['source'] : null;
+        if ($lookupSource) {
+            $multiItems = \App\Support\LookupRegistry::getItems($lookupSource)
+                ->map(fn ($it) => ['value' => $it['value'] ?? '', 'display' => $it['display'] ?? $it['value'] ?? ''])
+                ->all();
+        } else {
+            // Hardcoded flat array — value == display
+            $multiItems = collect(is_array($opts) ? $opts : [])
+                ->filter(fn ($o) => ! is_array($o))  // skip nested structures
+                ->map(fn ($o) => ['value' => (string) $o, 'display' => (string) $o])
+                ->all();
+        }
+    @endphp
     <select multiple name="{{ $name }}[]" @required($field->is_required && !$isReadOnly) @disabled($isReadOnly)
             class="{{ $inputClass }}{{ $readonlyClass }} h-32">
-        @foreach(($field->options ?? []) as $option)
-            <option value="{{ $option }}" @selected(in_array($option, $selected, true))>{{ $option }}</option>
+        @foreach($multiItems as $item)
+            <option value="{{ $item['value'] }}" @selected(in_array((string) $item['value'], $selectedStr, true))>{{ $item['display'] }}</option>
         @endforeach
     </select>
     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('common.multi_select_hint') }}</p>
@@ -141,47 +348,19 @@
 @elseif($field->field_type === 'signature')
     @if($isReadOnly)
         @if($value)
-            <img src="{{ $value }}" alt="{{ $field->label }}" class="mt-1 max-h-24 border border-gray-200 dark:border-gray-600 rounded-lg">
+            <img src="{{ $value }}" alt="{{ $field->localized_label }}" class="mt-1 max-h-24 border border-gray-200 dark:border-gray-600 rounded-lg">
         @else
             <p class="mt-1 text-sm text-gray-400 italic">—</p>
         @endif
     @else
-    <div class="mt-1" x-data="{ signatureData: '{{ $value }}', _inited: false }" x-init="
-        $nextTick(() => {
-            const c = $refs.signatureCanvas;
-            c.width = c.offsetWidth;
-            c.height = c.offsetHeight;
-            _inited = true;
-        })
-    ">
-        <canvas
-            class="w-full h-32 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-crosshair"
-            x-ref="signatureCanvas"
-            @mousedown="
-                const canvas = $refs.signatureCanvas;
-                if (!_inited) { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; _inited = true; }
-                const ctx = canvas.getContext('2d');
-                let drawing = true;
-                ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#000';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                const rect = canvas.getBoundingClientRect();
-                ctx.moveTo($event.clientX - rect.left, $event.clientY - rect.top);
-                const move = (e) => { if(drawing) { ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top); ctx.stroke(); }};
-                const up = () => { drawing = false; signatureData = canvas.toDataURL(); canvas.removeEventListener('mousemove', move); canvas.removeEventListener('mouseup', up); };
-                canvas.addEventListener('mousemove', move);
-                canvas.addEventListener('mouseup', up);
-            "
-        ></canvas>
-        <input type="hidden" name="{{ $name }}" :value="signatureData">
-        <button type="button" @click="
-            const canvas = $refs.signatureCanvas;
-            const ctx = canvas.getContext('2d');
-            canvas.width = canvas.offsetWidth;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            signatureData = '';
-        " class="mt-1 text-xs text-red-500 hover:underline">{{ __('common.delete') }}</button>
-    </div>
+        @php
+            // Pre-fill the requester's saved signature when no value is in flight yet,
+            // so users with a profile signature don't have to draw on every form.
+            $savedSig = ($value === null || $value === '')
+                ? (auth()->check() ? auth()->user()->signature_url : null)
+                : null;
+        @endphp
+        <x-signature-pad :name="$name" :initial-value="$value ?? ''" :saved-data-url="$savedSig" />
     @endif
 
 @elseif(in_array($field->field_type, ['lookup', 'user_lookup', 'equipment_lookup']))

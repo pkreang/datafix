@@ -23,16 +23,21 @@ class DocumentFormField extends Model
         'form_id',
         'field_key',
         'label',
+        'label_en',
+        'label_th',
         'field_type',
         'is_required',
         'is_searchable',
         'sort_order',
         'col_span',
         'placeholder',
+        'default_value',
+        'is_readonly',
         'options',
         'visible_to_departments',
         'editable_by',
         'visibility_rules',
+        'required_rules',
         'validation_rules',
     ];
 
@@ -41,10 +46,12 @@ class DocumentFormField extends Model
         return [
             'is_required' => 'boolean',
             'is_searchable' => 'boolean',
+            'is_readonly' => 'boolean',
             'options' => 'array',
             'visible_to_departments' => 'array',
             'editable_by' => 'array',
             'visibility_rules' => 'array',
+            'required_rules' => 'array',
             'validation_rules' => 'array',
         ];
     }
@@ -52,6 +59,23 @@ class DocumentFormField extends Model
     public function supportsSearch(): bool
     {
         return in_array($this->field_type, self::SEARCHABLE_TYPES, true);
+    }
+
+    /**
+     * Locale-aware label for list headers / filter bars.
+     * Falls back: label_{locale} → label_en → label (single-language legacy).
+     */
+    public function getLocalizedLabelAttribute(): string
+    {
+        $locale = app()->getLocale();
+        $key = 'label_' . $locale;
+        return (string) (
+            (! empty($this->{$key}) ? $this->{$key} : null)
+            ?? (! empty($this->label_en) ? $this->label_en : null)
+            ?? (! empty($this->label_th) ? $this->label_th : null)
+            ?? $this->label
+            ?? ''
+        );
     }
 
     /**
@@ -66,5 +90,25 @@ class DocumentFormField extends Model
     public function form()
     {
         return $this->belongsTo(DocumentForm::class, 'form_id');
+    }
+
+    /**
+     * Auto-fill label_en / label_th from the legacy single `label` when a seeder
+     * or older caller only supplies one of the three. Avoids making every seeder
+     * site update-aware in one go; bilingual seed values still win when present.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $field) {
+            $label = $field->label;
+            if (! empty($label)) {
+                if (empty($field->label_en)) {
+                    $field->label_en = $label;
+                }
+                if (empty($field->label_th)) {
+                    $field->label_th = $label;
+                }
+            }
+        });
     }
 }

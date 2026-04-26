@@ -33,6 +33,7 @@ class User extends Authenticatable implements HasLocalePreference
         'password_changed_at',
         'password_must_change',
         'avatar',
+        'signature_path',
         'department_id',
         'position_id',
         'phone',
@@ -69,6 +70,16 @@ class User extends Authenticatable implements HasLocalePreference
     protected function fullName(): Attribute
     {
         return Attribute::get(fn () => trim($this->first_name.' '.$this->last_name));
+    }
+
+    /**
+     * Public URL for the user's saved signature image, or null when none.
+     * `signature_path` stores the absolute URL (matching the avatar
+     * convention) so this accessor just normalises empty → null.
+     */
+    public function getSignatureUrlAttribute(): ?string
+    {
+        return ! empty($this->signature_path) ? $this->signature_path : null;
     }
 
     public function company()

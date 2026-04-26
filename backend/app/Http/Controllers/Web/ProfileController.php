@@ -423,6 +423,8 @@ class ProfileController extends Controller
             'locale' => ['nullable', 'string', Rule::in(['th', 'en'])],
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'remove_avatar' => 'nullable|boolean',
+            'signature' => 'nullable|image|mimes:png,jpg,jpeg|max:1024',
+            'remove_signature' => 'nullable|boolean',
             'theme' => ['nullable', 'string', Rule::in(['light', 'dark', 'system'])],
         ];
         if (! $isSso) {
@@ -464,6 +466,19 @@ class ProfileController extends Controller
             }
             $path = $request->file('avatar')->store('avatars', 'public');
             $payload['avatar'] = Storage::disk('public')->url($path);
+        }
+
+        // Signature: same lifecycle as avatar — upload, replace, or remove.
+        if ($request->boolean('remove_signature') && $user->signature_path) {
+            $this->deleteAvatar($user->signature_path);
+            $payload['signature_path'] = null;
+        }
+        if ($request->hasFile('signature')) {
+            if ($user->signature_path) {
+                $this->deleteAvatar($user->signature_path);
+            }
+            $path = $request->file('signature')->store('signatures', 'public');
+            $payload['signature_path'] = Storage::disk('public')->url($path);
         }
 
         $user->update($payload);

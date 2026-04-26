@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Concerns\HasPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentForm;
 use App\Models\DocumentFormField;
@@ -21,6 +22,8 @@ use RuntimeException;
 
 class DocumentFormSubmissionController extends Controller
 {
+    use HasPerPage;
+
     public function __construct(private readonly FormSchemaService $schemaService) {}
 
     public function index(): View
@@ -42,8 +45,13 @@ class DocumentFormSubmissionController extends Controller
     {
         $userId = (int) (session('user.id') ?? 0);
 
+        // Owner sees their own submissions; assigned editors also see drafts
+        // they were granted edit access to so they can find and complete them.
         $submissions = DocumentFormSubmission::query()
-            ->where('user_id', $userId)
+            ->where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                  ->orWhereJsonContains('assigned_editor_user_ids', $userId);
+            })
             ->with(['form', 'instance'])
             ->latest()
             ->get()
@@ -75,8 +83,14 @@ class DocumentFormSubmissionController extends Controller
             ->when($showCancelled, fn ($q) => $q->withTrashed())
             ->where('document_form_submissions.form_id', $documentForm->id)
             // Super-admins see every submission for the form (monitoring/support).
-            // Everyone else is scoped to their own submissions.
-            ->when(! $isSuperAdmin, fn ($q) => $q->where('document_form_submissions.user_id', $userId));
+            // Everyone else is scoped to their own submissions plus drafts where
+            // they were granted edit access via assigned_editor_user_ids.
+            ->when(! $isSuperAdmin, function ($q) use ($userId) {
+                $q->where(function ($inner) use ($userId) {
+                    $inner->where('document_form_submissions.user_id', $userId)
+                          ->orWhereJsonContains('document_form_submissions.assigned_editor_user_ids', $userId);
+                });
+            });
 
         $referenceNoFilter = trim((string) $request->query('reference_no', ''));
         if ($referenceNoFilter !== '') {
@@ -88,10 +102,11 @@ class DocumentFormSubmissionController extends Controller
 
         $this->applyFieldFilters($query, $documentForm, $searchable, $filters);
 
+        $perPage = $this->resolvePerPage($request, 'list_by_form_per_page');
         $submissions = $query->select('document_form_submissions.*')
-            ->with(['instance', 'latestActivity.user'])
+            ->with(['instance', 'latestActivity.user', 'submittedActivity'])
             ->latest('document_form_submissions.id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('forms.list-by-form', [
@@ -100,6 +115,7 @@ class DocumentFormSubmissionController extends Controller
             'searchable' => $searchable,
             'filters' => $filters,
             'showCancelled' => $showCancelled,
+            'perPage' => $perPage,
         ]);
     }
 
@@ -208,9 +224,11 @@ class DocumentFormSubmissionController extends Controller
         abort_if(! $documentForm->is_active, 404);
         $documentForm->load('fields');
 
-        $spec = $this->buildPayloadRules($documentForm);
+        $spec = $this->buildPayloadRules($documentForm, (array) $request->input('fields', []));
         $validated = $request->validate($spec['rules'], [], $spec['attributes']);
         $payload = $validated['fields'] ?? [];
+
+        $payload = $this->processFileUploads($documentForm, $payload, $request);
 
         $userId = (int) (session('user.id') ?? 0);
         $userDeptId = session('user.department_id') ?? User::find($userId)?->department_id;
@@ -252,9 +270,26 @@ class DocumentFormSubmissionController extends Controller
         $this->authorizeOwnerDraft($submission);
         $submission->load('form.fields');
 
-        $spec = $this->buildPayloadRules($submission->form);
+        $spec = $this->buildPayloadRules($submission->form, (array) $request->input('fields', []));
         $validated = $request->validate($spec['rules'], [], $spec['attributes']);
         $payload = $validated['fields'] ?? [];
+
+        $payload = $this->processFileUploads(
+            $submission->form,
+            $payload,
+            $request,
+            existingPayload: $submission->payload ?? []
+        );
+
+        // Non-owners (assigned editors) only get to write fields whose
+        // editable_by tokens grant them access via 'user:{id}'. Owner keeps
+        // full write across all fields tagged 'requester' (or any token).
+        $userId = (int) (session('user.id') ?? 0);
+        $isOwner = (int) $submission->user_id === $userId;
+        if (! $isOwner) {
+            $allowed = $this->filterPayloadForAssignee($submission, $payload, $userId);
+            $payload = array_merge($submission->payload ?? [], $allowed);
+        }
 
         $submission->update(['payload' => $payload]);
 
@@ -270,7 +305,7 @@ class DocumentFormSubmissionController extends Controller
 
     public function destroyDraft(DocumentFormSubmission $submission): RedirectResponse
     {
-        $this->authorizeOwnerDraft($submission);
+        $this->authorizeOwnerOnlyDraft($submission);
 
         // Dual-write: delete fdata_* row
         if ($submission->fdata_row_id && $submission->form->hasDedicatedTable()) {
@@ -363,7 +398,7 @@ class DocumentFormSubmissionController extends Controller
 
     public function submit(DocumentFormSubmission $submission, ApprovalFlowService $approvalFlowService): RedirectResponse
     {
-        $this->authorizeOwnerDraft($submission);
+        $this->authorizeOwnerOnlyDraft($submission);
         $submission->load('form');
 
         $form = $submission->form;
@@ -413,7 +448,44 @@ class DocumentFormSubmissionController extends Controller
             ->limit(20)
             ->get();
 
-        return view('forms.show-submission', compact('submission', 'activity'));
+        $userId = (int) (session('user.id') ?? 0);
+        $isOwner = (int) $submission->user_id === $userId;
+        $isSuperAdmin = (bool) session('user.is_super_admin', false);
+        // Only the owner / super-admin can manage assigned editors, and only
+        // while the submission is still a draft (post-submit, the workflow
+        // owns who-can-edit).
+        $canManageAssignedEditors = ($isOwner || $isSuperAdmin) && $submission->status === 'draft';
+
+        $assignedEditorRows = [];
+        $assignableUsers = [];
+        if ($canManageAssignedEditors || ! empty($submission->assigned_editor_user_ids)) {
+            $ids = array_map('intval', $submission->assigned_editor_user_ids ?? []);
+            if ($ids) {
+                $assignedEditorRows = User::query()
+                    ->whereIn('id', $ids)
+                    ->get(['id', 'first_name', 'last_name'])
+                    ->map(fn (User $u) => ['id' => (int) $u->id, 'name' => $u->name])
+                    ->all();
+            }
+        }
+        if ($canManageAssignedEditors) {
+            $assignableUsers = User::query()
+                ->where('is_active', true)
+                ->where('id', '!=', $submission->user_id)
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name'])
+                ->map(fn (User $u) => ['id' => (int) $u->id, 'name' => $u->name])
+                ->all();
+        }
+
+        return view('forms.show-submission', compact(
+            'submission',
+            'activity',
+            'canManageAssignedEditors',
+            'assignedEditorRows',
+            'assignableUsers',
+        ));
     }
 
     /**
@@ -476,6 +548,50 @@ class DocumentFormSubmissionController extends Controller
         return back()->with('success', __('common.bulk_deleted', ['count' => $submissions->count()]));
     }
 
+    /**
+     * Replace the list of assigned editors on a submission. Only the owner
+     * (or super-admin) may change this list. Submitted user_ids are validated
+     * against active users; the owner cannot self-assign (they already have
+     * full access by virtue of ownership). Status must be 'draft' — assigning
+     * editors after submission is meaningless because no one can edit a
+     * submitted form except via the approval flow.
+     */
+    public function updateAssignedEditors(Request $request, DocumentFormSubmission $submission): RedirectResponse
+    {
+        $userId = (int) (session('user.id') ?? 0);
+        $isOwner = (int) $submission->user_id === $userId;
+        $isSuperAdmin = (bool) session('user.is_super_admin', false);
+        abort_unless($isOwner || $isSuperAdmin, 403);
+        abort_unless($submission->status === 'draft', 422);
+
+        $validated = $request->validate([
+            'user_ids' => ['nullable', 'array'],
+            'user_ids.*' => ['integer'],
+        ]);
+        $rawIds = $validated['user_ids'] ?? [];
+
+        $cleanIds = array_values(array_unique(array_map('intval', $rawIds)));
+        $cleanIds = array_values(array_filter($cleanIds, fn ($id) => $id > 0 && $id !== (int) $submission->user_id));
+
+        $validIds = $cleanIds
+            ? User::query()->whereIn('id', $cleanIds)->where('is_active', true)->pluck('id')->all()
+            : [];
+        $validIds = array_values(array_map('intval', $validIds));
+
+        $previous = $submission->assigned_editor_user_ids ?? [];
+        $submission->update([
+            'assigned_editor_user_ids' => $validIds ?: null,
+        ]);
+
+        SubmissionActivityLog::record($submission->id, $userId, 'assigned_editors_changed', [
+            'previous' => array_values(array_map('intval', $previous)),
+            'current' => $validIds,
+        ]);
+
+        return redirect()->route('forms.submission.show', $submission)
+            ->with('success', __('common.assigned_editors_updated'));
+    }
+
     public function duplicate(DocumentFormSubmission $submission): RedirectResponse
     {
         $userId = (int) (session('user.id') ?? 0);
@@ -520,13 +636,37 @@ class DocumentFormSubmissionController extends Controller
     // ── Private helpers ─────────────────────────────────────
 
 
+    /**
+     * Edit-draft gate: owner OR an assigned editor may write field values to
+     * a draft. Status must be 'draft' — assignees cannot edit submitted /
+     * approved forms through this gate (approvers use a separate path).
+     */
     private function authorizeOwnerDraft(DocumentFormSubmission $submission): void
+    {
+        $userId = (int) (session('user.id') ?? 0);
+        $isOwner = (int) $submission->user_id === $userId;
+        $isAssignee = $submission->isAssignedEditor($userId);
+        abort_unless($isOwner || $isAssignee, 403);
+        abort_unless($submission->status === 'draft', 403);
+    }
+
+    /**
+     * Lifecycle-changing actions (submit, destroy, return-to-draft) stay
+     * owner-only — assignees collaborate on content, not workflow state.
+     * Submitting as an assignee would also confuse downstream "requester"
+     * lookups in the approval flow.
+     */
+    private function authorizeOwnerOnlyDraft(DocumentFormSubmission $submission): void
     {
         $userId = (int) (session('user.id') ?? 0);
         abort_unless((int) $submission->user_id === $userId, 403);
         abort_unless($submission->status === 'draft', 403);
     }
 
+    /**
+     * Pulling a rejected submission back to draft is owner-only — see
+     * authorizeOwnerOnlyDraft rationale (it changes lifecycle).
+     */
     private function authorizeReturnToDraft(DocumentFormSubmission $submission): void
     {
         $userId = (int) (session('user.id') ?? 0);
@@ -538,11 +678,32 @@ class DocumentFormSubmissionController extends Controller
     {
         $userId = (int) (session('user.id') ?? 0);
         $isOwner = (int) $submission->user_id === $userId;
+        $isAssignee = $submission->isAssignedEditor($userId);
         $isSuperAdmin = (bool) session('user.is_super_admin', false);
-        if ($isOwner || $isSuperAdmin) {
+        if ($isOwner || $isAssignee || $isSuperAdmin) {
             return;
         }
         abort_unless($this->isApproverForSubmission($submission, $userId), 403);
+    }
+
+    /**
+     * Restrict a draft-update payload to the field keys the given non-owner
+     * editor is allowed to write, based on each field's editable_by tokens.
+     * Only fields whose tokens include 'user:{$userId}' are kept; everything
+     * else is dropped server-side so a tampered request can't bypass the UI.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function filterPayloadForAssignee(DocumentFormSubmission $submission, array $payload, int $userId): array
+    {
+        $token = 'user:'.$userId;
+        $allowedKeys = $submission->form?->fields
+            ?->filter(fn (DocumentFormField $f) => in_array($token, $f->effective_editable_by, true))
+            ->pluck('field_key')
+            ->all() ?? [];
+
+        return array_intersect_key($payload, array_flip($allowedKeys));
     }
 
     /**
@@ -601,31 +762,135 @@ class DocumentFormSubmissionController extends Controller
     }
 
     /**
+     * Persist uploaded files for `file`, `image`, and `multi_file` fields to
+     * storage/app/public/forms/{form_key}/ and replace the payload entry with
+     * the stored path(s). For `multi_file`, the value becomes an array of
+     * paths; for `file`/`image`, a single path string.
+     *
+     * When a field has no new upload, the previous value (from $existingPayload)
+     * is preserved so edit-draft doesn't clobber existing photos.
+     */
+    private function processFileUploads(DocumentForm $form, array $payload, Request $request, array $existingPayload = []): array
+    {
+        foreach ($form->fields as $field) {
+            $key = $field->field_key;
+            $type = $field->field_type;
+
+            if (! in_array($type, ['file', 'image', 'multi_file'], true)) {
+                continue;
+            }
+
+            $dir = 'forms/' . $form->form_key;
+
+            if ($type === 'multi_file') {
+                $files = $request->file("fields.{$key}");
+                if (is_array($files) && count($files) > 0) {
+                    $paths = [];
+                    foreach ($files as $file) {
+                        if ($file && $file->isValid()) {
+                            $paths[] = $file->store($dir, 'public');
+                        }
+                    }
+                    // Merge with existing (append new to previously saved array)
+                    $existing = is_array($existingPayload[$key] ?? null) ? $existingPayload[$key] : [];
+                    $payload[$key] = array_merge($existing, $paths);
+                } else {
+                    // No new uploads — keep existing array
+                    $payload[$key] = $existingPayload[$key] ?? [];
+                }
+                continue;
+            }
+
+            // Single file / image
+            $file = $request->file("fields.{$key}");
+            if ($file && $file->isValid()) {
+                $payload[$key] = $file->store($dir, 'public');
+            } elseif (! array_key_exists($key, $payload) || $payload[$key] === null || $payload[$key] === '') {
+                $payload[$key] = $existingPayload[$key] ?? null;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
      * @return array{rules: array, attributes: array}
      */
-    private function buildPayloadRules(DocumentForm $form): array
+    private function buildPayloadRules(DocumentForm $form, array $submittedPayload = []): array
     {
         $rules = [];
         $attributes = [];
 
         foreach ($form->fields as $field) {
-            if (in_array($field->field_type, ['section', 'auto_number'])) {
+            if (in_array($field->field_type, ['section', 'auto_number', 'page_break'])) {
                 continue;
             }
 
             $key = "fields.{$field->field_key}";
             $attributes[$key] = $field->label;
 
-            $fieldRules = $field->is_required ? ['required'] : ['nullable'];
+            // Group (subform) — validate as array of objects + per-inner rules
+            if ($field->field_type === 'group') {
+                $opts = is_array($field->options) ? $field->options : [];
+                $minRows = (int) ($opts['min_rows'] ?? 0);
+                $maxRows = (int) ($opts['max_rows'] ?? 200);
+                $arrRules = ['array', 'max:' . $maxRows];
+                if ($field->is_required || $minRows > 0) {
+                    $arrRules[] = 'required';
+                    $arrRules[] = 'min:' . max(1, $minRows);
+                } else {
+                    $arrRules[] = 'nullable';
+                }
+                $rules[$key] = $arrRules;
+
+                foreach ($opts['fields'] ?? [] as $inner) {
+                    $innerKey = (string) ($inner['key'] ?? '');
+                    if ($innerKey === '') {
+                        continue;
+                    }
+                    $innerRules = (bool) ($inner['required'] ?? false) ? ['required'] : ['nullable'];
+                    $innerRules[] = match ($inner['type'] ?? '') {
+                        'number', 'currency' => 'numeric',
+                        'date' => 'date',
+                        'email' => 'email',
+                        'multi_select', 'checkbox' => 'array',
+                        default => 'string',
+                    };
+                    $rules["{$key}.*.{$innerKey}"] = $innerRules;
+                    $attributes["{$key}.*.{$innerKey}"] = $inner['label'] ?? $innerKey;
+                }
+                continue;
+            }
+
+            // Resolve the field's required state up-front against the submitted
+            // payload — conditional required becomes a real `required` rule
+            // when its rules evaluate true (and the field is visible). This
+            // approach sidesteps Laravel's "skip-empty for non-implicit rules"
+            // behavior that prevents closure rules from firing on '' / null.
+            $isRequired = (bool) $field->is_required;
+            if (! $isRequired && ! empty($field->required_rules)) {
+                $isVisible = empty($field->visibility_rules)
+                    || self::evaluateRulesPhp($field->visibility_rules, $submittedPayload);
+                if ($isVisible && self::evaluateRulesPhp($field->required_rules, $submittedPayload)) {
+                    $isRequired = true;
+                }
+            }
+            $fieldRules = $isRequired ? ['required'] : ['nullable'];
 
             $fieldRules[] = match ($field->field_type) {
                 'number', 'currency' => 'numeric',
                 'date' => 'date',
                 'email' => 'email',
-                'checkbox', 'multi_select' => 'array',
+                'checkbox', 'multi_select', 'multi_file' => 'array',
                 'image' => 'file|image|max:5120',
+                'file' => 'file|max:10240',
                 default => 'string',
             };
+
+            // multi_file: validate each uploaded file individually under .*
+            if ($field->field_type === 'multi_file') {
+                $rules[$key . '.*'] = ['file', 'max:10240'];
+            }
 
             // Apply configurable validation_rules from field definition
             $vr = $field->validation_rules;
@@ -663,5 +928,51 @@ class DocumentFormSubmissionController extends Controller
         }
 
         return ['rules' => $rules, 'attributes' => $attributes];
+    }
+
+    /**
+     * Evaluate visibility_rules / required_rules JSON against a payload.
+     * Mirrors the JS evaluator in `resources/js/app.js::evaluateVisibilityRules`
+     * — same 8 operators, same AND-of-rules semantics. Stays in sync with the
+     * client to avoid divergent "client says required, server disagrees" bugs.
+     *
+     * @param  array<int, array{field?:string, operator?:string, value?:mixed}>  $rules
+     * @param  array<string, mixed>  $payload  Field key → value pairs
+     */
+    private static function evaluateRulesPhp(array $rules, array $payload): bool
+    {
+        if (empty($rules)) {
+            return false;
+        }
+        foreach ($rules as $rule) {
+            if (! is_array($rule) || empty($rule['field'])) {
+                continue;
+            }
+            $fieldKey = (string) $rule['field'];
+            $op = (string) ($rule['operator'] ?? 'equals');
+            $expected = $rule['value'] ?? null;
+            $actual = $payload[$fieldKey] ?? null;
+
+            $isArray = is_array($actual);
+            $contains = fn ($haystack, $needle) => $isArray
+                ? in_array($needle, $haystack, false)
+                : ((string) $haystack === (string) $needle);
+
+            $match = match ($op) {
+                'equals' => $contains($actual, $expected),
+                'not_equals' => ! $contains($actual, $expected),
+                'is_empty' => $actual === null || $actual === '' || $actual === [],
+                'is_not_empty' => ! ($actual === null || $actual === '' || $actual === []),
+                'greater_than' => is_numeric($actual) && is_numeric($expected) && (float) $actual > (float) $expected,
+                'less_than' => is_numeric($actual) && is_numeric($expected) && (float) $actual < (float) $expected,
+                'in' => is_array($expected) && in_array((string) $actual, array_map('strval', $expected), true),
+                'not_in' => is_array($expected) && ! in_array((string) $actual, array_map('strval', $expected), true),
+                default => false,
+            };
+            if (! $match) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Department;
 use App\Models\DocumentForm;
 use App\Models\DocumentFormSubmission;
 use App\Models\RunningNumberConfig;
+use App\Models\User;
 use App\Services\FormSchemaService;
 use App\Support\LookupRegistry;
 use Illuminate\Http\RedirectResponse;
@@ -35,11 +36,23 @@ class DocumentFormController extends Controller
     private static function allowedFieldTypes(): array
     {
         return [
-            'text', 'textarea', 'number', 'date', 'select', 'checkbox', 'radio', 'file',
+            'text', 'textarea', 'number', 'date', 'select', 'checkbox', 'radio', 'file', 'multi_file',
             'time', 'datetime', 'email', 'phone', 'signature', 'currency', 'lookup', 'table', 'section',
-            'auto_number', 'image', 'multi_select',
+            'auto_number', 'image', 'multi_select', 'group', 'page_break', 'qr_code',
         ];
     }
+
+    /**
+     * Field types that may appear inside a `group` (subform) field's inner
+     * fields list. Excludes uploads/signature/nested groups/structural items
+     * because they break the simple per-row binding pattern.
+     *
+     * @var list<string>
+     */
+    public const GROUP_INNER_FIELD_TYPES = [
+        'text', 'textarea', 'number', 'currency', 'date', 'time', 'datetime',
+        'email', 'phone', 'select', 'multi_select', 'radio', 'checkbox', 'lookup',
+    ];
 
     public function index(): View
     {
@@ -57,8 +70,9 @@ class DocumentFormController extends Controller
         $lookupSources = LookupRegistry::sources();
         $workflowStepsByDocType = $this->workflowStepsByDocType();
         $departments = Department::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $companyUsers = $this->companyUsersForPicker();
 
-        return view('settings.document-forms.create', compact('lookupSources', 'workflowStepsByDocType', 'departments'));
+        return view('settings.document-forms.create', compact('lookupSources', 'workflowStepsByDocType', 'departments', 'companyUsers'));
     }
 
     public function edit(DocumentForm $documentForm): View
@@ -67,8 +81,27 @@ class DocumentFormController extends Controller
         $lookupSources = LookupRegistry::sources();
         $workflowStepsByDocType = $this->workflowStepsByDocType();
         $departments = Department::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $companyUsers = $this->companyUsersForPicker();
 
-        return view('settings.document-forms.edit', compact('documentForm', 'lookupSources', 'workflowStepsByDocType', 'departments'));
+        return view('settings.document-forms.edit', compact('documentForm', 'lookupSources', 'workflowStepsByDocType', 'departments', 'companyUsers'));
+    }
+
+    /**
+     * Active users available as field-level editors. Returned id+name pairs are
+     * consumed by the form builder JS to render the per-field user picker.
+     * Sorted by name for stable lookup ordering.
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    private function companyUsersForPicker(): array
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name'])
+            ->map(fn (User $u) => ['id' => (int) $u->id, 'name' => $u->name])
+            ->all();
     }
 
     /**
@@ -139,18 +172,25 @@ class DocumentFormController extends Controller
             ],
             'fields' => ['required', 'array', 'min:1'],
             'fields.*.field_key' => ['required', 'string', 'max:100', 'alpha_dash'],
-            'fields.*.label' => ['required', 'string', 'max:255'],
+            'fields.*.label' => ['nullable', 'string', 'max:255'],
+            'fields.*.label_en' => ['nullable', 'string', 'max:255'],
+            'fields.*.label_th' => ['nullable', 'string', 'max:255'],
             'fields.*.field_type' => ['required', Rule::in(self::allowedFieldTypes())],
             'fields.*.is_required' => ['nullable', 'boolean'],
             'fields.*.is_searchable' => ['nullable', 'boolean'],
+            'fields.*.is_readonly' => ['nullable', 'boolean'],
             'fields.*.placeholder' => ['nullable', 'string', 'max:255'],
+            'fields.*.default_value' => ['nullable', 'string', 'max:255'],
             'fields.*.options_raw' => ['nullable', 'string'],
             'fields.*.lookup_source' => ['nullable', 'string', 'max:100'],
             'fields.*.depends_on' => ['nullable', 'string', 'max:100', 'alpha_dash'],
             'fields.*.foreign_key' => ['nullable', 'string', 'max:100'],
             'fields.*.table_columns' => ['nullable', 'string', 'max:65535'],
+            'fields.*.group_options' => ['nullable', 'string', 'max:65535'],
+            'fields.*.qr_options' => ['nullable', 'string', 'max:2000'],
             'fields.*.col_span' => ['nullable', 'integer', 'min:0', 'max:4'],
             'fields.*.visibility_rules' => ['nullable', 'string', 'max:65535'],
+            'fields.*.required_rules' => ['nullable', 'string', 'max:65535'],
             'fields.*.validation_rules' => ['nullable', 'string', 'max:65535'],
             'fields.*.editable_by' => ['nullable', 'string', 'max:2000'],
             'fields.*.visible_to_departments' => ['nullable', 'string', 'max:2000'],
@@ -230,10 +270,15 @@ class DocumentFormController extends Controller
                 }
 
                 if (in_array($type, ['select', 'radio', 'checkbox', 'multi_select'], true)) {
-                    $raw = $field['options_raw'] ?? '';
-                    $lines = array_values(array_filter(array_map('trim', explode("\n", (string) $raw))));
-                    if (count($lines) < 1) {
-                        $v->errors()->add("fields.{$i}.options_raw", __('validation.document_form.options_required'));
+                    // multi_select accepts lookup_source as an alternative to hardcoded options_raw
+                    if ($type === 'multi_select' && ! empty($field['lookup_source'])) {
+                        // lookup source set → skip the options_raw check
+                    } else {
+                        $raw = $field['options_raw'] ?? '';
+                        $lines = array_values(array_filter(array_map('trim', explode("\n", (string) $raw))));
+                        if (count($lines) < 1) {
+                            $v->errors()->add("fields.{$i}.options_raw", __('validation.document_form.options_required'));
+                        }
                     }
                 }
 
@@ -309,15 +354,20 @@ class DocumentFormController extends Controller
             foreach ($validated['fields'] as $index => $field) {
                 $form->fields()->create([
                     'field_key' => $field['field_key'],
-                    'label' => $field['label'],
+                    'label' => $field['label_th'] ?? $field['label'] ?? $field['label_en'] ?? '',
+                    'label_en' => $field['label_en'] ?? null,
+                    'label_th' => $field['label_th'] ?? null,
                     'field_type' => $field['field_type'],
                     'is_required' => (bool) ($field['is_required'] ?? false),
                     'is_searchable' => $this->resolveIsSearchable($field),
                     'sort_order' => $index + 1,
                     'col_span' => (int) ($field['col_span'] ?? 0),
                     'placeholder' => $field['placeholder'] ?? null,
+                    'default_value' => $this->normalizeDefaultValue($field),
+                    'is_readonly' => (bool) ($field['is_readonly'] ?? false),
                     'options' => $this->parseOptions($field),
                     'visibility_rules' => $this->parseJsonField($field['visibility_rules'] ?? null),
+                    'required_rules' => $this->parseJsonField($field['required_rules'] ?? null),
                     'validation_rules' => $this->parseJsonField($field['validation_rules'] ?? null),
                     'editable_by' => $this->parseEditableBy($field, $validated['document_type']),
                     'visible_to_departments' => $this->parseDepartmentIds($field),
@@ -353,15 +403,20 @@ class DocumentFormController extends Controller
             foreach ($validated['fields'] as $index => $field) {
                 $documentForm->fields()->create([
                     'field_key' => $field['field_key'],
-                    'label' => $field['label'],
+                    'label' => $field['label_th'] ?? $field['label'] ?? $field['label_en'] ?? '',
+                    'label_en' => $field['label_en'] ?? null,
+                    'label_th' => $field['label_th'] ?? null,
                     'field_type' => $field['field_type'],
                     'is_required' => (bool) ($field['is_required'] ?? false),
                     'is_searchable' => $this->resolveIsSearchable($field),
                     'sort_order' => $index + 1,
                     'col_span' => (int) ($field['col_span'] ?? 0),
                     'placeholder' => $field['placeholder'] ?? null,
+                    'default_value' => $this->normalizeDefaultValue($field),
+                    'is_readonly' => (bool) ($field['is_readonly'] ?? false),
                     'options' => $this->parseOptions($field),
                     'visibility_rules' => $this->parseJsonField($field['visibility_rules'] ?? null),
+                    'required_rules' => $this->parseJsonField($field['required_rules'] ?? null),
                     'validation_rules' => $this->parseJsonField($field['validation_rules'] ?? null),
                     'editable_by' => $this->parseEditableBy($field, $validated['document_type']),
                     'visible_to_departments' => $this->parseDepartmentIds($field),
@@ -494,12 +549,16 @@ class DocumentFormController extends Controller
                 $clone->fields()->create([
                     'field_key' => $field->field_key,
                     'label' => $field->label,
+                    'label_en' => $field->label_en,
+                    'label_th' => $field->label_th,
                     'field_type' => $field->field_type,
                     'is_required' => $field->is_required,
                     'is_searchable' => $field->is_searchable,
                     'sort_order' => $field->sort_order,
                     'col_span' => $field->col_span,
                     'placeholder' => $field->placeholder,
+                    'default_value' => $field->default_value,
+                    'is_readonly' => $field->is_readonly,
                     'options' => $field->options,
                     'visible_to_departments' => $field->visible_to_departments,
                     'editable_by' => $field->editable_by,
@@ -558,6 +617,28 @@ class DocumentFormController extends Controller
             return null;
         }
 
+        // Group (subform) fields store nested field definitions + repeater meta
+        if ($fieldType === 'group') {
+            return $this->parseGroupOptions($field);
+        }
+
+        // QR code: template + size + label position; no payload column.
+        if ($fieldType === 'qr_code') {
+            return $this->parseQrOptions($field);
+        }
+
+        // multi_select supports either a lookup source OR hardcoded options.
+        // Admin picks one mode via the form-builder UI; lookup_source wins when both are present.
+        if ($fieldType === 'multi_select') {
+            if (! empty($field['lookup_source'])) {
+                return ['source' => $field['lookup_source']];
+            }
+            $raw = $field['options_raw'] ?? null;
+            $lines = array_values(array_filter(array_map('trim', explode("\n", (string) $raw))));
+
+            return count($lines) ? $lines : null;
+        }
+
         // Select/radio/checkbox store text-based options
         if (in_array($fieldType, ['select', 'radio', 'checkbox'])) {
             $raw = $field['options_raw'] ?? null;
@@ -570,8 +651,131 @@ class DocumentFormController extends Controller
     }
 
     /**
+     * Normalise the inner-field definitions of a `group` (subform) field.
+     * Drops inner fields whose type is not in GROUP_INNER_FIELD_TYPES,
+     * deduplicates inner field keys, and clamps row counts.
+     *
+     * Stored shape (returned):
+     *   [
+     *     'fields' => [['key' => 'name', 'label' => '...', 'type' => 'text', 'required' => true, 'col_span' => 2], ...],
+     *     'min_rows' => 0..N, 'max_rows' => 1..200,
+     *     'label_singular' => string|null,
+     *     'layout_columns' => 1..4,
+     *   ]
+     */
+    private function parseGroupOptions(array $field): ?array
+    {
+        $raw = $field['group_options'] ?? null;
+        if (! $raw) {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $rawFields = is_array($decoded['fields'] ?? null) ? $decoded['fields'] : [];
+        $cleanFields = [];
+        $seenKeys = [];
+        foreach ($rawFields as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $key = preg_replace('/[^a-z0-9_]/i', '', (string) ($row['key'] ?? ''));
+            $type = (string) ($row['type'] ?? '');
+            if ($key === '' || isset($seenKeys[$key])) {
+                continue;
+            }
+            if (! in_array($type, self::GROUP_INNER_FIELD_TYPES, true)) {
+                continue;
+            }
+            $seenKeys[$key] = true;
+            $cleanFields[] = [
+                'key' => $key,
+                'label' => (string) ($row['label_th'] ?? $row['label'] ?? $row['label_en'] ?? $key),
+                'label_en' => isset($row['label_en']) ? (string) $row['label_en'] : null,
+                'label_th' => isset($row['label_th']) ? (string) $row['label_th'] : null,
+                'type' => $type,
+                'required' => (bool) ($row['required'] ?? false),
+                'col_span' => max(0, min(4, (int) ($row['col_span'] ?? 0))),
+                'options' => is_array($row['options'] ?? null) ? array_values($row['options']) : null,
+            ];
+        }
+        if (! $cleanFields) {
+            return null;
+        }
+
+        return [
+            'fields' => $cleanFields,
+            'min_rows' => max(0, min(200, (int) ($decoded['min_rows'] ?? 0))),
+            'max_rows' => max(1, min(200, (int) ($decoded['max_rows'] ?? 20))),
+            'label_singular' => isset($decoded['label_singular']) ? (string) $decoded['label_singular'] : null,
+            'layout_columns' => max(1, min(4, (int) ($decoded['layout_columns'] ?? 1))),
+        ];
+    }
+
+    /**
+     * Normalise QR-code field options: template (required, ≤1000 chars),
+     * size (one of 96/128/192/256), label_position (above/below/none).
+     * Returns null when the template is empty so the column stays clean.
+     */
+    private function parseQrOptions(array $field): ?array
+    {
+        $raw = $field['qr_options'] ?? null;
+        if (! $raw) {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+        $template = trim((string) ($decoded['template'] ?? ''));
+        if ($template === '') {
+            return null;
+        }
+        $size = (int) ($decoded['size'] ?? 128);
+        if (! in_array($size, [96, 128, 192, 256], true)) {
+            $size = 128;
+        }
+        $pos = (string) ($decoded['label_position'] ?? 'below');
+        if (! in_array($pos, ['above', 'below', 'none'], true)) {
+            $pos = 'below';
+        }
+        return [
+            'template' => mb_substr($template, 0, 1000),
+            'size' => $size,
+            'label_position' => $pos,
+        ];
+    }
+
+    /**
      * Parse a JSON string field from the form builder into an array or null.
      */
+    /**
+     * Normalise the field-level `default_value` string.
+     *
+     * For date fields we accept DateExpressionResolver keywords (today/yesterday/tomorrow)
+     * or a literal YYYY-MM-DD — unresolvable input is dropped. Non-date field types
+     * keep the raw trimmed string (future-proof for text/number defaults).
+     */
+    private function normalizeDefaultValue(array $field): ?string
+    {
+        $raw = trim((string) ($field['default_value'] ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        if (($field['field_type'] ?? '') === 'date') {
+            $lower = strtolower($raw);
+            if (in_array($lower, ['today', 'yesterday', 'tomorrow'], true)) {
+                return $lower;
+            }
+            return preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) ? $raw : null;
+        }
+
+        return $raw;
+    }
+
     private function parseJsonField(?string $raw): ?array
     {
         if ($raw === null || $raw === '' || $raw === '[]' || $raw === '{}') {
@@ -599,13 +803,16 @@ class DocumentFormController extends Controller
 
     /**
      * Normalise the `editable_by` field from the form builder into a clean
-     * list of allowed role strings. Roles are restricted to 'requester' plus
-     * 'step_N' values that actually exist in any workflow for the form's
-     * document_type (so admins can't save stale step_5 if the workflow was
-     * shortened later).
+     * list of allowed tokens. Tokens accepted:
+     *   - 'requester'           — original submitter
+     *   - 'step_N'              — approver at workflow step N (must exist in
+     *                             a workflow for this document_type)
+     *   - 'user:{id}'           — specific active user (validated against DB)
      *
-     * Returns null when the submitted value equals the implicit default
-     * `['requester']`, so DB column stays null for unchanged/default fields.
+     * Stale step_N tokens (workflow was shortened) and unknown user ids are
+     * dropped silently. Returns null when the submitted value equals the
+     * implicit default `['requester']` so the column stays null for
+     * unchanged/default fields.
      */
     private function parseEditableBy(array $field, string $documentType): ?array
     {
@@ -618,9 +825,35 @@ class DocumentFormController extends Controller
             fn ($row) => 'step_'.$row['step_no'],
             $this->workflowStepsByDocType()[$documentType] ?? []
         );
-        $allowed = array_merge(['requester'], $allowedSteps);
+        $allowedRoles = array_merge(['requester'], $allowedSteps);
 
-        $clean = array_values(array_unique(array_intersect($decoded, $allowed)));
+        $cleanRoles = [];
+        $userIds = [];
+        foreach ($decoded as $token) {
+            if (! is_string($token)) {
+                continue;
+            }
+            if (in_array($token, $allowedRoles, true)) {
+                $cleanRoles[] = $token;
+            } elseif (preg_match('/^user:(\d+)$/', $token, $m)) {
+                $userIds[] = (int) $m[1];
+            }
+        }
+        $cleanRoles = array_values(array_unique($cleanRoles));
+
+        $cleanUserTokens = [];
+        if ($userIds) {
+            $validIds = User::query()
+                ->whereIn('id', array_unique($userIds))
+                ->where('is_active', true)
+                ->pluck('id')
+                ->all();
+            foreach ($validIds as $id) {
+                $cleanUserTokens[] = 'user:'.(int) $id;
+            }
+        }
+
+        $clean = array_values(array_merge($cleanRoles, $cleanUserTokens));
 
         // default `['requester']` → null so we don't bloat the column
         if ($clean === ['requester']) {

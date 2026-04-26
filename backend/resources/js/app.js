@@ -1,6 +1,7 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
 import Chart from 'chart.js/auto';
+import QRCode from 'qrcode';
 window.Chart = Chart;
 
 // ต้องกำหนดก่อน Alpine.start()
@@ -246,31 +247,51 @@ Alpine.data('thaiSubdistrictPicker', (config) => ({
  * Evaluate visibility rules for dynamic form fields.
  * Rules format: [{ field: "field_key", operator: "equals", value: "urgent" }, ...]
  * Multiple rules are ANDed (all must be true for the field to show).
+ *
+ * Server is authoritative — this mirror must stay in sync with
+ * DocumentFormSubmissionController::evaluateRulesPhp. See
+ * tests/Feature/EvaluateRulesPhpTest.php for the matrix of expected behavior.
  */
 window.evaluateVisibilityRules = function (rules, formData) {
     if (!rules || !rules.length) return true;
+    const isEmpty = function (v) {
+        // Match PHP: only null/undefined/empty-string/empty-array are empty.
+        // Notably '0' is NOT empty (it's a real value the user entered).
+        if (v === null || v === undefined) return true;
+        if (Array.isArray(v)) return v.length === 0;
+        return v === '';
+    };
     return rules.every(function (rule) {
         const fieldValue = formData[rule.field];
         const ruleValue = rule.value;
         switch (rule.operator) {
             case 'equals':
+                // Match PHP: array values check membership (multi_select / checkbox).
+                if (Array.isArray(fieldValue)) {
+                    return fieldValue.map(String).includes(String(ruleValue));
+                }
                 return String(fieldValue ?? '') === String(ruleValue);
             case 'not_equals':
+                if (Array.isArray(fieldValue)) {
+                    return !fieldValue.map(String).includes(String(ruleValue));
+                }
                 return String(fieldValue ?? '') !== String(ruleValue);
             case 'in':
                 return Array.isArray(ruleValue) && ruleValue.map(String).includes(String(fieldValue ?? ''));
             case 'not_in':
                 return Array.isArray(ruleValue) && !ruleValue.map(String).includes(String(fieldValue ?? ''));
             case 'greater_than':
-                return Number(fieldValue) > Number(ruleValue);
+                return !isNaN(Number(fieldValue)) && !isNaN(Number(ruleValue))
+                    && Number(fieldValue) > Number(ruleValue);
             case 'less_than':
-                return Number(fieldValue) < Number(ruleValue);
+                return !isNaN(Number(fieldValue)) && !isNaN(Number(ruleValue))
+                    && Number(fieldValue) < Number(ruleValue);
             case 'is_empty':
-                return !fieldValue || String(fieldValue).trim() === '';
+                return isEmpty(fieldValue);
             case 'is_not_empty':
-                return !!fieldValue && String(fieldValue).trim() !== '';
+                return !isEmpty(fieldValue);
             default:
-                return true;
+                return false;
         }
     });
 };
@@ -279,6 +300,16 @@ Alpine.data('dynamicForm', (initialPayload) => ({
     // fp is the reactive payload — accessed directly in x-show expressions
     // e.g. x-show="fp['priority'] === 'ฉุกเฉิน'"
     fp: initialPayload || {},
+    /**
+     * Mirror of the server-side conditional-required check. The field
+     * gets a red asterisk in real time when its required_rules evaluate
+     * true against the current payload. Server is still the authority —
+     * this is only for UX feedback.
+     */
+    requiredRulesActive(rules) {
+        return Array.isArray(rules) && rules.length > 0
+            && window.evaluateVisibilityRules(rules, this.fp);
+    },
     init() {
         const self = this;
 
@@ -311,6 +342,40 @@ Alpine.data('dynamicForm', (initialPayload) => ({
         this.$el.addEventListener('change', handler);
         this.$el.addEventListener('input', handler);
     }
+}));
+
+// Render any <canvas data-qr-payload="..." data-qr-size="..."> elements
+// on the page. Idempotent — `data-qr-rendered=1` flag prevents double draws
+// if multiple lifecycle events fire (DOMContentLoaded + manual call).
+window.renderFormQrCodes = function () {
+    document.querySelectorAll('canvas[data-qr-payload]').forEach((canvas) => {
+        if (canvas.dataset.qrRendered === '1') return;
+        const payload = canvas.dataset.qrPayload;
+        if (!payload) return;
+        const size = parseInt(canvas.dataset.qrSize || '128', 10);
+        QRCode.toCanvas(canvas, payload, { width: size, margin: 1 }, (err) => {
+            if (!err) canvas.dataset.qrRendered = '1';
+        });
+    });
+};
+document.addEventListener('DOMContentLoaded', () => window.renderFormQrCodes());
+
+// Group repeater (subform) — used by the `group` field type. Manages a
+// reactive array of row-objects bound to nested `fields[key][i][innerKey]`
+// inputs; min/max guard add/remove buttons in the dynamic-field component.
+Alpine.data('groupRepeater', (init) => ({
+    rows: Array.isArray(init?.rows) && init.rows.length ? init.rows : [{}],
+    minRows: Number(init?.minRows ?? 0),
+    maxRows: Number(init?.maxRows ?? 200),
+    addRow() {
+        if (this.rows.length >= this.maxRows) return;
+        this.rows.push({});
+    },
+    removeRow(idx) {
+        if (this.rows.length <= this.minRows) return;
+        this.rows.splice(idx, 1);
+        if (this.rows.length === 0) this.rows.push({});
+    },
 }));
 
 // Cascading lookup component for document form fields

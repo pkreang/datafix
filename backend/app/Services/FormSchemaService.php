@@ -18,7 +18,7 @@ class FormSchemaService
     ];
 
     /** Field types that do not store data — skip when creating columns. */
-    private const SKIP_TYPES = ['section', 'auto_number'];
+    private const SKIP_TYPES = ['section', 'auto_number', 'page_break', 'qr_code'];
 
     public function getTableName(string $formKey): string
     {
@@ -234,7 +234,9 @@ class FormSchemaService
             'date' => $table->date($fieldKey)->nullable(),
             'time' => $table->time($fieldKey)->nullable(),
             'datetime' => $table->dateTime($fieldKey)->nullable(),
-            'checkbox', 'table', 'multi_select' => $table->json($fieldKey)->nullable(),
+            'checkbox', 'table', 'multi_select', 'multi_file', 'group' => $table->json($fieldKey)->nullable(),
+            // page_break + qr_code are display-only — no column is created.
+            'page_break', 'qr_code' => null,
             default => $table->string($fieldKey)->nullable(),
             // text, email, phone, select, radio, lookup, file, image → string
         };
