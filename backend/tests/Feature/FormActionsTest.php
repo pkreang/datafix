@@ -798,6 +798,133 @@ class FormActionsTest extends TestCase
         $this->assertSame('after', $fresh->payload['allowed_field']);
     }
 
+    // ── Form builder roundtrip + combined-rule coverage ────
+
+    public function test_form_builder_persists_group_options_roundtrip(): void
+    {
+        $this->seedBase();
+        \App\Models\DocumentType::updateOrCreate(['code' => 'generic'], [
+            'label_en' => 'Generic', 'label_th' => 'ทั่วไป', 'is_active' => true,
+        ]);
+        $admin = $this->makeSuperAdmin();
+
+        $groupOpts = [
+            'fields' => [
+                ['key' => 'name', 'label_th' => 'ชื่อ', 'type' => 'text', 'required' => true, 'col_span' => 2],
+                ['key' => 'pct',  'label_th' => 'สัดส่วน', 'type' => 'number', 'required' => false, 'col_span' => 1],
+            ],
+            'min_rows' => 1,
+            'max_rows' => 5,
+            'layout_columns' => 2,
+            'label_singular' => 'ผู้รับผลประโยชน์',
+        ];
+
+        $this->actingAsWebSession($admin)
+            ->post(route('settings.document-forms.store'), [
+                'form_key' => 'group_rt_form',
+                'name' => 'Group Roundtrip Form',
+                'document_type' => 'generic',
+                'layout_columns' => 1,
+                'table_name' => 'group_rt_form',
+                'fields' => [[
+                    'field_key' => 'beneficiaries',
+                    'label' => 'Beneficiaries',
+                    'field_type' => 'group',
+                    'group_options' => json_encode($groupOpts),
+                ]],
+            ])
+            ->assertRedirect(route('settings.document-forms.index'));
+
+        $field = DocumentForm::where('form_key', 'group_rt_form')->firstOrFail()->fields->first();
+        $this->assertNotNull($field->options);
+        $this->assertSame('beneficiaries', $field->field_key);
+        $this->assertSame(1, $field->options['min_rows']);
+        $this->assertSame(5, $field->options['max_rows']);
+        $this->assertSame('ผู้รับผลประโยชน์', $field->options['label_singular']);
+        $this->assertCount(2, $field->options['fields']);
+        $this->assertSame('name', $field->options['fields'][0]['key']);
+        $this->assertTrue($field->options['fields'][0]['required']);
+    }
+
+    public function test_form_builder_persists_qr_options_roundtrip(): void
+    {
+        $this->seedBase();
+        \App\Models\DocumentType::updateOrCreate(['code' => 'generic'], [
+            'label_en' => 'Generic', 'label_th' => 'ทั่วไป', 'is_active' => true,
+        ]);
+        $admin = $this->makeSuperAdmin();
+
+        $qrOpts = [
+            'template' => 'https://app.local/verify/{ref_no}',
+            'size' => 192,
+            'label_position' => 'above',
+        ];
+
+        $this->actingAsWebSession($admin)
+            ->post(route('settings.document-forms.store'), [
+                'form_key' => 'qr_rt_form',
+                'name' => 'QR Roundtrip Form',
+                'document_type' => 'generic',
+                'layout_columns' => 1,
+                'table_name' => 'qr_rt_form',
+                'fields' => [[
+                    'field_key' => 'verify_qr',
+                    'label' => 'Verification QR',
+                    'field_type' => 'qr_code',
+                    'qr_options' => json_encode($qrOpts),
+                ]],
+            ])
+            ->assertRedirect(route('settings.document-forms.index'));
+
+        $field = DocumentForm::where('form_key', 'qr_rt_form')->firstOrFail()->fields->first();
+        $this->assertNotNull($field->options);
+        $this->assertSame($qrOpts['template'], $field->options['template']);
+        $this->assertSame(192, $field->options['size']);
+        $this->assertSame('above', $field->options['label_position']);
+    }
+
+    public function test_required_rules_apply_when_visibility_passes(): void
+    {
+        // Companion to test_conditional_required_skipped_when_field_hidden_by_visibility
+        // Same form layout; this case proves the POSITIVE half of the visibility
+        // gate — when visibility holds AND required_rules are true, the field
+        // really is required (422 fires).
+        $this->seedBase();
+        $form = DocumentForm::create([
+            'form_key' => 'cv_form_pos',
+            'name' => 'Conditional Visibility Form (positive)',
+            'document_type' => 'generic',
+            'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'gate', 'label' => 'Gate',
+            'field_type' => 'text', 'sort_order' => 1,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'trigger', 'label' => 'Trigger',
+            'field_type' => 'text', 'sort_order' => 2,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'note', 'label' => 'Note',
+            'field_type' => 'text', 'sort_order' => 3,
+            'is_required' => false,
+            'visibility_rules' => [['field' => 'gate', 'operator' => 'equals', 'value' => 'show']],
+            'required_rules' => [['field' => 'trigger', 'operator' => 'equals', 'value' => 'yes']],
+        ]);
+        $user = $this->makeUser();
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id, 'user_id' => $user->id,
+            'payload' => [], 'status' => 'draft',
+        ]);
+
+        // gate=show (visibility passes) AND trigger=yes → note required
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['gate' => 'show', 'trigger' => 'yes', 'note' => ''],
+            ])
+            ->assertSessionHasErrors('fields.note');
+    }
+
     private function makeConditionalRequiredForm(): array
     {
         $form = DocumentForm::create([
