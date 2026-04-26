@@ -52,9 +52,61 @@
                                 · {{ $log->created_at->format('d M Y H:i:s') }}
                                 · {{ $log->created_at->diffForHumans() }}
                             </p>
-                            @if(! empty($log->meta))
+                            @php
+                                /** Closure to format a diff value for display. */
+                                $fmt = function ($v) {
+                                    if ($v === null || $v === '') return '—';
+                                    if (is_array($v)) return implode(', ', array_map('strval', $v));
+                                    if ($v === 'file:set') return __('common.activity_diff_file_replaced');
+                                    if (is_string($v) && preg_match('/^files:(\d+)$/', $v, $m)) {
+                                        return __('common.activity_diff_files_count', ['count' => $m[1]]);
+                                    }
+                                    return (string) $v;
+                                };
+                                $changedFields = $log->meta['changed_fields'] ?? null;
+                                $otherMeta = $log->meta ? array_diff_key($log->meta, ['changed_fields' => 1, '_truncated' => 1]) : [];
+                            @endphp
+
+                            @if(is_array($changedFields) && ! empty($changedFields))
+                                <dl class="mt-2 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                                    @foreach($changedFields as $fieldKey => $change)
+                                        @php
+                                            $fieldDef = $submission->form->fields->firstWhere('field_key', $fieldKey);
+                                            $label = $fieldDef?->localized_label ?? $fieldKey;
+                                            $isGroupDelta = is_array($change) && array_key_exists('rows_added', $change);
+                                        @endphp
+                                        <div class="flex flex-wrap items-baseline gap-2">
+                                            <dt class="font-medium text-slate-700 dark:text-slate-200">{{ $label }}:</dt>
+                                            <dd class="min-w-0">
+                                                @if($isGroupDelta)
+                                                    @if(($change['rows_added'] ?? 0) > 0)
+                                                        <span class="text-green-600 dark:text-green-400">+{{ $change['rows_added'] }}</span>
+                                                    @endif
+                                                    @if(($change['rows_removed'] ?? 0) > 0)
+                                                        <span class="text-red-600 dark:text-red-400">−{{ $change['rows_removed'] }}</span>
+                                                    @endif
+                                                    @if(! empty($change['rows_changed'] ?? []))
+                                                        <span class="text-slate-500">{{ __('common.activity_diff_rows_changed', ['count' => count($change['rows_changed'])]) }}</span>
+                                                    @endif
+                                                @else
+                                                    <span class="line-through text-slate-400 dark:text-slate-500">{{ $fmt($change['from'] ?? null) }}</span>
+                                                    <span class="mx-1 text-slate-400">→</span>
+                                                    <span>{{ $fmt($change['to'] ?? null) }}</span>
+                                                @endif
+                                            </dd>
+                                        </div>
+                                    @endforeach
+                                </dl>
+                                @if(! empty($log->meta['_truncated'] ?? false))
+                                    <p class="mt-1 text-xs italic text-amber-600 dark:text-amber-400">
+                                        {{ __('common.activity_diff_truncated') }}
+                                    </p>
+                                @endif
+                            @endif
+
+                            @if(! empty($otherMeta))
                                 <dl class="mt-2 text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
-                                    @foreach($log->meta as $key => $value)
+                                    @foreach($otherMeta as $key => $value)
                                         <div class="flex gap-2">
                                             <dt class="font-mono text-slate-400 dark:text-slate-500 shrink-0">{{ $key }}:</dt>
                                             <dd class="truncate">{{ is_scalar($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE) }}</dd>

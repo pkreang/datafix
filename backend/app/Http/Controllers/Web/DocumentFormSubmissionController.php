@@ -291,6 +291,16 @@ class DocumentFormSubmissionController extends Controller
             $payload = array_merge($submission->payload ?? [], $allowed);
         }
 
+        // Capture per-field diff BEFORE the update so we can record what changed.
+        // Computed against the post-filter payload (what's actually persisted),
+        // so audit accurately reflects DB state — not what was attempted.
+        $fieldDefsByKey = $submission->form->fields->keyBy('field_key')->all();
+        $changedFields = \App\Support\PayloadDiffer::diff(
+            $submission->payload ?? [],
+            $payload,
+            $fieldDefsByKey,
+        );
+
         $submission->update(['payload' => $payload]);
 
         // Dual-write: update fdata_* row
@@ -298,7 +308,12 @@ class DocumentFormSubmissionController extends Controller
             $this->schemaService->updateRow($submission->form, $submission->fdata_row_id, $payload);
         }
 
-        SubmissionActivityLog::record($submission->id, (int) session('user.id'), 'updated');
+        SubmissionActivityLog::record(
+            $submission->id,
+            (int) session('user.id'),
+            'updated',
+            $changedFields ? ['changed_fields' => $changedFields] : [],
+        );
 
         return redirect()->route('forms.draft.edit', $submission)->with('success', __('common.saved'));
     }

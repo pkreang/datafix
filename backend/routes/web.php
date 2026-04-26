@@ -32,6 +32,7 @@ use App\Http\Controllers\Web\ReportDashboardController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\RunningNumberController;
 use App\Http\Controllers\Web\SettingController;
+use App\Http\Controllers\Web\SystemChangeLogController;
 use App\Http\Controllers\Web\ThailandAddressSearchController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\WorkflowController;
@@ -165,6 +166,7 @@ Route::middleware(['auth.web', 'password.enforced'])->group(function () {
     Route::put('/myprofile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::put('/myprofile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications.update');
     Route::get('/myprofile/login-history', [ProfileController::class, 'loginHistory'])->name('profile.login-history');
+    Route::get('/myprofile/activity', [ProfileController::class, 'activity'])->name('profile.activity');
     Route::post('/myprofile/pinned-menus/toggle', [UserPinnedMenuController::class, 'toggle'])->name('profile.pinned-menus.toggle');
     Route::get('/myprofile/sessions', [ProfileController::class, 'activeSessions'])->name('profile.sessions');
     Route::delete('/myprofile/sessions/{tokenId}', [ProfileController::class, 'revokeSession'])->name('profile.sessions.revoke');
@@ -282,6 +284,7 @@ Route::middleware(['auth.web', 'password.enforced'])->group(function () {
         Route::post('/settings/workflow/{workflow}/stages', [WorkflowController::class, 'addStage'])->name('settings.workflow.stages.store');
         Route::get('/settings/approval-routing', [SettingController::class, 'approvalRouting'])->name('settings.approval-routing');
         Route::post('/settings/approval-routing', [SettingController::class, 'saveApprovalRouting'])->name('settings.approval-routing.save');
+        Route::get('/settings/system-change-log', [SystemChangeLogController::class, 'index'])->name('settings.system-change-log');
         Route::get('/settings/authentication', [SettingController::class, 'authSettings'])->name('settings.auth');
         Route::post('/settings/authentication', [SettingController::class, 'saveAuthSettings'])->name('settings.auth.save');
         Route::get('/settings/document-types', [DocumentTypeController::class, 'index'])->name('settings.document-types.index');

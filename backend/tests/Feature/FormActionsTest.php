@@ -883,6 +883,47 @@ class FormActionsTest extends TestCase
         $this->assertSame('above', $field->options['label_position']);
     }
 
+    public function test_update_draft_records_field_level_diff(): void
+    {
+        $this->seedBase();
+        $form = DocumentForm::create([
+            'form_key' => 'diff_form', 'name' => 'Diff Form',
+            'document_type' => 'generic', 'is_active' => true,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'amount', 'label' => 'Amount',
+            'field_type' => 'number', 'sort_order' => 1,
+        ]);
+        DocumentFormField::create([
+            'form_id' => $form->id, 'field_key' => 'note', 'label' => 'Note',
+            'field_type' => 'text', 'sort_order' => 2,
+        ]);
+        $user = $this->makeUser();
+        $submission = DocumentFormSubmission::create([
+            'form_id' => $form->id, 'user_id' => $user->id,
+            'payload' => ['amount' => 5000, 'note' => 'pre'],
+            'status' => 'draft',
+        ]);
+
+        $this->actingAsWebSession($user)
+            ->put(route('forms.draft.update', $submission), [
+                'fields' => ['amount' => 50000, 'note' => 'pre'],
+            ])
+            ->assertRedirect(route('forms.draft.edit', $submission));
+
+        $log = \App\Models\SubmissionActivityLog::where('submission_id', $submission->id)
+            ->where('action', 'updated')
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($log, 'updated activity log row should exist');
+        $changes = $log->meta['changed_fields'] ?? [];
+        $this->assertArrayHasKey('amount', $changes);
+        $this->assertArrayNotHasKey('note', $changes, 'unchanged fields should not be in diff');
+        $this->assertSame('5000', (string) $changes['amount']['from']);
+        $this->assertSame('50000', (string) $changes['amount']['to']);
+    }
+
     public function test_required_rules_apply_when_visibility_passes(): void
     {
         // Companion to test_conditional_required_skipped_when_field_hidden_by_visibility

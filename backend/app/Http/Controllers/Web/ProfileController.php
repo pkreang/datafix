@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApprovalInstance;
 use App\Models\DocumentFormSubmission;
 use App\Models\LoginHistory;
+use App\Models\SubmissionActivityLog;
 use App\Models\NotificationPreference;
 use App\Models\Position;
 use App\Models\Setting;
@@ -233,6 +234,65 @@ class ProfileController extends Controller
             ->get();
 
         return view('profile.login-history', compact('user', 'entries'));
+    }
+
+    /**
+     * Unified per-user activity timeline merging submission events + login
+     * attempts. Caps each source at 200 most-recent rows to avoid runaway
+     * payloads; full-pagination via UNION is in the deferred backlog.
+     */
+    public function activity(\Illuminate\Http\Request $request): View|RedirectResponse
+    {
+        $user = $this->currentUser();
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        $kindFilter = (string) $request->query('kind', 'all');
+
+        $submissionRows = SubmissionActivityLog::query()
+            ->where('user_id', $user->id)
+            ->with('submission.form')
+            ->latest('created_at')
+            ->limit(200)
+            ->get()
+            ->map(fn ($r) => [
+                'kind' => 'submission',
+                'when' => $r->created_at,
+                'action' => $r->action,
+                'subject' => $r->submission?->reference_no ?? '#'.$r->submission_id,
+                'subject_secondary' => $r->submission?->form?->name,
+                'href' => $r->submission ? route('forms.submission.show', $r->submission) : null,
+                'meta' => $r->meta,
+            ]);
+
+        $loginRows = LoginHistory::query()
+            ->where('user_id', $user->id)
+            ->latest('created_at')
+            ->limit(200)
+            ->get()
+            ->map(fn ($r) => [
+                'kind' => 'login',
+                'when' => $r->created_at,
+                'action' => 'login_'.$r->result,
+                'subject' => $r->ip_address,
+                'subject_secondary' => $r->auth_provider,
+                'href' => null,
+                'meta' => array_filter([
+                    'provider' => $r->auth_provider,
+                    'failure_reason' => $r->failure_reason,
+                ]),
+            ]);
+
+        $items = collect()
+            ->merge($submissionRows)
+            ->merge($loginRows)
+            ->sortByDesc(fn ($r) => $r['when']?->getTimestamp() ?? 0)
+            ->when($kindFilter === 'submission', fn ($c) => $c->where('kind', 'submission'))
+            ->when($kindFilter === 'login', fn ($c) => $c->where('kind', 'login'))
+            ->values();
+
+        return view('profile.activity', compact('user', 'items', 'kindFilter'));
     }
 
     /**

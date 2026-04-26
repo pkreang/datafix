@@ -11,7 +11,14 @@ use App\Listeners\Approval\SendApprovalPendingNotification;
 use App\Listeners\Approval\SendPartialApprovalNotification;
 use App\Listeners\Approval\SendWorkflowOutcomeNotification;
 use App\Listeners\SendStockLowNotification;
+use App\Models\ApprovalWorkflowStage;
+use App\Models\DocumentType;
 use App\Models\Setting;
+use App\Observers\DocumentTypeObserver;
+use App\Observers\PermissionObserver;
+use App\Observers\RoleObserver;
+use App\Observers\SettingObserver;
+use App\Observers\WorkflowStageObserver;
 use App\Policies\RolePolicy;
 use App\Services\Auth\PasswordCapabilityService;
 use App\Services\Mail\ApplyDatabaseMailConfig;
@@ -23,6 +30,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -49,6 +57,15 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(WorkflowCompleted::class, SendWorkflowOutcomeNotification::class);
         Event::listen(WorkflowPartialApproval::class, SendPartialApprovalNotification::class);
         Event::listen(SparePartStockLow::class, SendStockLowNotification::class);
+
+        // System change-log observers — see SystemChangeLog + app/Observers/.
+        // Observers swallow exceptions internally, so a logging failure can
+        // never block the underlying admin save.
+        Setting::observe(SettingObserver::class);
+        ApprovalWorkflowStage::observe(WorkflowStageObserver::class);
+        DocumentType::observe(DocumentTypeObserver::class);
+        Role::observe(RoleObserver::class);
+        Permission::observe(PermissionObserver::class);
 
         Gate::before(function ($user, $ability) {
             if ($user?->is_super_admin ?? false) {
