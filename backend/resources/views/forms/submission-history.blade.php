@@ -12,7 +12,7 @@
 @endsection
 
 @section('content')
-<div style="width:100%;max-width:900px">
+<div style="width:100%;max-width:100%">
     <div class="mb-6">
         <a href="{{ route('forms.submission.show', $submission) }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.view') }}</a>
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ __('common.submission_history_title') }}</h2>

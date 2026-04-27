@@ -10,7 +10,7 @@
 @endsection
 
 @section('content')
-<div style="width:100%;max-width:1200px">
+<div style="width:100%;max-width:100%">
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ __('common.system_change_log_title') }}</h2>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ __('common.system_change_log_subtitle') }}</p>

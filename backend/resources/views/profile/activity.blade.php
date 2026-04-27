@@ -10,7 +10,7 @@
 @endsection
 
 @section('content')
-<div style="width:100%;max-width:900px">
+<div style="width:100%;max-width:100%">
     <div class="mb-6">
         <a href="{{ route('profile.edit') }}" class="text-sm text-blue-600 hover:text-blue-700">&larr; {{ __('common.profile') }}</a>
         <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-2">{{ __('common.activity_page_title') }}</h2>
