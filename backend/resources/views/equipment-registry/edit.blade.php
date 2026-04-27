@@ -4,7 +4,8 @@
 
 @section('breadcrumb')
     <x-breadcrumb :items="[
-        ['label' => __('common.equipment_list'), 'url' => route('equipment-registry.index')],
+        ['label' => 'CMMS'],
+        ['label' => __('common.equipment_registry_title'), 'url' => route('equipment-registry.index')],
         ['label' => __('common.edit_equipment')],
     ]" />
 @endsection
@@ -58,6 +59,16 @@
                 <div>
                     <label class="form-label">{{ __('common.serial_number') }}</label>
                     <input name="serial_number" value="{{ old('serial_number', $equipment->serial_number) }}" maxlength="255" class="form-input" />
+                </div>
+
+                <div>
+                    <label class="form-label">{{ __('common.manufacturer') }}</label>
+                    <input name="manufacturer" value="{{ old('manufacturer', $equipment->manufacturer) }}" maxlength="255" class="form-input" />
+                </div>
+
+                <div>
+                    <label class="form-label">{{ __('common.model') }}</label>
+                    <input name="model" value="{{ old('model', $equipment->model) }}" maxlength="255" class="form-input" />
                 </div>
 
                 <div>
@@ -117,6 +128,21 @@
                 </div>
 
                 <div>
+                    <label class="form-label">{{ __('common.criticality') }}</label>
+                    <select name="criticality" class="form-input">
+                        <option value="">{{ __('common.please_select') }}</option>
+                        <option value="A" {{ old('criticality', $equipment->criticality) == 'A' ? 'selected' : '' }}>{{ __('common.criticality_a') }}</option>
+                        <option value="B" {{ old('criticality', $equipment->criticality) == 'B' ? 'selected' : '' }}>{{ __('common.criticality_b') }}</option>
+                        <option value="C" {{ old('criticality', $equipment->criticality) == 'C' ? 'selected' : '' }}>{{ __('common.criticality_c') }}</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label">{{ __('common.purchase_date') }}</label>
+                    <input type="date" name="purchase_date" value="{{ old('purchase_date', $equipment->purchase_date?->format('Y-m-d')) }}" class="form-input" />
+                </div>
+
+                <div>
                     <label class="form-label">{{ __('common.installed_date') }}</label>
                     <input type="date" name="installed_date" value="{{ old('installed_date', $equipment->installed_date?->format('Y-m-d')) }}" class="form-input" />
                 </div>
@@ -124,6 +150,11 @@
                 <div>
                     <label class="form-label">{{ __('common.warranty_expiry') }}</label>
                     <input type="date" name="warranty_expiry" value="{{ old('warranty_expiry', $equipment->warranty_expiry?->format('Y-m-d')) }}" class="form-input" />
+                </div>
+
+                <div>
+                    <label class="form-label">{{ __('common.runtime_hours') }}</label>
+                    <input type="number" step="0.01" min="0" name="runtime_hours" value="{{ old('runtime_hours', $equipment->runtime_hours) }}" class="form-input" />
                 </div>
 
                 <div class="md:col-span-2">

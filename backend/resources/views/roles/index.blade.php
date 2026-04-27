@@ -4,8 +4,8 @@
 
 @section('breadcrumb')
     <x-breadcrumb :items="[
-        ['label' => __('common.user_and_access'), 'url' => route('users.index')],
-        ['label' => __('common.all_roles')],
+        ['label' => __('common.settings')],
+        ['label' => __('common.roles')],
     ]" />
 @endsection
 

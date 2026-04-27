@@ -61,6 +61,7 @@ return [
     'spare_parts_withdrawal_history_placeholder' => 'Withdrawal history list and filters will be implemented here.',
     'equipment_registry' => 'Equipment / Machinery Registry',
     'equipment_list' => 'Equipment / Machinery List',
+    'equipment_registry_title' => 'Equipment Registry',
     'equipment_list_desc' => 'View equipment and machinery registry.',
     'equipment_list_placeholder' => 'Equipment list will be implemented here.',
     'remark' => 'Remark',

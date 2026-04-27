@@ -4,7 +4,7 @@
 
 @section('breadcrumb')
     <x-breadcrumb :items="[
-        ['label' => __('common.profile'), 'url' => route('profile.edit')],
+        ['label' => __('common.my_profile'), 'url' => route('profile.edit')],
         ['label' => __('common.activity_page_title')],
     ]" />
 @endsection

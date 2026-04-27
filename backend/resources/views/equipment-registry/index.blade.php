@@ -4,7 +4,8 @@
 
 @section('breadcrumb')
     <x-breadcrumb :items="[
-        ['label' => __('common.equipment_list')],
+        ['label' => 'CMMS'],
+        ['label' => __('common.equipment_registry_title')],
     ]" />
 @endsection
 
@@ -63,6 +64,7 @@
             ['key' => 'serial', 'label' => __('common.serial_number')],
             ['key' => 'category', 'label' => __('common.category')],
             ['key' => 'location', 'label' => __('common.location')],
+            ['key' => 'criticality', 'label' => __('common.criticality')],
             ['key' => 'status', 'label' => __('common.status')],
             ['key' => 'actions', 'label' => __('common.actions'), 'class' => 'text-right'],
         ]"
@@ -81,6 +83,21 @@
                 <td class="table-sub">{{ $item->serial_number ?? '—' }}</td>
                 <td class="table-sub">{{ $item->category->name ?? '—' }}</td>
                 <td class="table-sub">{{ $item->location->name ?? '—' }}</td>
+                <td class="px-4 py-2 whitespace-nowrap">
+                    @switch($item->criticality)
+                        @case('A')
+                            <span class="badge-red">A</span>
+                            @break
+                        @case('B')
+                            <span class="badge-yellow">B</span>
+                            @break
+                        @case('C')
+                            <span class="badge-gray">C</span>
+                            @break
+                        @default
+                            <span class="text-slate-400 text-xs">—</span>
+                    @endswitch
+                </td>
                 <td class="px-4 py-2 whitespace-nowrap">
                     @switch($item->status)
                         @case('active')

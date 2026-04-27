@@ -44,6 +44,7 @@ return [
     'spare_parts_withdrawal_history_placeholder' => 'รายการประวัติการเบิกอะไหล่และตัวกรองจะพัฒนาต่อในส่วนนี้',
     'equipment_registry' => 'งานทะเบียน/อุปกรณ์/เครื่องจักร',
     'equipment_list' => 'รายชื่ออุปกรณ์/เครื่องจักร',
+    'equipment_registry_title' => 'ทะเบียนเครื่องจักร',
     'equipment_list_desc' => 'ดูทะเบียนอุปกรณ์และเครื่องจักร',
     'equipment_list_placeholder' => 'รายชื่ออุปกรณ์/เครื่องจักรจะพัฒนาต่อในส่วนนี้',
     'remark' => 'หมายเหตุ',
