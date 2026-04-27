@@ -1,17 +1,24 @@
 @props(['items' => []])
 
 @php
-    $trail = collect($items)->filter(fn ($i) => ! empty($i['label']))->values();
+    $rawItems = collect($items)->filter(fn ($i) => ! empty($i['label']))->values();
 
     $homeUrl = null;
     foreach (['dashboard', 'home'] as $candidate) {
         try { $homeUrl = route($candidate); break; } catch (\Throwable $e) { /* fall through */ }
     }
     $homeUrl = $homeUrl ?? url('/');
-    $hasHome = $trail->isNotEmpty() && ($trail->first()['url'] ?? null) === $homeUrl;
-    if (! $hasHome) {
-        $trail->prepend(['label' => __('common.dashboard'), 'url' => $homeUrl]);
-    }
+
+    $startsWithHome = $rawItems->isNotEmpty() && ($rawItems->first()['url'] ?? null) === $homeUrl;
+    // Auto-prepend Home only when the caller built a multi-level trail. For
+    // top-level pages (1 item) we skip the prepend so users don't see the
+    // redundant "Dashboard / [page]" prefix on every single screen — that
+    // duplicates the page <h1> + the sidebar's Home link.
+    $shouldPrepend = $rawItems->count() >= 2 && ! $startsWithHome;
+
+    $trail = $shouldPrepend
+        ? $rawItems->prepend(['label' => __('common.dashboard'), 'url' => $homeUrl])
+        : $rawItems;
 
     $last = $trail->count() - 1;
 @endphp

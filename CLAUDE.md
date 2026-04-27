@@ -85,7 +85,8 @@ php artisan test --filter ExampleTest               # ตัวอย่าง: 
 | **แผนก / ตำแหน่ง** | เลือก workflow (`department_workflow_bindings`, `approver_type: position`) |
 | **อนุมัติ** | `approval_workflows` → ขั้น → instances + `approval_instance_steps` — policy/range บนฟอร์ม: `ApprovalFlowService` |
 | **CMMS** | อุปกรณ์ + อะไหล่ + movement |
-| **ฟอร์มเอกสาร** | `document_forms` → `document_form_fields` (field-level permissions) → `document_form_submissions`; การมองเห็นผ่าน `document_form_departments` |
+| **ฟอร์มเอกสาร** | `document_forms` → `document_form_fields` (field-level permissions) → `document_form_submissions`; การมองเห็นผ่าน `document_form_departments`. **Field types** 23 แบบ รวม `group` (subform repeater), `page_break`, `qr_code` (template tokens ผ่าน `App\Support\QrTemplateResolver`), `signature`. **Field-level rules:** `editable_by` JSON tokens (`requester` / `step_N` / `user:{id}`), `visibility_rules` + `required_rules` (8 operators เหมือนกัน — visibility ชนะ required เสมอ). **Per-submission editors:** `assigned_editor_user_ids` JSON column ให้ owner/super-admin อนุญาตคนอื่นช่วยแก้ draft (lifecycle ยัง owner-only) |
+| **ลายเซ็น approver** | `approval_workflow_stages.require_signature` toggle ต่อขั้น → propagate ไป `approval_instance_steps.require_signature` ตอน `start()`; `users.signature_path` (URL ของรูปลายเซ็นใน profile, ตามแบบ avatar); `ApprovalFlowService::act($id, $userId, $action, $comment, $signatureImage)` เก็บ signature ใน `approved_by[].signature` (approve) หรือ `signature_image` column (reject) — TEXT bumped เป็น MEDIUMTEXT (16MB); `<x-signature-pad>` component shared ระหว่าง requester signature field กับ approval pad |
 | **Password lifecycle** | `EnforcePasswordChange` middleware บังคับเปลี่ยนรหัส; `user_password_histories` เก็บประวัติ; `PasswordLifecycleService` + `PasswordCapabilityService` ควบคุม flow |
 | **Dashboard / Reports** | `DataSourceRegistry` กำหนด data sources (repair_requests, equipment, spare_parts ฯลฯ) สำหรับ widget; `DashboardWidgetDataController` ให้ API |
 | **Branch scoping** | `navigation_menus` มี branch scoping; `BranchScopingController` จัดการ isolation ตามสาขา |
@@ -106,9 +107,12 @@ php artisan test --filter ExampleTest               # ตัวอย่าง: 
 8. **ผู้ใช้:** ใช้ **`first_name` + `last_name`** — อย่าอ้าง `users.name`
 9. **`EnforcePasswordChange` middleware:** ถ้า user มี `password_change_required = true` หรือรหัสหมดอายุ จะ **redirect ไปหน้าเปลี่ยนรหัส** ก่อนเข้าหน้าอื่น — API มี `EnforcePasswordChangeForSanctum` คืน 403 JSON; ทดสอบ flow ต้องตั้งค่าฟิลด์เหล่านี้ด้วย
 10. **Seeder ที่ถูกลบ:** `CompanySeeder` และ `ReportDashboardSeeder` ไม่มีแล้ว — อย่าอ้างถึง
-11. **Breadcrumb:** ใช้ `<x-breadcrumb :items="[...]">` (ที่ `resources/views/components/breadcrumb.blade.php`) เท่านั้น — auto-prepend Home ให้แล้ว, **ห้าม** เขียน markup manual ซ้ำ. วาง block `@section('breadcrumb') ... @endsection` ต่อหลัง `@section('title')` ใน layout-extending views
+11. **Breadcrumb:** ใช้ `<x-breadcrumb :items="[...]">` (ที่ `resources/views/components/breadcrumb.blade.php`) เท่านั้น — auto-prepend Home **เมื่อ trail มี ≥ 2 items** (top-level page item เดียวจะไม่ขึ้น "แดชบอร์ด /" เพื่อลดภาพรก), **ห้าม** เขียน markup manual ซ้ำ. วาง block `@section('breadcrumb') ... @endsection` ต่อหลัง `@section('title')` ใน layout-extending views
 12. **Sidebar pin (★):** แต่ละ leaf menu มีปุ่ม ★ ที่ toggle pin ผ่าน `POST /myprofile/pinned-menus/toggle` (`{menu_key: (string) $menu->id}`). State อยู่ที่ Alpine.store(`pinnedMenus`) — เริ่มต้นจาก `window.__PINNED_MENU_IDS__` ที่ `layouts/app.blade.php` inject ไว้. Pinned section ที่ top ของ sidebar ใช้ component เดียวกันแต่ผ่าน `:is-pinned-section="true"` เพื่อซ่อน ★ บนตัวเอง — pinned section refresh เมื่อ navigate หน้าถัดไป (ไม่ re-render instant)
 13. **`<x-data-table>` + `<x-per-page-footer>`:** ถ้าใช้ per-page-footer แยก ให้ตั้ง `:disable-pagination="true"` บน `<x-data-table>` กัน double-render paginator links
+14. **`editable_by` user tokens:** format `user:{id}` ผูกใน JSON เดียวกับ role tokens — ปลายทางเช็คผ่าน `DocumentFormSubmissionController::filterPayloadForAssignee()` ที่ filter draft writes ฝั่ง server; non-owner ตอแหลผ่าน devtools ก็เขียนได้แค่ field ที่มี token ตัวเอง — submit/destroy/return-to-draft ยัง **owner-only** (`authorizeOwnerOnlyDraft`) เพื่อไม่ให้ปนตอน workflow ดึง requester
+15. **QR template tokens:** ใช้ `App\Support\QrTemplateResolver::resolve($template, $submission)` เท่านั้น — รองรับ `{ref_no}`, `{id}`, `{url}`, `{date}`, `{field:KEY}`. Tokens อื่น **คงไว้ตามตัวอักษร** (ไม่ throw error). ลายเซ็นต์ resolve เก็บไว้ที่ `tests/Feature/QrTemplateResolverTest.php` 8 cases
+16. **JS↔PHP rule evaluator parity:** `evaluateRulesPhp` (PHP, ใน `DocumentFormSubmissionController`) กับ `window.evaluateVisibilityRules` (JS, ใน `resources/js/app.js`) ต้อง sync กัน — server เป็น authoritative; ถ้าแก้ฝั่งหนึ่ง ต้องแก้อีกฝั่ง + อัปเดต `tests/Feature/EvaluateRulesPhpTest.php` (17 parity cases). **Quirks ที่จด:** `'0'` ไม่ใช่ empty (อยู่กับ DB convention); array values ใน `equals` เช็ค membership; unknown operator → false (fail-safe)
 
 ---
 
@@ -123,6 +127,7 @@ php artisan test --filter ExampleTest               # ตัวอย่าง: 
 | `doc/uat-reset-testing-layer.md` | รีเซ็ต user ทดสอบ (`testing:reset-user-layer`) |
 | `doc/uat-rbac-permissions.md` | ทดสอบ RBAC อย่างปลอดภัย |
 | `doc/backlog.md` | งาน Phase 2+ / out-of-scope ที่คุยแล้วแต่ยังไม่ได้ลุย |
+| `doc/example-maintenance-request-form.md` | Playbook ฟอร์มแจ้งซ่อม enterprise-grade (36 fields, 7 sections) — ใช้เป็น reference สำหรับสร้างฟอร์มแจ้งซ่อมใหม่ |
 | `backend/README.md` | Seed, demo user, SSO |
 
 **มาตรฐานทีม (เมนู + list + CRUD + audit):** เมื่อตกลงแล้ว ให้สรุปเป็น playbook ไฟล์เดียวใต้ `doc/` (เช่น `doc/menu-permissions-and-forms.md`) แล้วเพิ่ม **หนึ่งแถว** ในตารางนี้ — อย่าให้ไฟล์นี้ยาวเกินจำเป็น
@@ -137,4 +142,5 @@ php artisan test --filter ExampleTest               # ตัวอย่าง: 
 | permission ใหม่ที่ใช้ในโค้ด | เพิ่มใน `PermissionSeeder` (หรือ UI) + มอบให้ role + อาจต้อง `PermissionRegistrar::forgetCachedPermissions()` |
 | route API ใหม่ | อัปเดต `doc/api-spec.md` + middleware ใน `routes/api.php` |
 | เพิ่ม/แก้ฟิลด์ฟอร์มเอกสาร | ตรวจ field-level permissions ใน `document_form_fields` + `document_form_departments` visibility |
+| **เพิ่ม field type ใหม่** | 5 จุดต้องแตะ: (1) `DocumentFormController::allowedFieldTypes()` (2) `FormSchemaService::SKIP_TYPES` ถ้าไม่มี payload column / `addColumn()` match arm ถ้ามี (3) `DocumentFormController::parseOptions()` branch สำหรับ field-specific config (4) `dynamic-field.blade.php` render branch (5) `_form.blade.php` field-type `<select>` option + per-type editor block + `ensureFieldRowId` defaults |
 | password policy เปลี่ยน | ตรวจ `PasswordLifecycleService`, `EnforcePasswordChange` middleware, `user_password_histories` |
