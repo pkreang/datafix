@@ -4,6 +4,7 @@
 
 @section('breadcrumb')
     <x-breadcrumb :items="[
+        ['label' => __('common.settings')],
         ['label' => __('company.companies'), 'url' => route('companies.index')],
         ['label' => __('company.edit_company')],
     ]" />
