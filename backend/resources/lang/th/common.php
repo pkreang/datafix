@@ -732,7 +732,7 @@ return [
     'po_already_exists' => 'มีใบสั่งซื้อสำหรับใบขอซื้อนี้แล้ว',
     'pr_not_approved' => 'ใบขอซื้อต้องได้รับการอนุมัติก่อนสร้างใบสั่งซื้อ',
     'creating_po_from_pr' => 'กำลังสร้างใบสั่งซื้อจากใบขอซื้อ',
-    'forms_index_title' => 'ฟอร์มทั้งหมด',
+    'forms_index_title' => 'เอกสาร',
     'forms_index_desc' => 'เลือกฟอร์มที่ต้องการกรอก',
     'my_submissions' => 'ฟอร์มของฉัน',
     'my_submissions_desc' => 'ฉบับร่างและฟอร์มที่ส่งแล้วของคุณ',

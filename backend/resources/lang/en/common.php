@@ -732,7 +732,7 @@ return [
     'po_already_exists' => 'A purchase order already exists for this purchase request.',
     'pr_not_approved' => 'Purchase request must be approved before creating a PO.',
     'creating_po_from_pr' => 'Creating Purchase Order from Purchase Request',
-    'forms_index_title' => 'All Forms',
+    'forms_index_title' => 'Documents',
     'forms_index_desc' => 'Select a form to fill out.',
     'my_submissions' => 'My Submissions',
     'my_submissions_desc' => 'Your saved drafts and submitted forms.',
