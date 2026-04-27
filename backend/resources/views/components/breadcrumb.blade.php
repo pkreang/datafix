@@ -10,11 +10,11 @@
     $homeUrl = $homeUrl ?? url('/');
 
     $startsWithHome = $rawItems->isNotEmpty() && ($rawItems->first()['url'] ?? null) === $homeUrl;
-    // Auto-prepend Home only when the caller built a multi-level trail. For
-    // top-level pages (1 item) we skip the prepend so users don't see the
-    // redundant "Dashboard / [page]" prefix on every single screen — that
-    // duplicates the page <h1> + the sidebar's Home link.
-    $shouldPrepend = $rawItems->count() >= 2 && ! $startsWithHome;
+    // Auto-prepend Home only when the caller built a trail of 3+ items.
+    // Top-level (1) and section-level (2) trails render their own intermediate
+    // as the visible root — Dashboard is already reachable from the sidebar
+    // and the page <h1>, so an extra "Dashboard /" prefix is just noise.
+    $shouldPrepend = $rawItems->count() >= 3 && ! $startsWithHome;
 
     $trail = $shouldPrepend
         ? $rawItems->prepend(['label' => __('common.dashboard'), 'url' => $homeUrl])

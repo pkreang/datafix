@@ -22,17 +22,34 @@ class BreadcrumbComponentTest extends TestCase
         $this->assertStringNotContainsString('href="https://app.test/users"', $html);
     }
 
-    public function test_auto_prepends_home_for_multi_level_trail(): void
+    public function test_two_item_trail_does_not_auto_prepend_home(): void
     {
-        // 2+ items → Home gets auto-prepended in front, single Home link
+        // Threshold raised to 3 — 2-item trail must NOT pull Dashboard in front.
+        // Section-level pages (e.g. /settings/branding, /forms/{key}/submissions)
+        // render their own intermediate as the visible root.
         $homeUrl = route('dashboard');
         $html = $this->render([
             ['label' => 'Settings', 'url' => 'https://app.test/settings'],
             ['label' => 'Detail'],
         ]);
 
+        $this->assertSame(0, substr_count($html, 'href="'.$homeUrl.'"'),
+            'Home link should be absent on 2-item trail under the new threshold');
+        $this->assertStringContainsString('>Settings</a>', $html);
+        $this->assertStringContainsString('>Detail</span>', $html);
+    }
+
+    public function test_three_or_more_item_trail_auto_prepends_home(): void
+    {
+        $homeUrl = route('dashboard');
+        $html = $this->render([
+            ['label' => 'Settings', 'url' => 'https://app.test/settings'],
+            ['label' => 'Lookups', 'url' => 'https://app.test/settings/lookups'],
+            ['label' => 'Edit'],
+        ]);
+
         $this->assertSame(1, substr_count($html, 'href="'.$homeUrl.'"'),
-            'Home should appear exactly once for 2-item trails');
+            'Home should appear exactly once for 3-item trails');
     }
 
     public function test_single_item_trail_does_not_auto_prepend_home(): void
