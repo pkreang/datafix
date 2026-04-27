@@ -861,10 +861,35 @@
                                     <label class="text-xs text-slate-400">{{ __('common.max_date') }}</label>
                                     <input type="text" x-model="field.validation_rules.max_date" placeholder="today / 2026-12-31" class="form-input py-1 px-2 text-xs mt-1" />
                                 </div>
-                                <div x-show="field.field_type === 'date'">
-                                    <label class="text-xs text-slate-400">{{ __('common.default_value') }}</label>
-                                    <input type="text" :name="`fields[${idx}][default_value]`" x-model="field.default_value" placeholder="today / 2026-01-01" class="form-input py-1 px-2 text-xs mt-1" />
-                                </div>
+                                <template x-if="field.field_type === 'date'">
+                                    <div>
+                                        <label class="text-xs text-slate-400">{{ __('common.default_value') }}</label>
+                                        <input type="text" :name="`fields[${idx}][default_value]`" x-model="field.default_value" placeholder="today / 2026-01-01" class="form-input py-1 px-2 text-xs mt-1" />
+                                    </div>
+                                </template>
+                                <template x-if="['text','textarea','email','phone'].includes(field.field_type)">
+                                    <div>
+                                        <label class="text-xs text-slate-400">{{ __('common.default_value') }}</label>
+                                        <input type="text" :name="`fields[${idx}][default_value]`" x-model="field.default_value" class="form-input py-1 px-2 text-xs mt-1" />
+                                    </div>
+                                </template>
+                                <template x-if="['number','currency'].includes(field.field_type)">
+                                    <div>
+                                        <label class="text-xs text-slate-400">{{ __('common.default_value') }}</label>
+                                        <input type="number" step="0.01" :name="`fields[${idx}][default_value]`" x-model="field.default_value" class="form-input py-1 px-2 text-xs mt-1" />
+                                    </div>
+                                </template>
+                                <template x-if="['select','radio'].includes(field.field_type)">
+                                    <div>
+                                        <label class="text-xs text-slate-400">{{ __('common.default_value') }}</label>
+                                        <select :name="`fields[${idx}][default_value]`" x-model="field.default_value" class="form-input py-1 px-2 text-xs mt-1">
+                                            <option value="">—</option>
+                                            <template x-for="opt in (field.options_raw || '').split('\n').map(s => s.trim()).filter(Boolean)" :key="opt">
+                                                <option :value="opt" x-text="opt"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </template>
                             </div>
                             <p x-show="field.field_type === 'date'" class="text-xs text-slate-400 dark:text-slate-500 mt-1">
                                 {{ __('common.date_expression_help') }}

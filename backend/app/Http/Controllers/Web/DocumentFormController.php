@@ -754,9 +754,11 @@ class DocumentFormController extends Controller
     /**
      * Normalise the field-level `default_value` string.
      *
-     * For date fields we accept DateExpressionResolver keywords (today/yesterday/tomorrow)
-     * or a literal YYYY-MM-DD — unresolvable input is dropped. Non-date field types
-     * keep the raw trimmed string (future-proof for text/number defaults).
+     * Date fields accept DateExpressionResolver keywords (today/yesterday/tomorrow)
+     * or a literal YYYY-MM-DD; unresolvable input is dropped.
+     * Select/radio defaults must match one of the parsed `options_raw` lines —
+     * otherwise the default is dropped (prevents stale defaults outliving option edits).
+     * Other types keep the raw trimmed string.
      */
     private function normalizeDefaultValue(array $field): ?string
     {
@@ -765,12 +767,22 @@ class DocumentFormController extends Controller
             return null;
         }
 
-        if (($field['field_type'] ?? '') === 'date') {
+        $type = $field['field_type'] ?? '';
+
+        if ($type === 'date') {
             $lower = strtolower($raw);
             if (in_array($lower, ['today', 'yesterday', 'tomorrow'], true)) {
                 return $lower;
             }
             return preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) ? $raw : null;
+        }
+
+        if (in_array($type, ['select', 'radio'], true)) {
+            $options = array_values(array_filter(array_map(
+                'trim',
+                explode("\n", (string) ($field['options_raw'] ?? ''))
+            )));
+            return in_array($raw, $options, true) ? $raw : null;
         }
 
         return $raw;
