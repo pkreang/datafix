@@ -52,6 +52,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'view_purchase_requests', 'module' => 'purchase_requests', 'action' => 'read'],
             ['name' => 'view_purchase_orders',   'module' => 'purchase_orders',   'action' => 'read'],
             ['name' => 'purchase_order.create',  'module' => 'purchase_orders',   'action' => 'create'],
+            ['name' => 'pm.view',                'module' => 'pm', 'action' => 'read'],
+            ['name' => 'pm.plan',                'module' => 'pm', 'action' => 'plan'],
+            ['name' => 'pm.execute',             'module' => 'pm', 'action' => 'execute'],
         ];
         foreach ($exactPermissions as $item) {
             Permission::updateOrCreate(

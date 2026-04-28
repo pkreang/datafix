@@ -11,17 +11,24 @@ class Equipment extends Model
 
     protected $table = 'equipment';
 
+    public const CRITICALITY_LEVELS = ['A', 'B', 'C'];
+
     protected $fillable = [
         'name',
         'code',
         'serial_number',
+        'manufacturer',
+        'model',
         'equipment_category_id',
         'equipment_location_id',
         'company_id',
         'branch_id',
         'status',
+        'criticality',
         'installed_date',
+        'purchase_date',
         'warranty_expiry',
+        'runtime_hours',
         'specifications',
         'notes',
         'is_active',
@@ -33,7 +40,9 @@ class Equipment extends Model
             'is_active' => 'boolean',
             'specifications' => 'array',
             'installed_date' => 'date',
+            'purchase_date' => 'date',
             'warranty_expiry' => 'date',
+            'runtime_hours' => 'decimal:2',
         ];
     }
 
@@ -55,5 +64,15 @@ class Equipment extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function pmPlans()
+    {
+        return $this->hasMany(PmPlan::class);
+    }
+
+    public function pmWorkOrders()
+    {
+        return $this->hasMany(PmWorkOrder::class);
     }
 }
