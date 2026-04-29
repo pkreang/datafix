@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\DocumentForm;
 use App\Models\DocumentFormField;
 use App\Models\DocumentType;
+use App\Models\LookupList;
+use App\Models\LookupListItem;
 use Illuminate\Database\Seeder;
 
 class InternalLetterTemplateSeeder extends Seeder
@@ -24,6 +26,39 @@ class InternalLetterTemplateSeeder extends Seeder
             ]
         );
 
+        // Lookup lists (DB-driven) for letter speed/confidentiality levels
+        $speedList = LookupList::updateOrCreate(
+            ['key' => 'letter_speed_level'],
+            ['label_en' => 'Letter Speed Level', 'label_th' => 'ชั้นความเร็ว (หนังสือ)', 'is_system' => false, 'is_active' => true, 'sort_order' => 30]
+        );
+        foreach ([
+            ['value' => 'normal',      'label_en' => 'Normal',      'label_th' => 'ปกติ',        'sort_order' => 1],
+            ['value' => 'urgent',      'label_en' => 'Urgent',      'label_th' => 'ด่วน',        'sort_order' => 2],
+            ['value' => 'very_urgent', 'label_en' => 'Very Urgent', 'label_th' => 'ด่วนมาก',     'sort_order' => 3],
+            ['value' => 'most_urgent', 'label_en' => 'Most Urgent', 'label_th' => 'ด่วนที่สุด',  'sort_order' => 4],
+        ] as $item) {
+            LookupListItem::updateOrCreate(
+                ['list_id' => $speedList->id, 'value' => $item['value']],
+                ['label_en' => $item['label_en'], 'label_th' => $item['label_th'], 'sort_order' => $item['sort_order'], 'is_active' => true]
+            );
+        }
+
+        $confList = LookupList::updateOrCreate(
+            ['key' => 'letter_confidentiality_level'],
+            ['label_en' => 'Letter Confidentiality Level', 'label_th' => 'ชั้นความลับ (หนังสือ)', 'is_system' => false, 'is_active' => true, 'sort_order' => 31]
+        );
+        foreach ([
+            ['value' => 'normal',       'label_en' => 'Normal',       'label_th' => 'ปกติ',      'sort_order' => 1],
+            ['value' => 'confidential', 'label_en' => 'Confidential', 'label_th' => 'ลับ',       'sort_order' => 2],
+            ['value' => 'secret',       'label_en' => 'Secret',       'label_th' => 'ลับมาก',    'sort_order' => 3],
+            ['value' => 'top_secret',   'label_en' => 'Top Secret',   'label_th' => 'ลับที่สุด', 'sort_order' => 4],
+        ] as $item) {
+            LookupListItem::updateOrCreate(
+                ['list_id' => $confList->id, 'value' => $item['value']],
+                ['label_en' => $item['label_en'], 'label_th' => $item['label_th'], 'sort_order' => $item['sort_order'], 'is_active' => true]
+            );
+        }
+
         $form = DocumentForm::query()->updateOrCreate(
             ['form_key' => 'internal_letter_default'],
             [
@@ -37,8 +72,8 @@ class InternalLetterTemplateSeeder extends Seeder
 
         $fields = [
             ['field_key' => 'section_header', 'label' => 'ส่วนหัวหนังสือ', 'field_type' => 'section'],
-            ['field_key' => 'speed_level', 'label' => 'ชั้นความเร็ว (ถ้ามี)', 'field_type' => 'select', 'is_required' => false, 'options' => ['ปกติ', 'ด่วน', 'ด่วนมาก', 'ด่วนที่สุด']],
-            ['field_key' => 'confidentiality_level', 'label' => 'ชั้นความลับ (ถ้ามี)', 'field_type' => 'select', 'is_required' => false, 'options' => ['ปกติ', 'ลับ', 'ลับมาก', 'ลับที่สุด']],
+            ['field_key' => 'speed_level', 'label' => 'ชั้นความเร็ว (ถ้ามี)', 'field_type' => 'lookup', 'is_required' => false, 'options' => ['source' => 'letter_speed_level']],
+            ['field_key' => 'confidentiality_level', 'label' => 'ชั้นความลับ (ถ้ามี)', 'field_type' => 'lookup', 'is_required' => false, 'options' => ['source' => 'letter_confidentiality_level']],
             ['field_key' => 'document_no', 'label' => 'ที่ / เลขที่หนังสือ (1)', 'field_type' => 'text', 'is_required' => false],
             ['field_key' => 'org_header', 'label' => 'ส่วนราชการ / หน่วยงาน / ที่อยู่ (2)', 'field_type' => 'textarea', 'is_required' => false],
             ['field_key' => 'document_date', 'label' => 'วัน เดือน ปี (3)', 'field_type' => 'date', 'is_required' => true],

@@ -11,6 +11,8 @@ use App\Models\DocumentForm;
 use App\Models\DocumentFormField;
 use App\Models\DocumentFormWorkflowPolicy;
 use App\Models\DocumentType;
+use App\Models\LookupList;
+use App\Models\LookupListItem;
 use App\Models\Position;
 use App\Models\User;
 use App\Models\RunningNumberConfig;
@@ -159,6 +161,57 @@ class BodindechaDemoSeeder extends Seeder
         }
         $this->command?->info('Bindings: 3 กลุ่มสาระ → leave + activity workflows');
 
+        // ── 7.5 Lookup lists (DB-driven) ────────────
+        $leaveList = LookupList::updateOrCreate(
+            ['key' => 'leave_type'],
+            ['label_en' => 'Leave Type', 'label_th' => 'ประเภทการลา', 'description' => 'ประเภทการลา — ใช้ร่วมกันทั้ง bd_leave และ school_leave_default', 'is_system' => false, 'is_active' => true, 'sort_order' => 20]
+        );
+        foreach ([
+            ['value' => 'sick',       'label_en' => 'Sick Leave',       'label_th' => 'ลาป่วย',     'sort_order' => 1],
+            ['value' => 'personal',   'label_en' => 'Personal Leave',   'label_th' => 'ลากิจ',      'sort_order' => 2],
+            ['value' => 'vacation',   'label_en' => 'Vacation',         'label_th' => 'ลาพักผ่อน',  'sort_order' => 3],
+            ['value' => 'maternity',  'label_en' => 'Maternity Leave',  'label_th' => 'ลาคลอด',     'sort_order' => 4],
+            ['value' => 'ordination', 'label_en' => 'Ordination Leave', 'label_th' => 'ลาอุปสมบท',  'sort_order' => 5],
+            ['value' => 'other',      'label_en' => 'Other',            'label_th' => 'อื่นๆ',      'sort_order' => 6],
+        ] as $item) {
+            LookupListItem::updateOrCreate(
+                ['list_id' => $leaveList->id, 'value' => $item['value']],
+                ['label_en' => $item['label_en'], 'label_th' => $item['label_th'], 'sort_order' => $item['sort_order'], 'is_active' => true]
+            );
+        }
+
+        $targetGroupList = LookupList::updateOrCreate(
+            ['key' => 'activity_target_group'],
+            ['label_en' => 'Activity Target Group', 'label_th' => 'กลุ่มเป้าหมายกิจกรรม', 'is_system' => false, 'is_active' => true, 'sort_order' => 21]
+        );
+        foreach ([
+            ['value' => 'middle_school', 'label_en' => 'Middle School Students', 'label_th' => 'นักเรียน ม.ต้น',    'sort_order' => 1],
+            ['value' => 'high_school',   'label_en' => 'High School Students',   'label_th' => 'นักเรียน ม.ปลาย',   'sort_order' => 2],
+            ['value' => 'all_students',  'label_en' => 'All Students',           'label_th' => 'นักเรียนทุกระดับ', 'sort_order' => 3],
+            ['value' => 'faculty_staff', 'label_en' => 'Faculty and Staff',      'label_th' => 'ครูและบุคลากร',    'sort_order' => 4],
+        ] as $item) {
+            LookupListItem::updateOrCreate(
+                ['list_id' => $targetGroupList->id, 'value' => $item['value']],
+                ['label_en' => $item['label_en'], 'label_th' => $item['label_th'], 'sort_order' => $item['sort_order'], 'is_active' => true]
+            );
+        }
+
+        $budgetSourceList = LookupList::updateOrCreate(
+            ['key' => 'activity_budget_source'],
+            ['label_en' => 'Activity Budget Source', 'label_th' => 'แหล่งงบประมาณกิจกรรม', 'description' => 'ผูก visibility rule ของช่อง "ประมาณการงบประมาณ" และ "รายการค่าใช้จ่าย"', 'is_system' => true, 'is_active' => true, 'sort_order' => 22]
+        );
+        foreach ([
+            ['value' => 'school_budget', 'label_en' => 'School Budget', 'label_th' => 'งบประมาณโรงเรียน', 'sort_order' => 1],
+            ['value' => 'donation',      'label_en' => 'Donation',      'label_th' => 'เงินบริจาค',        'sort_order' => 2],
+            ['value' => 'obec_budget',   'label_en' => 'OBEC Budget',   'label_th' => 'งบ สพฐ.',           'sort_order' => 3],
+            ['value' => 'no_budget',     'label_en' => 'No Budget',     'label_th' => 'ไม่ใช้งบประมาณ',    'sort_order' => 4],
+        ] as $item) {
+            LookupListItem::updateOrCreate(
+                ['list_id' => $budgetSourceList->id, 'value' => $item['value']],
+                ['label_en' => $item['label_en'], 'label_th' => $item['label_th'], 'sort_order' => $item['sort_order'], 'is_active' => true]
+            );
+        }
+
         // ── 8. Form: ใบลา ────────────────────────────────────
         $bdDeptIds = collect($bdDepts)->map(fn ($c) => $deptMap[$c]->id)->all();
 
@@ -171,10 +224,10 @@ class BodindechaDemoSeeder extends Seeder
             'bd_leave',
             [
                 ['field_key' => 'reference_no',    'label' => 'เลขที่เอกสาร',       'field_type' => 'auto_number', 'is_required' => false, 'sort_order' => 1],
-                ['field_key' => 'leave_type',      'label' => 'ประเภทการลา',        'field_type' => 'select',   'is_required' => true,  'sort_order' => 2,
-                    'options' => ['ลาป่วย', 'ลากิจส่วนตัว', 'ลาพักผ่อน', 'ลาคลอด', 'ลาอุปสมบท']],
+                ['field_key' => 'leave_type',      'label' => 'ประเภทการลา',        'field_type' => 'lookup',   'is_required' => true,  'sort_order' => 2,
+                    'options' => ['source' => 'leave_type']],
                 ['field_key' => 'sick_certificate', 'label' => 'ใบรับรองแพทย์',      'field_type' => 'file',     'is_required' => false, 'sort_order' => 2,
-                    'visibility_rules' => [['field' => 'leave_type', 'operator' => 'equals', 'value' => 'ลาป่วย']]],
+                    'visibility_rules' => [['field' => 'leave_type', 'operator' => 'equals', 'value' => 'sick']]],
                 ['field_key' => 'date_from',        'label' => 'ตั้งแต่วันที่',        'field_type' => 'date',     'is_required' => true,  'sort_order' => 3],
                 ['field_key' => 'date_to',          'label' => 'ถึงวันที่',            'field_type' => 'date',     'is_required' => true,  'sort_order' => 4],
                 ['field_key' => 'total_days',       'label' => 'รวม (วัน)',           'field_type' => 'number',   'is_required' => true,  'sort_order' => 5,
@@ -206,8 +259,8 @@ class BodindechaDemoSeeder extends Seeder
                 ['field_key' => 'activity_name',    'label' => 'ชื่อกิจกรรม',              'field_type' => 'text',     'is_required' => true,  'sort_order' => 2],
                 ['field_key' => 'objective',         'label' => 'วัตถุประสงค์',             'field_type' => 'textarea', 'is_required' => true,  'sort_order' => 2,
                     'validation_rules' => ['min_length' => 20]],
-                ['field_key' => 'target_group',      'label' => 'กลุ่มเป้าหมาย',            'field_type' => 'select',   'is_required' => true,  'sort_order' => 3,
-                    'options' => ['นักเรียน ม.ต้น', 'นักเรียน ม.ปลาย', 'นักเรียนทุกระดับ', 'ครูและบุคลากร']],
+                ['field_key' => 'target_group',      'label' => 'กลุ่มเป้าหมาย',            'field_type' => 'lookup',   'is_required' => true,  'sort_order' => 3,
+                    'options' => ['source' => 'activity_target_group']],
                 ['field_key' => 'participants',      'label' => 'จำนวนผู้เข้าร่วม (คน)',     'field_type' => 'number',   'is_required' => true,  'sort_order' => 4,
                     'validation_rules' => ['min' => 1, 'max' => 5000]],
                 ['field_key' => 'section_schedule',  'label' => 'กำหนดการ',                'field_type' => 'section',  'is_required' => false, 'sort_order' => 5],
@@ -219,17 +272,17 @@ class BodindechaDemoSeeder extends Seeder
                 ['field_key' => 'transport',         'label' => 'การเดินทาง',              'field_type' => 'text',     'is_required' => false, 'sort_order' => 10,
                     'visibility_rules' => [['field' => 'is_external', 'operator' => 'equals', 'value' => 'ใช่']]],
                 ['field_key' => 'section_budget',    'label' => 'งบประมาณ',                'field_type' => 'section',  'is_required' => false, 'sort_order' => 11],
-                ['field_key' => 'budget_source',     'label' => 'แหล่งงบประมาณ',           'field_type' => 'radio',    'is_required' => true,  'sort_order' => 12,
-                    'options' => ['งบประมาณโรงเรียน', 'เงินบริจาค', 'งบ สพฐ.', 'ไม่ใช้งบประมาณ']],
+                ['field_key' => 'budget_source',     'label' => 'แหล่งงบประมาณ',           'field_type' => 'lookup',   'is_required' => true,  'sort_order' => 12,
+                    'options' => ['source' => 'activity_budget_source']],
                 ['field_key' => 'estimated_budget',  'label' => 'ประมาณการงบประมาณ (บาท)',  'field_type' => 'currency', 'is_required' => false, 'sort_order' => 13,
-                    'visibility_rules' => [['field' => 'budget_source', 'operator' => 'not_equals', 'value' => 'ไม่ใช้งบประมาณ']],
+                    'visibility_rules' => [['field' => 'budget_source', 'operator' => 'not_equals', 'value' => 'no_budget']],
                     'validation_rules' => ['min' => 0, 'max' => 500000]],
                 ['field_key' => 'budget_items',      'label' => 'รายการค่าใช้จ่าย',         'field_type' => 'table',    'is_required' => false, 'sort_order' => 14,
                     'options' => ['columns' => [
                         ['key' => 'item',   'label' => 'รายการ',  'type' => 'text'],
                         ['key' => 'amount', 'label' => 'จำนวนเงิน', 'type' => 'number'],
                     ]],
-                    'visibility_rules' => [['field' => 'budget_source', 'operator' => 'not_equals', 'value' => 'ไม่ใช้งบประมาณ']]],
+                    'visibility_rules' => [['field' => 'budget_source', 'operator' => 'not_equals', 'value' => 'no_budget']]],
                 ['field_key' => 'requester_sign',    'label' => 'ลายมือชื่อผู้ขออนุมัติ',    'field_type' => 'signature','is_required' => false, 'sort_order' => 15],
             ],
             $bdDeptIds

@@ -1,6 +1,6 @@
 @php
     $key = $field->field_key;
-    $label = $field->label;
+    $label = $field->localized_label;
     $type = $field->field_type;
     $value = $filters[$key] ?? null;
     $options = is_array($field->options) ? $field->options : [];
@@ -16,6 +16,34 @@
             <option value="">{{ __('common.status_all') }}</option>
             @foreach($options as $opt)
                 <option value="{{ $opt }}" @selected((string) $value === (string) $opt)>{{ $opt }}</option>
+            @endforeach
+        </select>
+    @elseif($type === 'lookup')
+        @php
+            $source = $options['source'] ?? null;
+            $lookupItems = $source ? \App\Support\LookupRegistry::getItems($source) : collect();
+        @endphp
+        <select name="{{ $key }}" class="form-input">
+            <option value="">{{ __('common.status_all') }}</option>
+            @foreach($lookupItems as $item)
+                <option value="{{ $item['value'] }}" @selected((string) $value === (string) $item['value'])>{{ $item['display'] }}</option>
+            @endforeach
+        </select>
+    @elseif($type === 'multi_select')
+        @php
+            $source = $options['source'] ?? null;
+            if ($source) {
+                $msItems = \App\Support\LookupRegistry::getItems($source)
+                    ->map(fn ($it) => ['value' => $it['value'] ?? '', 'display' => $it['display'] ?? $it['value'] ?? ''])->all();
+            } else {
+                $msItems = collect($options)->filter(fn ($o) => ! is_array($o))
+                    ->map(fn ($o) => ['value' => (string) $o, 'display' => (string) $o])->all();
+            }
+        @endphp
+        <select name="{{ $key }}" class="form-input">
+            <option value="">{{ __('common.status_all') }}</option>
+            @foreach($msItems as $item)
+                <option value="{{ $item['value'] }}" @selected((string) $value === (string) $item['value'])>{{ $item['display'] }}</option>
             @endforeach
         </select>
     @elseif(in_array($type, ['date', 'datetime'], true))

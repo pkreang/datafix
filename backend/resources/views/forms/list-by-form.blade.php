@@ -15,6 +15,66 @@
         'can_approve' => in_array('approval.approve', session('user_permissions', []), true),
         'is_super_admin' => (bool) session('user.is_super_admin', false),
     ];
+
+    // Pre-resolve lookup items (one query per lookup source, shared across rows)
+    $lookupMaps = [];
+    foreach ($searchable as $f) {
+        $src = (is_array($f->options) && !empty($f->options['source'])) ? $f->options['source'] : null;
+        if ($src && in_array($f->field_type, ['lookup', 'multi_select'], true)) {
+            $items = \App\Support\LookupRegistry::getItems($src);
+            $map = [];
+            foreach ($items as $it) {
+                $map[(string) ($it['value'] ?? '')] = $it['display'] ?? $it['value'] ?? '';
+            }
+            $lookupMaps[$f->field_key] = $map;
+        }
+    }
+
+    $renderCell = function ($submission, $field) use ($lookupMaps) {
+        $raw = $submission->payload[$field->field_key] ?? null;
+        if ($raw === null || $raw === '' || $raw === []) {
+            return '—';
+        }
+        if ($field->field_type === 'multi_select' && is_array($raw)) {
+            $map = $lookupMaps[$field->field_key] ?? null;
+            $labels = array_map(fn ($v) => $map[(string) $v] ?? (string) $v, $raw);
+            return implode(', ', $labels);
+        }
+        return match (true) {
+            $field->field_type === 'lookup' => $lookupMaps[$field->field_key][(string) $raw] ?? (string) $raw,
+            in_array($field->field_type, ['date'], true) => \Illuminate\Support\Carbon::parse((string) $raw)->format('Y-m-d'),
+            $field->field_type === 'datetime' => \Illuminate\Support\Carbon::parse((string) $raw)->format('Y-m-d H:i'),
+            $field->field_type === 'checkbox' => is_array($raw) ? implode(', ', $raw) : (string) $raw,
+            default => is_array($raw) ? implode(', ', $raw) : (string) $raw,
+        };
+    };
+
+    $statusBadgeMap = [
+        'draft' => 'badge-yellow',
+        'pending' => 'badge-blue',
+        'approved' => 'badge-green',
+        'rejected' => 'badge-red',
+        'submitted' => 'badge-gray',
+        'cancelled' => 'badge-gray',
+    ];
+
+    $tableColumns = array_merge(
+        [['key' => 'seq', 'label' => '#', 'class' => 'text-right w-12']],
+        [['key' => 'reference_no', 'label' => __('common.reference_no')]],
+        collect($searchable)->map(fn ($f) => ['key' => 'f_'.$f->field_key, 'label' => $f->localized_label])->all(),
+        [
+            ['key' => 'status', 'label' => __('common.status')],
+            ['key' => 'last_activity', 'label' => __('common.last_activity')],
+            ['key' => 'created_at', 'label' => __('common.created_at')],
+            ['key' => 'submitted_at', 'label' => __('common.submitted_at')],
+            ['key' => 'actions', 'label' => __('common.actions'), 'class' => 'text-right'],
+        ],
+    );
+    // Drafts need a checkbox column for bulk delete
+    $hasDrafts = $submissions->contains(fn ($s) => $s->status === 'draft');
+    if ($hasDrafts) {
+        array_unshift($tableColumns, ['key' => 'select', 'label' => '', 'class' => 'w-8']);
+    }
 @endphp
 
 @section('content')
@@ -31,9 +91,7 @@
     </div>
 
     @if (session('success'))
-        <div class="alert-success mb-4">
-            {{ session('success') }}
-        </div>
+        <div class="alert-success mb-4">{{ session('success') }}</div>
     @endif
 
     <form method="GET" class="card p-4 mb-4">
@@ -60,104 +118,88 @@
         </div>
     </form>
 
-    @if($submissions->isEmpty())
-        <div class="card p-10 text-center">
-            <p class="text-slate-500 dark:text-slate-400 text-sm">{{ __('common.no_submissions_yet') }}</p>
+    <form method="POST" action="{{ route('forms.submissions.bulk-delete-drafts') }}"
+          onsubmit="return confirm('{{ __('common.bulk_delete_confirm') }}')"
+          x-data="{ selected: [], get hasSelection() { return this.selected.length > 0; } }">
+        @csrf
+
+        {{-- Bulk toolbar (shows only when something is selected) --}}
+        <div x-show="hasSelection" x-cloak class="flex items-center gap-2 mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900 rounded-lg text-sm">
+            <span class="text-amber-800 dark:text-amber-200" x-text="`{{ __('common.bulk_selected_label') }} ${selected.length}`"></span>
+            <div class="flex-1"></div>
+            <button type="submit" class="btn-danger text-sm">{{ __('common.action_delete_draft') }}</button>
         </div>
-    @else
-        <form method="POST" action="{{ route('forms.submissions.bulk-delete-drafts') }}"
-              onsubmit="return confirm('{{ __('common.bulk_delete_confirm') }}')"
-              x-data="{ selected: [], get hasSelection() { return this.selected.length > 0; } }">
-            @csrf
 
-            {{-- Bulk toolbar (shows only when something is selected) --}}
-            <div x-show="hasSelection" x-cloak class="flex items-center gap-2 mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900 rounded-lg text-sm">
-                <span class="text-amber-800 dark:text-amber-200" x-text="`{{ __('common.bulk_selected_label') }} ${selected.length}`"></span>
-                <div class="flex-1"></div>
-                <button type="submit" class="btn-danger text-sm">{{ __('common.action_delete_draft') }}</button>
-            </div>
-
-        <div class="card divide-y divide-slate-200 dark:divide-slate-700 overflow-visible">
+        <x-data-table :columns="$tableColumns" :rows="$submissions" :disable-pagination="true"
+                      :empty-message="__('common.no_submissions_yet')">
             @foreach($submissions as $submission)
                 @php
                     $plan = $submission->actionPlan($viewer);
                     $status = $submission->effective_status;
-                    $preview = $submission->preview;
-                    $rowHref = $plan['primary']['href'] ?? null;
-                    $statusBadgeClass = [
-                        'draft' => 'badge-yellow',
-                        'pending' => 'badge-blue',
-                        'approved' => 'badge-green',
-                        'rejected' => 'badge-red',
-                        'submitted' => 'badge-gray',
-                        'cancelled' => 'badge-gray',
-                    ][$status] ?? 'badge-gray';
+                    // Row link goes to the submission's view page regardless of primary button.
+                    $viewMenuItem = collect($plan['menu'])->firstWhere('label', __('common.view'));
+                    $rowHref = $viewMenuItem['href'] ?? ($plan['primary']['href'] ?? null);
+                    $statusBadge = $statusBadgeMap[$status] ?? 'badge-gray';
+                    $la = $submission->latestActivity;
                 @endphp
-                <div class="relative group {{ $rowHref ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50' : '' }}"
-                     @if($rowHref) onclick="if(!event.target.closest('[data-row-action]') && !event.target.closest('[data-row-select]')) window.location='{{ $rowHref }}'" @endif>
-
-                    @if($submission->status === 'draft')
-                        <label data-row-select class="absolute top-4 left-4 z-10" @click.stop>
-                            <input type="checkbox" name="ids[]" value="{{ $submission->id }}"
-                                   x-model="selected"
-                                   class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                        </label>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
+                    @if($hasDrafts)
+                        <td class="px-4 py-2 whitespace-nowrap">
+                            @if($submission->status === 'draft')
+                                <input type="checkbox" name="ids[]" value="{{ $submission->id }}"
+                                       x-model="selected"
+                                       class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            @endif
+                        </td>
                     @endif
-
-                    <div class="p-4 {{ $submission->status === 'draft' ? 'pl-12' : '' }} pr-4 md:pr-40">
-                        <div class="flex flex-wrap items-center gap-2 mb-1">
-                            <span class="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <td class="px-4 py-2 whitespace-nowrap text-right text-xs text-slate-500 dark:text-slate-400">
+                        {{ ($submissions->currentPage() - 1) * $submissions->perPage() + $loop->iteration }}
+                    </td>
+                    <td class="px-4 py-2 whitespace-nowrap">
+                        @if($rowHref)
+                            <a href="{{ $rowHref }}" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                                {{ $submission->reference_no ?: ('#' . $submission->id) }}
+                            </a>
+                        @else
+                            <span class="text-sm font-medium text-slate-900 dark:text-slate-100">
                                 {{ $submission->reference_no ?: ('#' . $submission->id) }}
                             </span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusBadgeClass }}">
-                                {{ __('common.approval_status_' . $status) }}
-                            </span>
-                        </div>
-                        @if($preview)
-                            <p class="text-sm text-slate-700 dark:text-slate-300 line-clamp-1 mb-1">{{ $preview }}</p>
                         @endif
-                        <p class="text-xs text-slate-500 dark:text-slate-400">
-                            {{ $submission->created_at->format('d M Y H:i') }}
-                        </p>
-                        @if($submission->latestActivity)
-                            @php $la = $submission->latestActivity; @endphp
-                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                                <span class="font-medium text-slate-500 dark:text-slate-400">{{ __('common.last_activity') }}:</span>
-                                {{ __('common.activity_'.$la->action) }}
-                                @if($la->user)
-                                    · {{ $la->user->first_name }} {{ $la->user->last_name }}
-                                @endif
-                                · {{ $la->created_at->diffForHumans() }}
-                            </p>
+                    </td>
+                    @foreach($searchable as $field)
+                        <td class="table-sub">{{ $renderCell($submission, $field) }}</td>
+                    @endforeach
+                    <td class="px-4 py-2 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusBadge }}">
+                            {{ __('common.approval_status_' . $status) }}
+                        </span>
+                    </td>
+                    <td class="table-sub">
+                        @if($la)
+                            <span>{{ __('common.activity_'.$la->action) }}</span>
+                            @if($la->user)
+                                <span class="text-slate-400"> · {{ $la->user->first_name }} {{ $la->user->last_name }}</span>
+                            @endif
+                            <p class="text-xs text-slate-400">{{ $la->created_at->diffForHumans() }}</p>
+                        @else
+                            —
                         @endif
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 px-4 pb-3 md:pb-0 md:px-0 md:absolute md:top-1/2 md:right-4 md:-translate-y-1/2">
-                        @foreach($plan['secondary'] as $action)
-                            <div data-row-action class="hidden md:block">
-                                @include('forms._row-action-button', ['action' => $action, 'class' => 'btn-secondary text-sm'])
-                            </div>
-                        @endforeach
-
-                        @if($plan['primary'])
-                            <div data-row-action>
-                                @include('forms._row-action-button', ['action' => $plan['primary'], 'class' => 'btn-primary text-sm'])
-                            </div>
-                        @endif
-
+                    </td>
+                    <td class="table-sub whitespace-nowrap">{{ $submission->created_at->format('d M Y H:i') }}</td>
+                    <td class="table-sub whitespace-nowrap">
+                        {{ $submission->submittedActivity?->created_at?->format('d M Y H:i') ?? '—' }}
+                    </td>
+                    <td class="px-4 py-2 whitespace-nowrap text-right">
                         @if(!empty($plan['menu']))
-                            <div data-row-action>
+                            <div data-row-action class="flex items-center justify-end">
                                 <x-row-actions :items="$plan['menu']" />
                             </div>
                         @endif
-                    </div>
-                </div>
+                    </td>
+                </tr>
             @endforeach
-        </div>
+        </x-data-table>
 
-        <div class="mt-4">
-            {{ $submissions->links() }}
-        </div>
-        </form>
-    @endif
+        <x-per-page-footer :paginator="$submissions" :perPage="$perPage" id="list-by-form-pagination" />
+    </form>
 @endsection

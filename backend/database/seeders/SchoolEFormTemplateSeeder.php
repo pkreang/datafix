@@ -8,6 +8,8 @@ use App\Models\Department;
 use App\Models\DocumentForm;
 use App\Models\DocumentFormField;
 use App\Models\DocumentFormWorkflowPolicy;
+use App\Models\LookupList;
+use App\Models\LookupListItem;
 use App\Models\Position;
 use Illuminate\Database\Seeder;
 
@@ -45,6 +47,26 @@ class SchoolEFormTemplateSeeder extends Seeder
 
         $this->seedDepartments();
 
+        // Ensure the shared `leave_type` lookup list exists (idempotent — same key
+        // as BodindechaDemoSeeder so running either seeder is safe).
+        $leaveList = LookupList::updateOrCreate(
+            ['key' => 'leave_type'],
+            ['label_en' => 'Leave Type', 'label_th' => 'ประเภทการลา', 'description' => 'ประเภทการลา — ใช้ร่วมกันทั้ง bd_leave และ school_leave_default', 'is_system' => false, 'is_active' => true, 'sort_order' => 20]
+        );
+        foreach ([
+            ['value' => 'sick',       'label_en' => 'Sick Leave',       'label_th' => 'ลาป่วย',     'sort_order' => 1],
+            ['value' => 'personal',   'label_en' => 'Personal Leave',   'label_th' => 'ลากิจ',      'sort_order' => 2],
+            ['value' => 'vacation',   'label_en' => 'Vacation',         'label_th' => 'ลาพักผ่อน',  'sort_order' => 3],
+            ['value' => 'maternity',  'label_en' => 'Maternity Leave',  'label_th' => 'ลาคลอด',     'sort_order' => 4],
+            ['value' => 'ordination', 'label_en' => 'Ordination Leave', 'label_th' => 'ลาอุปสมบท',  'sort_order' => 5],
+            ['value' => 'other',      'label_en' => 'Other',            'label_th' => 'อื่นๆ',      'sort_order' => 6],
+        ] as $item) {
+            LookupListItem::updateOrCreate(
+                ['list_id' => $leaveList->id, 'value' => $item['value']],
+                ['label_en' => $item['label_en'], 'label_th' => $item['label_th'], 'sort_order' => $item['sort_order'], 'is_active' => true]
+            );
+        }
+
         $leaveForm = $this->syncForm(
             'school_leave_default',
             'คำขอลา (ตัวอย่าง)',
@@ -52,7 +74,7 @@ class SchoolEFormTemplateSeeder extends Seeder
             'เทมเพลตโรงเรียน: ปรับฟิลด์และ workflow ในเมนูตั้งค่า',
             [
                 ['field_key' => 'title', 'label' => 'หัวเรื่อง', 'field_type' => 'text', 'is_required' => true, 'sort_order' => 1],
-                ['field_key' => 'leave_type', 'label' => 'ประเภทการลา', 'field_type' => 'select', 'is_required' => true, 'sort_order' => 2, 'options' => ['ลาป่วย', 'ลากิจ', 'ลาพักผ่อน', 'อื่นๆ']],
+                ['field_key' => 'leave_type', 'label' => 'ประเภทการลา', 'field_type' => 'lookup', 'is_required' => true, 'sort_order' => 2, 'options' => ['source' => 'leave_type']],
                 ['field_key' => 'start_date', 'label' => 'วันเริ่ม', 'field_type' => 'date', 'is_required' => true, 'sort_order' => 3],
                 ['field_key' => 'end_date', 'label' => 'วันสิ้นสุด', 'field_type' => 'date', 'is_required' => true, 'sort_order' => 4],
                 ['field_key' => 'detail', 'label' => 'เหตุผล / รายละเอียด', 'field_type' => 'textarea', 'is_required' => false, 'sort_order' => 5],

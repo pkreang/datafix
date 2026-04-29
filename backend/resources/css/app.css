@@ -126,13 +126,14 @@ body {
 .alert-warning { @apply p-4 rounded-lg border-l-4 text-sm bg-amber-50 border-amber-500 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200; }
 .alert-info    { @apply p-4 rounded-lg border-l-4 text-sm bg-blue-50 border-blue-500 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200; }
 
-/* Tables — overflow-visible so absolute action-menu dropdowns aren't clipped (CLAUDE.md gotcha #2) */
+/* Tables — overflow-x-auto for wide tables (e.g. forms list-by-form with many filterable columns).
+   Row-action dropdowns escape this clipping via x-teleport="body" + @alpinejs/anchor in <x-row-actions>. */
 .table-wrapper {
     @apply bg-white dark:bg-slate-800
            rounded-[12px]
            border border-slate-200 dark:border-slate-700
            shadow-[var(--shadow-sm)]
-           overflow-visible;
+           overflow-x-auto;
 }
 /* Match body cell padding (px-4 py-3); th defaults to centered — force left for data columns */
 .table-header {

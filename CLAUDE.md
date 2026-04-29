@@ -98,7 +98,7 @@ php artisan test --filter ExampleTest               # ตัวอย่าง: 
 ## 8. ข้อควรระวัง (Gotchas)
 
 1. **`@can` / Spatie:** ใช้ได้น่าเชื่อถือเมื่อ `AuthenticateWeb` เรียก `Auth::setUser()` แล้ว — ไม่งั้นอาจ **เช็คผิดแบบเงียบๆ** (ไม่ error แต่ได้ผลเป็น false)
-2. **`<main>`** ใช้ `overflow-auto` — เมนู action แบบ absolute บนการ์ดตารางต้องใส่ **`overflow-visible`** ที่ wrapper — ห้าม `overflow-hidden`
+2. **`<main>`** ใช้ `overflow-auto`. `.table-wrapper` ใช้ **`overflow-x-auto`** สำหรับตารางกว้าง (เช่น forms list-by-form). `<x-row-actions>` dropdown ใช้ `x-teleport="body"` + `@alpinejs/anchor` (`x-anchor.top-end.offset.8` + auto-flip) → escape overflow ทุก ancestor. ถ้าเพิ่ม dropdown ใหม่ในเซลล์ตาราง ต้อง teleport เช่นกัน ไม่งั้นโดน clip
 3. **Sidebar:** spacer กว้างเท่าแถบเมนู; `<main>` **ไม่มี** `padding-left` เพิ่มสำหรับ sidebar
 4. **แปลภาษา:** ใช้ต้นไม้เดียว `backend/resources/lang/` (Laravel `lang_path()` ของโปรเจกต์ชี้ที่นี่) — ไฟล์ `lang/` ที่เคยอยู่ root ถูกลบเมื่อ 2026-04-20 เพราะเป็น orphan (Laravel ไม่เคยอ่าน) — school vertical overrides อยู่ที่ `resources/lang/verticals/school/{locale}/`
 5. **`ExampleTest`:** `GET /` redirect guest ไป `login`
