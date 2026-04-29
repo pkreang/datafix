@@ -1,11 +1,13 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
+import anchor from '@alpinejs/anchor';
 import Chart from 'chart.js/auto';
 import QRCode from 'qrcode';
 window.Chart = Chart;
 
 // ต้องกำหนดก่อน Alpine.start()
 window.Alpine = Alpine;
+Alpine.plugin(anchor);
 
 // Pinned menus store — keeps ★ button state in sync across sidebar
 // without reloading the page. Server-rendered pinned section still only
