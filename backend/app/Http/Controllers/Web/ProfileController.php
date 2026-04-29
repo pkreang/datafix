@@ -486,6 +486,7 @@ class ProfileController extends Controller
             'signature' => 'nullable|image|mimes:png,jpg,jpeg|max:1024',
             'remove_signature' => 'nullable|boolean',
             'theme' => ['nullable', 'string', Rule::in(['light', 'dark', 'system'])],
+            'density' => ['nullable', 'string', Rule::in(['comfortable', 'compact'])],
         ];
         if (! $isSso) {
             $rules['first_name'] = 'required|string|max:255';
@@ -513,6 +514,9 @@ class ProfileController extends Controller
         }
         if (! empty($input['theme'])) {
             $payload['theme'] = $input['theme'];
+        }
+        if (! empty($input['density'])) {
+            $payload['density'] = $input['density'];
         }
 
         // Avatar: upload new / remove existing / leave alone
@@ -550,6 +554,7 @@ class ProfileController extends Controller
         $sessionUser['email'] = $user->email;
         $sessionUser['avatar'] = $user->avatar;
         $sessionUser['theme'] = $user->theme;
+        $sessionUser['density'] = $user->density;
         session(['user' => $sessionUser]);
 
         if ($request->filled('locale')) {

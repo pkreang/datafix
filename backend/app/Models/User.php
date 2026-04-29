@@ -24,6 +24,7 @@ class User extends Authenticatable implements HasLocalePreference
         'email',
         'locale',
         'theme',
+        'density',
         'auth_provider',
         'external_id',
         'ldap_dn',

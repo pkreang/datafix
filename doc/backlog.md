@@ -34,7 +34,7 @@
 - ~~**Theme persistence ต่อ user**~~ — done: `users.theme` column + profile dropdown + meta tag → Alpine theme store (server > localStorage > OS)
 - ~~**Sidebar pinned favorites**~~ — done: `user_pinned_menus` table + toggle API + pinned section ที่ top ของ sidebar
 - ~~**Pin toggle ★ button บน menu items**~~ — done 2026-04-20: `<x-sidebar-pin-button>` component + Alpine `pinnedMenus` store; renders on leaf items + group children (not on pinned-section mirrors); star-solid / star-outline icons via `<x-nav-icon>`
-- **Density toggle** — DEFERRED (UX consistency pass ใหญ่)
+- ~~**Density toggle**~~ — done 2026-04-29: `users.density` column + `Alpine.store('density')` (mirrors theme pattern: server `<meta>` > localStorage > `'comfortable'`); `<html class="compact">` flips CSS variable layer in `app.css` (`:root` comfortable / `.compact` overrides); header button + profile select; @apply rules + dynamic-field/sidebar-menu/row-actions/breadcrumb migrated to tokens; 5 tests in `DensityPreferenceTest`
 - ~~**Breadcrumb consistency**~~ — done 2026-04-20: `<x-breadcrumb :items="[...]"` component auto-prepends Home; applied to 98 pages; slash separator, slate palette
 
 ## ~~Data model cleanup~~ (เสร็จแล้ว 2026-04-20)
@@ -57,7 +57,6 @@
 1. **PDF binary engine** (Browsershot vs DomPDF) — ต้องเลือก library + ยอมรับ Chrome Docker infra หรือ font setup ของ DomPDF
 2. **Email PDF** — รอ PDF engine
 3. **Excel xlsx export** — ต้อง install `spatie/simple-excel` (~10MB)
-4. **Density toggle** — UX pass ใหญ่, ต้อง design system alignment
 
 ---
 

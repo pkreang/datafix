@@ -23,6 +23,10 @@
                 } else {
                     document.documentElement.classList.remove('dark');
                 }
+                var d = localStorage.getItem('density');
+                if (d === 'compact') {
+                    document.documentElement.classList.add('compact');
+                }
             } catch (e) {}
         })();
     </script>
@@ -34,9 +38,16 @@
         if (! $userTheme && session('api_token')) {
             $userTheme = \App\Models\User::find(session('user.id'))?->theme;
         }
+        $userDensity = session('user.density');
+        if (! $userDensity && session('api_token')) {
+            $userDensity = \App\Models\User::find(session('user.id'))?->density;
+        }
     @endphp
     @if($userTheme && in_array($userTheme, ['light','dark'], true))
         <meta name="user-theme" content="{{ $userTheme }}">
+    @endif
+    @if($userDensity === 'compact')
+        <meta name="user-density" content="compact">
     @endif
 
     <title>{{ $appDisplayName }} - @yield('title', __('common.dashboard'))</title>
@@ -152,6 +163,22 @@
                         </svg>
                     </button>
 
+                    <button @click="$store.density.toggle()"
+                            class="inline-flex items-center justify-center min-h-11 min-w-11 p-2 rounded-lg transition-colors
+                                   text-slate-500 dark:text-slate-400
+                                   hover:bg-slate-100 dark:hover:bg-slate-800"
+                            :aria-label="$store.density.mode === 'compact' ? '{{ __('common.density_switch_to_comfortable') }}' : '{{ __('common.density_switch_to_compact') }}'"
+                            :title="$store.density.mode === 'compact' ? '{{ __('common.density_compact') }}' : '{{ __('common.density_comfortable') }}'">
+                        {{-- comfortable icon: 3 widely-spaced rows --}}
+                        <svg x-show="$store.density.mode !== 'compact'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                        {{-- compact icon: 4 dense rows --}}
+                        <svg x-show="$store.density.mode === 'compact'" x-cloak class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5h16M4 9h16M4 13h16M4 17h16"/>
+                        </svg>
+                    </button>
+
                     <div class="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs">
                         <a href="{{ route('lang.switch', 'th') }}"
                            class="px-2.5 py-1 font-medium transition-colors
@@ -261,7 +288,7 @@
             </header>
 
             @hasSection('breadcrumb')
-                <div class="px-4 sm:px-6 lg:px-10 py-2 border-b border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
+                <div class="px-4 sm:px-6 lg:px-10 py-[var(--cell-pad-y)] border-b border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
                     @yield('breadcrumb')
                 </div>
             @endif

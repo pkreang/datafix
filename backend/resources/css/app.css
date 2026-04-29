@@ -5,6 +5,7 @@
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant compact (&:where(.compact, .compact *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -25,12 +26,44 @@
         --radius-sm: 8px;
         --radius-md: 12px;
         --radius-lg: 16px;
+
+        /* Density tokens — comfortable defaults (mirror existing Tailwind values) */
+        --cell-pad-x: 1rem;          /* px-4 */
+        --cell-pad-y: 0.5rem;        /* py-2 */
+        --header-pad-y: 0.875rem;    /* py-3.5 */
+        --input-pad-x: 0.75rem;      /* px-3 */
+        --input-pad-y: 0.625rem;     /* py-2.5 */
+        --btn-pad-x: 1rem;           /* px-4 */
+        --btn-pad-y: 0.5rem;         /* py-2 */
+        --card-pad-x: 1.5rem;        /* px-6 */
+        --card-pad-y: 1rem;          /* py-4 */
+        --field-gap: 0.5rem;         /* gap-2 / space-y-2 */
+        --field-label-gap: 0.25rem;  /* mb-1 / mt-1 */
+        --menu-item-pad-x: 0.75rem;  /* px-3 */
+        --menu-item-pad-y: 0.5rem;   /* py-2 */
+        --menu-sub-pad-y: 0.375rem;  /* py-1.5 */
+        --page-pad-y: 1rem;          /* p-4 */
     }
     .dark {
         --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
         --shadow-sm: 0 1px 3px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.15);
         --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -1px rgba(0,0,0,0.2);
         --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.35), 0 4px 6px -2px rgba(0,0,0,0.2);
+    }
+    .compact {
+        /* Override only vertical rhythm + a few horizontal squeezes; keep
+           horizontal padding stable so wide content doesn't reflow per mode. */
+        --cell-pad-y: 0.25rem;       /* py-1 */
+        --header-pad-y: 0.5rem;      /* py-2 */
+        --input-pad-y: 0.375rem;     /* py-1.5 */
+        --btn-pad-y: 0.375rem;       /* py-1.5 */
+        --card-pad-x: 1rem;          /* px-4 */
+        --card-pad-y: 0.625rem;      /* py-2.5 */
+        --field-gap: 0.25rem;        /* gap-1 */
+        --field-label-gap: 0.125rem; /* mb-0.5 */
+        --menu-item-pad-y: 0.375rem; /* py-1.5 */
+        --menu-sub-pad-y: 0.25rem;   /* py-1 */
+        --page-pad-y: 0.625rem;      /* py-2.5 */
     }
 }
 
@@ -65,13 +98,13 @@ body {
            shadow-[var(--shadow-sm)];
 }
 .card-header {
-    @apply px-6 py-4 border-b border-slate-200 dark:border-slate-700;
+    @apply px-[var(--card-pad-x)] py-[var(--card-pad-y)] border-b border-slate-200 dark:border-slate-700;
 }
 
 /* Buttons */
 .btn-primary {
     @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 rounded-lg text-sm font-medium
+           px-[var(--btn-pad-x)] py-[var(--btn-pad-y)] rounded-lg text-sm font-medium
            bg-blue-600 hover:bg-blue-700 text-white
            transition-colors duration-200 cursor-pointer
            disabled:opacity-60 disabled:cursor-not-allowed
@@ -79,7 +112,7 @@ body {
 }
 .btn-secondary {
     @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 rounded-lg text-sm font-medium
+           px-[var(--btn-pad-x)] py-[var(--btn-pad-y)] rounded-lg text-sm font-medium
            bg-slate-100 hover:bg-slate-200
            dark:bg-slate-700 dark:hover:bg-slate-600
            text-slate-700 dark:text-slate-200
@@ -87,7 +120,7 @@ body {
 }
 .btn-danger {
     @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 rounded-lg text-sm font-medium
+           px-[var(--btn-pad-x)] py-[var(--btn-pad-y)] rounded-lg text-sm font-medium
            bg-red-600 hover:bg-red-700 text-white
            transition-colors duration-200 cursor-pointer;
 }
@@ -96,10 +129,10 @@ body {
 .form-label {
     @apply block text-sm font-medium
            text-slate-700 dark:text-slate-300
-           mb-1;
+           mb-[var(--field-label-gap)];
 }
 .form-input {
-    @apply w-full px-3 py-2.5 rounded-lg text-base
+    @apply w-full px-[var(--input-pad-x)] py-[var(--input-pad-y)] rounded-lg text-base
            bg-white dark:bg-slate-900
            border border-slate-200 dark:border-slate-600
            text-slate-900 dark:text-slate-100
@@ -135,12 +168,13 @@ body {
            shadow-[var(--shadow-sm)]
            overflow-x-auto;
 }
-/* Match body cell padding (px-4 py-3); th defaults to centered — force left for data columns */
+/* Match body cell padding; th defaults to centered — force left for data columns.
+   Vertical padding is density-aware: --header-pad-y / --cell-pad-y override in .compact. */
 .table-header {
-    @apply px-4 py-3.5 text-left text-sm font-semibold text-slate-700 dark:text-slate-200;
+    @apply px-[var(--cell-pad-x)] py-[var(--header-pad-y)] text-left text-sm font-semibold text-slate-700 dark:text-slate-200;
 }
-.table-primary { @apply px-4 py-2 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100; }
-.table-sub     { @apply px-4 py-2 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400; }
+.table-primary { @apply px-[var(--cell-pad-x)] py-[var(--cell-pad-y)] whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100; }
+.table-sub     { @apply px-[var(--cell-pad-x)] py-[var(--cell-pad-y)] whitespace-nowrap text-sm text-slate-500 dark:text-slate-400; }
 
 /* Icon-only row actions — min 44×44px touch target (WCAG) */
 .table-action-btn {

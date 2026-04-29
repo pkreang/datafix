@@ -11,7 +11,7 @@
              x-effect="localStorage.setItem('nav_menu_{{ $menu->id }}', open ? '1' : '0')">
 
             <button @click="open = !open" type="button"
-                    class="w-full flex items-center rounded-lg px-3 py-2 text-blue-100 hover:bg-white/10 transition-colors duration-200"
+                    class="w-full flex items-center rounded-lg px-[var(--menu-item-pad-x)] py-[var(--menu-item-pad-y)] text-blue-100 hover:bg-white/10 transition-colors duration-200"
                     :class="sidebarCollapsed ? 'justify-center' : 'justify-between'">
                 <span class="flex items-center gap-3 min-w-0" :class="sidebarCollapsed ? 'w-full justify-center' : ''">
                     <x-nav-icon :name="$menu->icon" class="w-5 h-5 shrink-0 text-blue-200" />
@@ -42,7 +42,7 @@
                     @php $childActive = $activeChild && $child->id === $activeChild->id; @endphp
                     <div class="relative group">
                         <a href="{{ $child->route }}" @click="sidebarOpen = false"
-                           class="flex items-center gap-3 px-3 py-1.5 {{ $isPinnedSection ? '' : 'pr-8' }} rounded-lg text-sm font-medium transition-colors {{ $childActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}">
+                           class="flex items-center gap-3 px-[var(--menu-item-pad-x)] py-[var(--menu-sub-pad-y)] {{ $isPinnedSection ? '' : 'pr-8' }} rounded-lg text-sm font-medium transition-colors {{ $childActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}">
                             <x-nav-icon :name="$child->icon" class="w-4 h-4" />
                             <span x-show="!sidebarCollapsed" x-cloak>{{ $child->translated_label }}</span>
                         </a>
@@ -59,7 +59,7 @@
         @php $menuActive = $menu->isActive(); @endphp
         <div class="relative group">
             <a href="{{ $menu->route }}" @click="sidebarOpen = false"
-               class="flex items-center rounded-lg px-3 py-2 {{ $isPinnedSection ? '' : 'pr-8' }} text-sm font-medium {{ $menuActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}"
+               class="flex items-center rounded-lg px-[var(--menu-item-pad-x)] py-[var(--menu-item-pad-y)] {{ $isPinnedSection ? '' : 'pr-8' }} text-sm font-medium {{ $menuActive ? 'bg-white/15 text-white font-semibold' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}"
                :class="sidebarCollapsed ? 'justify-center' : 'gap-3'">
                 <x-nav-icon :name="$menu->icon" class="w-5 h-5 shrink-0 text-blue-200" />
                 <span x-show="!sidebarCollapsed" x-cloak>{{ $menu->translated_label }}</span>

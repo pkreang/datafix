@@ -85,6 +85,33 @@ Alpine.store('theme', {
     }
 });
 
+// Density store — comfortable (default) / compact. Mirrors theme precedence
+// (server <meta> > localStorage > default) so a signed-in user's choice
+// follows them across devices while a guest still gets per-browser toggle.
+Alpine.store('density', {
+    mode: 'comfortable',
+    init() {
+        const serverPref = document.querySelector('meta[name="user-density"]')?.content;
+        const saved = localStorage.getItem('density');
+        let effective = 'comfortable';
+        if (serverPref === 'compact') {
+            effective = 'compact';
+        } else if (saved === 'compact' || saved === 'comfortable') {
+            effective = saved;
+        }
+        this.mode = effective;
+        this.apply();
+    },
+    toggle() {
+        this.mode = this.mode === 'compact' ? 'comfortable' : 'compact';
+        localStorage.setItem('density', this.mode);
+        this.apply();
+    },
+    apply() {
+        document.documentElement.classList.toggle('compact', this.mode === 'compact');
+    }
+});
+
 // User index search component
 Alpine.data('userIndex', (initialQuery = '') => ({
     query: initialQuery,
@@ -599,6 +626,9 @@ Alpine.start();
 
 // Sync theme store with FOUC
 Alpine.store('theme').init();
+
+// Sync density store with FOUC
+Alpine.store('density').init();
 
 // Seed pinned menus from server-side payload
 Alpine.store('pinnedMenus').init();

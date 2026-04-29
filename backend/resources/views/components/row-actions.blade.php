@@ -52,14 +52,14 @@
                         @csrf
                         @method($item['method'])
                         <button type="submit"
-                                class="flex items-center gap-2 w-full px-4 py-2 text-sm {{ $class }} text-left">
+                                class="flex items-center gap-2 w-full px-[var(--cell-pad-x)] py-[var(--cell-pad-y)] text-sm {{ $class }} text-left">
                             @include('components._row-action-icon', ['icon' => $iconName])
                             {{ $item['label'] }}
                         </button>
                     </form>
                 @else
                     <a href="{{ $item['href'] }}"
-                       class="flex items-center gap-2 px-4 py-2 text-sm {{ $class }}">
+                       class="flex items-center gap-2 px-[var(--cell-pad-x)] py-[var(--cell-pad-y)] text-sm {{ $class }}">
                         @include('components._row-action-icon', ['icon' => $iconName])
                         {{ $item['label'] }}
                     </a>

@@ -117,10 +117,10 @@
             $groupRows = [[]];
         }
     @endphp
-    <div class="mt-1 space-y-2"
+    <div class="mt-[var(--field-label-gap)] space-y-[var(--field-gap)]"
          x-data="groupRepeater({ rows: @js($groupRows), minRows: {{ $groupMin }}, maxRows: {{ $groupMax }} })">
         <template x-for="(row, idx) in rows" :key="idx">
-            <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-800/30">
+            <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-[var(--card-pad-y)] bg-slate-50/50 dark:bg-slate-800/30">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
                         {{ $groupSingular }} #<span x-text="idx + 1"></span>
@@ -132,7 +132,7 @@
                                 @click="removeRow(idx)">{{ __('common.delete') }}</button>
                     @endif
                 </div>
-                <div class="grid gap-3" style="grid-template-columns: repeat({{ $groupCols }}, minmax(0, 1fr))">
+                <div class="grid gap-[var(--field-gap)]" style="grid-template-columns: repeat({{ $groupCols }}, minmax(0, 1fr))">
                     @foreach($innerFields as $inner)
                         @php
                             $iKey = $inner['key'];
@@ -191,7 +191,7 @@
                                     @endforeach
                                 </select>
                             @elseif($iType === 'multi_select' || $iType === 'checkbox')
-                                <div class="mt-1 space-y-1">
+                                <div class="mt-[var(--field-label-gap)] space-y-[var(--field-gap)]">
                                     @foreach((array) ($inner['options'] ?? []) as $opt)
                                         <label class="inline-flex items-center gap-2 text-xs mr-3">
                                             <input type="checkbox" value="{{ $opt }}"
@@ -245,7 +245,7 @@
     </select>
 
 @elseif($field->field_type === 'radio')
-    <div class="mt-2 space-y-1">
+    <div class="mt-2 space-y-[var(--field-gap)]">
         @foreach(($field->options ?? []) as $option)
             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 {{ $isReadOnly ? 'opacity-70' : '' }}">
                 <input type="radio" name="{{ $name }}" value="{{ $option }}" @checked($value === $option) @disabled($isReadOnly) class="border-gray-300 dark:border-gray-600 dark:bg-gray-700">
@@ -256,7 +256,7 @@
 
 @elseif($field->field_type === 'checkbox')
     @if(!empty($field->options))
-        <div class="mt-2 space-y-1">
+        <div class="mt-2 space-y-[var(--field-gap)]">
             @foreach(($field->options ?? []) as $option)
                 @php $checked = is_array($value) ? in_array($option, $value) : false; @endphp
                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 {{ $isReadOnly ? 'opacity-70' : '' }}">

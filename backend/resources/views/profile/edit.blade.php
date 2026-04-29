@@ -228,13 +228,22 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="theme" class="form-label">{{ __('common.theme') }}</label>
-                    <select name="theme" id="theme" class="form-input max-w-xs">
-                        <option value="system" @selected(old('theme', $user->theme ?? 'system') === 'system')>{{ __('common.theme_system') }}</option>
-                        <option value="light" @selected(old('theme', $user->theme) === 'light')>{{ __('common.theme_light') }}</option>
-                        <option value="dark" @selected(old('theme', $user->theme) === 'dark')>{{ __('common.theme_dark') }}</option>
-                    </select>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="theme" class="form-label">{{ __('common.theme') }}</label>
+                        <select name="theme" id="theme" class="form-input">
+                            <option value="system" @selected(old('theme', $user->theme ?? 'system') === 'system')>{{ __('common.theme_system') }}</option>
+                            <option value="light" @selected(old('theme', $user->theme) === 'light')>{{ __('common.theme_light') }}</option>
+                            <option value="dark" @selected(old('theme', $user->theme) === 'dark')>{{ __('common.theme_dark') }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="density" class="form-label">{{ __('common.density') }}</label>
+                        <select name="density" id="density" class="form-input">
+                            <option value="comfortable" @selected(old('density', $user->density ?? 'comfortable') === 'comfortable')>{{ __('common.density_comfortable') }}</option>
+                            <option value="compact" @selected(old('density', $user->density) === 'compact')>{{ __('common.density_compact') }}</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
