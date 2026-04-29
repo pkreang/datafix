@@ -21,7 +21,7 @@
 - ~~**Cascading UI**~~ — done: parent_id picker ใน items editor (cross-list dropdown) + registry filter by parent_id
 - ~~**Bulk CSV import/export**~~ — done: export CSV with UTF-8 BOM + import with replace/append mode + validation
 - ~~**Per-list permission**~~ — done: required_permission column + `LookupRegistry::accessibleSources()` + LookupController filters by user permission
-- **Migrate built-in 9 ตัวเป็น DB-driven** — DEFERRED (hybrid registry ปัจจุบันทำงานดีอยู่, full migrate ความเสี่ยงสูง benefit ต่ำ)
+- ~~**Migrate built-in 9 ตัวเป็น DB-driven**~~ — **WONTFIX 2026-04-29**: built-in 9 ตัว (user/equipment/company/branch/department/position/spare_part/equipment_category/equipment_location) เป็น **FK reference ไปยัง entity จริง** ไม่ใช่ static enum — `LookupListItem` มีแค่ `value`/`label_en`/`label_th` แทน Eloquent model พร้อม relationships/scoping/display logic (`[code] name — location`) ไม่ได้. Cascading ปัจจุบันใช้ FK จริง (`equipment.equipment_category_id` ฯลฯ) — migrate จะต้อง mirror ลง lookup_list_items ทุกครั้งที่สร้าง User/Equipment/etc. = sync hell. Hybrid registry คือ design ที่ถูกต้อง: static lists → DB, entity references → models.
 
 ## ~~Demo / Seed data~~ (เสร็จแล้ว)
 
@@ -57,8 +57,7 @@
 1. **PDF binary engine** (Browsershot vs DomPDF) — ต้องเลือก library + ยอมรับ Chrome Docker infra หรือ font setup ของ DomPDF
 2. **Email PDF** — รอ PDF engine
 3. **Excel xlsx export** — ต้อง install `spatie/simple-excel` (~10MB)
-4. **Migrate built-in 9 lookups → DB** — ขัดแย้งกับ design ปัจจุบัน (hybrid ทำงานดีอยู่ — full migrate เสี่ยง)
-5. **Density toggle** — UX pass ใหญ่, ต้อง design system alignment
+4. **Density toggle** — UX pass ใหญ่, ต้อง design system alignment
 
 ---
 
